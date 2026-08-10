@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실패의 지도 5번 — 범위 부풀리기: 게이트로 못 막는 유일한 실패</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --core:#4C8DAE; --extra:#C48A3F; --guard:#9A8BC4;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .stage{width:100%;max-width:940px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:#232E40}
+
+  /* ── 주차 타임라인 ────────────────────── */
+  .weeks{display:flex;gap:8px;margin-bottom:14px}
+  .wk{flex:1;text-align:center;padding:8px 4px;border:1px solid var(--line);border-radius:8px;
+    font-size:12.5px;color:var(--faint);transition:all .3s;background:var(--panel2)}
+  .wk .sub{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;margin-bottom:2px}
+  .wk.on{color:var(--text);border-color:var(--guard);
+    box-shadow:0 0 12px color-mix(in srgb, var(--guard) 28%, transparent)}
+  .wk.done{color:var(--muted)}
+
+  /* ── 본문 ─────────────────────────────── */
+  .board{display:grid;grid-template-columns:1fr 300px;gap:16px;margin-bottom:12px}
+  @media (max-width:720px){.board{grid-template-columns:1fr}}
+
+  .featPanel{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;position:relative}
+  .pTitle{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--faint);margin-bottom:12px}
+  .feat{display:grid;grid-template-columns:170px 1fr 52px;gap:10px;align-items:center;
+    margin-bottom:9px;opacity:0;transform:translateY(-6px);transition:opacity .5s, transform .5s}
+  .feat.show{opacity:1;transform:none}
+  .feat .fname{font-size:13px;color:var(--muted);transition:color .3s;word-break:keep-all}
+  .feat.coreF .fname{color:var(--text)}
+  .feat .track{height:16px;border:1px solid var(--line);border-radius:5px;overflow:hidden;
+    background:rgba(255,255,255,.015)}
+  .feat .fill{height:100%;width:0%;background:var(--fc,var(--core));
+    transition:width .9s cubic-bezier(.3,.7,.3,1), background .4s}
+  .feat.done100 .fill{background:var(--pass)}
+  .feat.stall .fill{background:repeating-linear-gradient(-45deg,
+    var(--fail) 0 8px, color-mix(in srgb, var(--fail) 35%, transparent) 8px 16px)}
+  .feat .pct{font-family:var(--mono);font-size:12px;text-align:right;color:var(--faint)}
+  .feat.done100 .pct{color:var(--pass)}
+  .feat.stall .pct{color:var(--fail)}
+  .metrics{display:flex;gap:22px;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+  .metric .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--faint)}
+  .metric .v{font-family:var(--mono);font-size:22px;font-weight:700;margin-top:2px}
+  .metric .v .u{font-size:12px;color:var(--muted);font-weight:500}
+
+  /* 요청 카드 */
+  .req{position:absolute;right:14px;top:14px;z-index:6;width:230px;
+    background:#232E40;border:1.5px solid var(--extra);border-radius:10px;padding:10px 12px;
+    opacity:0;transform:translateX(30px);transition:opacity .4s, transform .55s;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+  .req.show{opacity:1;transform:none}
+  .req.toFeat{transform:translate(-140px,40px) scale(.92);opacity:0;transition:transform .7s, opacity .6s}
+  .req.toGuard{transform:translateX(150px) rotate(3deg);opacity:0;transition:transform .7s, opacity .6s}
+  .req .rq{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--extra)}
+  .req .rt{font-size:13.5px;font-weight:700;margin-top:3px}
+  .req .stampR{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:18px;font-weight:800;color:var(--fail);border-radius:10px;
+    background:rgba(16,22,31,.55);opacity:0;transform:scale(1.6) rotate(-8deg);
+    transition:opacity .2s, transform .3s cubic-bezier(.2,1.6,.4,1)}
+  .req .stampR.show{opacity:1;transform:scale(1) rotate(-8deg)}
+
+  /* non-goals 계약서 */
+  .guardPanel{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;
+    display:flex;flex-direction:column}
+  .charter{border:1.5px dashed var(--faint);border-radius:10px;padding:12px;transition:all .4s}
+  .charter.active{border-style:solid;border-color:var(--guard)}
+  .charter.pulse{box-shadow:0 0 0 2.5px var(--guard), 0 0 18px color-mix(in srgb, var(--guard) 45%, transparent)}
+  .charter .ct{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--guard)}
+  .charter .cs{font-size:11.5px;color:var(--faint);margin-top:2px;margin-bottom:9px}
+  .ng{font-size:12.5px;color:var(--faint);padding:6px 8px;border-radius:6px;margin-bottom:4px;
+    border:1px solid transparent;transition:all .35s}
+  .ng b{font-weight:600}
+  .ng.hit{color:var(--text);border-color:var(--guard);
+    background:color-mix(in srgb, var(--guard) 12%, transparent)}
+  .charter.unsigned{opacity:.45}
+  .charter.unsigned .ct{color:var(--faint)}
+  .unsignedTag{font-family:var(--mono);font-size:10.5px;color:var(--fail);margin-top:8px;
+    min-height:15px;display:block}
+  .rejects{margin-top:12px}
+  .rejects .pTitle{margin-bottom:8px}
+  .rj{font-size:12px;color:var(--muted);border:1px solid var(--line);border-left:3px solid var(--guard);
+    border-radius:6px;padding:5px 9px;margin-bottom:5px;opacity:0;transition:opacity .5s}
+  .rj.show{opacity:1}
+  .rj .why{font-family:var(--mono);font-size:10.5px;color:var(--guard);display:block;margin-top:1px}
+
+  /* 판정/캡션 */
+  .verdictBar{display:flex;align-items:center;justify-content:center;min-height:58px;margin-bottom:6px}
+  .stamp{font-size:19px;font-weight:800;letter-spacing:.03em;padding:10px 24px;border-radius:10px;
+    border:2.5px solid;transform:rotate(-3deg) scale(1.6);opacity:0;white-space:nowrap;
+    transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .25s}
+  .stamp.show{opacity:1;transform:rotate(-3deg) scale(1)}
+  .stamp.pass{color:var(--pass);border-color:var(--pass);background:rgba(88,183,126,.08)}
+  .stamp.fail{color:var(--fail);border-color:var(--fail);background:rgba(228,88,90,.08)}
+  .caption{min-height:40px;font-size:13.5px;color:var(--muted);text-align:center;line-height:1.5}
+  .caption b{color:var(--text)}
+  .caption.flip{color:var(--pass)}
+  .caption.warn{color:var(--fail)}
+
+  footer{margin-top:10px;font-size:11.5px;color:var(--faint)}
+  @media (prefers-reduced-motion: reduce){
+    .feat,.feat .fill,.req,.stamp,.rj,.charter,.ng{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-1 · 실패의 지도 5번 — 게이트로 못 막는 유일한 실패</div>
+      <h1>범위 부풀리기 <span class="q">— 매주 조금씩 진행되다 마지막에 터진다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="btnCreep" class="primary">▶ 범위를 지키지 않으면</button>
+      <button id="btnGuard" class="primary">▶ non-goals가 지키면</button>
+      <button id="btnR">초기화</button>
+    </div>
+  </header>
+
+  <div class="weeks" id="weeks"></div>
+
+  <div class="board">
+    <div class="featPanel" id="featPanel">
+      <div class="pTitle">기능 완성도 — 메디콜(병원 예약 음성 접수)</div>
+      <div id="feats"></div>
+      <div class="metrics">
+        <div class="metric"><div class="k">완성 기능</div>
+          <div class="v"><span id="mDone">0</span><span class="u"> / <span id="mTotal">3</span>개</span></div></div>
+        <div class="metric"><div class="k">평균 완성도</div>
+          <div class="v"><span id="mAvg">0</span><span class="u"> %</span></div></div>
+        <div class="metric"><div class="k">팀 역량 분산</div>
+          <div class="v"><span id="mSplit">3</span><span class="u">갈래</span></div></div>
+      </div>
+    </div>
+
+    <div class="guardPanel">
+      <div class="charter" id="charter">
+        <div class="ct">project_charter.json — non_goals</div>
+        <div class="cs">안 하기로 <b>서명</b>한 것 3개 이상 (계약서 강제 조항)</div>
+        <div class="ng" id="ng0">증상 상담·진단 — <b>즉시 handoff</b> (의료법 리스크)</div>
+        <div class="ng" id="ng1">실제 EMR 연동 — PoC는 <b>모의 예약 DB</b></div>
+        <div class="ng" id="ng2">다국어 지원 — <b>한국어 단일</b></div>
+        <div class="ng" id="ng3">본인 인증·결제 — <b>모의 확인 절차</b></div>
+        <span class="unsignedTag" id="unsignedTag"></span>
+      </div>
+      <div class="rejects" id="rejects" style="display:none">
+        <div class="pTitle">기각 기록 — 선의를 사전에 기각해 둔 팀의 합의</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="verdictBar"><div class="stamp" id="stamp"></div></div>
+  <div class="caption" id="caption">두 버튼을 차례로 재생해 보세요 — 같은 프로젝트, 같은 요청 4건, 다른 결말입니다</div>
+
+  <footer>완성도 수치는 역량 분산을 보여주기 위한 <b>교육용 모형</b>입니다(실측 아님). 나머지 실패 4종은 게이트가 막지만, 범위 부풀리기만은 계약서의 <b>non_goals 3개 조항</b>이 막습니다 — 방아쇠가 결함이 아니라 "이것도 되면 좋겠다"는 선의이기 때문입니다.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var WEEKS = [
+    {id:"7-1", sub:"주제 선정"}, {id:"7-2", sub:"설계·준비"}, {id:"7-3", sub:"핵심 구현"},
+    {id:"7-4", sub:"통합"}, {id:"7-5", sub:"PoC 시연"}
+  ];
+  var FEATS = {
+    reserve:{name:"예약 접수 대화",       core:true},
+    slots:  {name:"날짜·시간 슬롯 파싱",  core:true},
+    handoff:{name:"상담원 이관 분기",     core:true},
+    sym:    {name:"증상 상담 응답",       core:false},
+    emr:    {name:"실제 EMR 연동",        core:false},
+    lang:   {name:"다국어 지원",          core:false},
+    pay:    {name:"본인 인증·결제",       core:false}
+  };
+  var REQUESTS = {
+    sym: {title:"증상 상담도 답해 주면 좋겠다",  ng:0},
+    emr: {title:"실제 병원 EMR에 연동하자",      ng:1},
+    lang:{title:"영어·중국어도 지원하자",        ng:2},
+    pay: {title:"본인 인증·결제까지 붙이자",     ng:3}
+  };
+  // 주차별 상태 (교육용 모형): 역량 100%/주가 활성 기능 수만큼 쪼개진다
+  var RUNS = {
+    creep: {
+      unsigned:true,
+      steps:[
+        {wk:1, state:{reserve:40, slots:30, handoff:20}, req:"sym",
+         cap:"7-2, 첫 요청이 옵니다. <b>\"증상 상담도 되면 좋겠는데?\"</b> — 거절할 근거가 없어 수용합니다."},
+        {wk:2, state:{reserve:55, slots:45, handoff:30, sym:25}, req:"emr",
+         cap:"역량이 4갈래로 쪼개졌습니다. 핵심 기능의 주간 진도가 눈에 띄게 줄었습니다."},
+        {wk:3, state:{reserve:65, slots:50, handoff:35, sym:35, emr:15}, req:"lang",
+         cap:"통합 주간 — 기능이 늘수록 서로를 흔듭니다. 그리고 또 요청이 옵니다."},
+        {wk:4, state:{reserve:72, slots:55, handoff:40, sym:40, emr:20, lang:10}, req:"pay",
+         cap:"시연 일주일 전. 아무도 \"안 된다\"고 서명해 둔 적이 없습니다."},
+        {wk:4, state:{reserve:72, slots:55, handoff:40, sym:40, emr:20, lang:10, pay:5},
+         cap:"기능 7개, 완성 0개 — 이제 시연장으로 갑니다."},
+        {wk:5, demo:true}
+      ],
+      verdict:{ok:false, text:"❌ 시연 실패 — 완성 기능 0 / 7"},
+      final:"매주 조금씩 진행되다 마지막에 터졌습니다 — <b>방아쇠는 결함이 아니라 선의</b>였습니다. 다른 실패는 게이트가 초반에 잡지만, 이 실패만은 그럴 수 없습니다."
+    },
+    guard: {
+      unsigned:false,
+      steps:[
+        {wk:1, state:{reserve:40, slots:35, handoff:25}, req:"sym",
+         cap:"같은 요청이 옵니다 — 하지만 이번엔 계약서에 <b>안 하기로 서명한 것</b>이 있습니다."},
+        {wk:2, state:{reserve:75, slots:70, handoff:55}, req:"emr",
+         cap:"역량은 계속 3갈래 — 핵심 기능의 진도가 유지됩니다."},
+        {wk:3, state:{reserve:95, slots:90, handoff:85}, req:"lang",
+         cap:"통합 주간에도 흔들릴 기능이 3개뿐입니다."},
+        {wk:4, state:{reserve:100, slots:100, handoff:100}, req:"pay",
+         cap:"시연 일주일 전, 핵심 3기능 완성 — 마지막 유혹까지 기각합니다."},
+        {wk:5, demo:true}
+      ],
+      verdict:{ok:true, text:"✅ 시연 성공 — 완성 기능 3 / 3"},
+      final:"<b>범위는 목표가 아니라 '하지 않을 것' 목록이 지킵니다.</b> 다 못 만든 거창한 작품과 다 만든 소박한 작품 — 시연에서 이기는 쪽은 언제나 후자입니다."
+    }
+  };
+
+  var $=function(id){return document.getElementById(id);};
+  var weeksEl=$("weeks"), featsEl=$("feats"), featPanel=$("featPanel");
+  var charter=$("charter"), rejects=$("rejects"), unsignedTag=$("unsignedTag");
+  var stamp=$("stamp"), caption=$("caption");
+  var btnCreep=$("btnCreep"), btnGuard=$("btnGuard"), btnR=$("btnR");
+  var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing=false, runId=0;
+  var featEls={};
+
+  // 주차 마커
+  var wkEls=[];
+  WEEKS.forEach(function(w){
+    var d=document.createElement("div"); d.className="wk";
+    d.innerHTML='<span class="sub">'+w.id+'</span>'+w.sub;
+    weeksEl.appendChild(d); wkEls.push(d);
+  });
+
+  function sleep(ms){
+    return new Promise(function(res){
+      if (reduced){ res(); return; }
+      setTimeout(res, ms);
+    });
+  }
+  function setCaption(html, cls){
+    caption.innerHTML=html;
+    caption.className="caption"+(cls?" "+cls:"");
+  }
+  function setWeek(i){
+    wkEls.forEach(function(w,j){
+      w.classList.toggle("on", j===i);
+      w.classList.toggle("done", j<i);
+    });
+  }
+  function addFeat(id){
+    var f=FEATS[id];
+    var row=document.createElement("div");
+    row.className="feat"+(f.core?" coreF":"");
+    row.style.setProperty("--fc", f.core?"var(--core)":"var(--extra)");
+    row.innerHTML='<div class="fname">'+f.name+(f.core?"":" <span style='font-size:10.5px;color:var(--extra)'>추가</span>")+'</div>'
+      + '<div class="track"><div class="fill"></div></div>'
+      + '<div class="pct">0%</div>';
+    featsEl.appendChild(row);
+    void row.offsetHeight; row.classList.add("show");
+    featEls[id]=row;
+    return row;
+  }
+  function applyState(state){
+    var vals=[], done=0;
+    Object.keys(state).forEach(function(id){
+      if (!featEls[id]) addFeat(id);
+      var row=featEls[id], pct=state[id];
+      row.querySelector(".fill").style.width=pct+"%";
+      row.querySelector(".pct").textContent=pct+"%";
+      row.classList.toggle("done100", pct>=100);
+      vals.push(pct);
+      if (pct>=100) done++;
+    });
+    $("mDone").textContent=done;
+    $("mTotal").textContent=vals.length;
+    $("mAvg").textContent=Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length);
+    $("mSplit").textContent=vals.length;
+  }
+  function showRequest(reqId){
+    var r=document.createElement("div");
+    r.className="req";
+    r.innerHTML='<div class="rq">이해관계자 요청</div><div class="rt">"'+REQUESTS[reqId].title+'"</div>'
+      +'<div class="stampR">기각</div>';
+    featPanel.appendChild(r);
+    void r.offsetHeight; r.classList.add("show");
+    return r;
+  }
+  function addReject(reqId){
+    var d=document.createElement("div"); d.className="rj";
+    d.innerHTML="<b>"+REQUESTS[reqId].title+"</b><span class='why'>기각 — non_goal "
+      +(REQUESTS[reqId].ng+1)+"조: 서명해 둔 '안 하는 것'</span>";
+    rejects.appendChild(d);
+    void d.offsetHeight; d.classList.add("show");
+  }
+
+  async function play(kind){
+    if (playing) return;
+    reset();
+    playing=true; btnCreep.disabled=btnGuard.disabled=true;
+    var myRun=runId;
+    var run=RUNS[kind];
+
+    if (run.unsigned){
+      charter.classList.add("unsigned");
+      unsignedTag.textContent="⚠ non_goals에 서명하지 않음";
+    } else {
+      charter.classList.add("active");
+      rejects.style.display="";
+    }
+    setWeek(0);
+    setCaption(kind==="creep"
+      ? "7-1: 주제는 정했지만 <b>'안 하는 것'은 정하지 않았습니다.</b>"
+      : "7-1: 주제와 함께 <b>non_goals 4개에 서명</b>했습니다 — 계약서가 강제하는 3개 이상.");
+    // 핵심 3기능 등장
+    ["reserve","slots","handoff"].forEach(addFeat);
+    await sleep(1500);
+
+    for (var s=0; s<run.steps.length; s++){
+      if (myRun!==runId) return;
+      var step=run.steps[s];
+      if (step.demo){
+        // ── 7-5 시연
+        setWeek(4);
+        setCaption("7-5 시연 — 심사는 완성된 것만 봅니다.");
+        await sleep(900);
+        var anyStall=false;
+        Object.keys(featEls).forEach(function(id){
+          var row=featEls[id];
+          var pct=parseInt(row.querySelector(".pct").textContent,10);
+          if (pct<100){ row.classList.add("stall"); anyStall=true; }
+        });
+        await sleep(anyStall?1100:500);
+        stamp.className="stamp"; void stamp.offsetHeight;
+        stamp.textContent=run.verdict.text;
+        stamp.classList.add(run.verdict.ok?"pass":"fail");
+        requestAnimationFrame(function(){ stamp.classList.add("show"); });
+        setCaption(run.final, run.verdict.ok?"flip":"warn");
+        break;
+      }
+      setWeek(step.wk);
+      applyState(step.state);
+      if (step.cap) setCaption(step.cap);
+      await sleep(1450);
+      if (myRun!==runId) return;
+
+      if (step.req){
+        var card=showRequest(step.req);
+        await sleep(1050);
+        if (myRun!==runId) return;
+        if (run.unsigned){
+          // 수용 → 기능 목록으로 흡수
+          card.classList.add("toFeat");
+          await sleep(600);
+          card.remove();
+        } else {
+          // 시그니처: 계약서에 부딪혀 기각
+          charter.classList.add("pulse");
+          $("ng"+REQUESTS[step.req].ng).classList.add("hit");
+          card.querySelector(".stampR").classList.add("show");
+          await sleep(850);
+          card.classList.add("toGuard");
+          await sleep(550);
+          card.remove();
+          charter.classList.remove("pulse");
+          addReject(step.req);
+        }
+        await sleep(400);
+      }
+    }
+    playing=false;
+    btnCreep.disabled=btnGuard.disabled=false;
+  }
+
+  function reset(){
+    runId++;
+    playing=false;
+    btnCreep.disabled=btnGuard.disabled=false;
+    featsEl.innerHTML=""; featEls={};
+    featPanel.querySelectorAll(".req").forEach(function(r){ r.remove(); });
+    rejects.querySelectorAll(".rj").forEach(function(r){ r.remove(); });
+    rejects.style.display="none";
+    charter.className="charter"; unsignedTag.textContent="";
+    for (var i=0;i<4;i++) $("ng"+i).classList.remove("hit");
+    stamp.className="stamp"; stamp.textContent="";
+    wkEls.forEach(function(w){ w.className="wk"; });
+    $("mDone").textContent="0"; $("mTotal").textContent="3";
+    $("mAvg").textContent="0"; $("mSplit").textContent="3";
+    setCaption("두 버튼을 차례로 재생해 보세요 — 같은 프로젝트, 같은 요청 4건, 다른 결말입니다");
+  }
+
+  btnCreep.addEventListener("click", function(){ play("creep"); });
+  btnGuard.addEventListener("click", function(){ play("guard"); });
+  btnR.addEventListener("click", reset);
+})();
+</script>
+</body>
+</html>
