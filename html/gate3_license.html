@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gate 3 — 라이선스: 최솟값 규칙</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --asr:#4C8DAE; --llm:#C48A3F; --tts:#7A9E6E;
+    --pass:#58B77E; --fail:#E4585A;
+    --lic0:#58B77E; --lic1:#C4A03F; --lic2:#E4585A; --lic3:#9A5CC6; --lic4:#98A2B3;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .stage{width:100%;max-width:920px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:#232E40}
+
+  .picker{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px}
+  .pickRow{display:flex;align-items:flex-start;gap:12px}
+  .pickLabel{flex:0 0 46px;padding-top:7px;display:flex;align-items:center;gap:7px;
+    font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted)}
+  .pickLabel i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{
+    font-family:var(--sans);font-size:13px;font-weight:500;color:var(--muted);
+    background:transparent;border:1px solid var(--line);border-radius:999px;
+    padding:6px 13px;cursor:pointer;transition:all .15s;
+  }
+  .chip .lic{font-family:var(--mono);font-size:11px;margin-left:6px;color:var(--licc,var(--faint))}
+  .chip:hover:not(:disabled){border-color:var(--muted);color:var(--text)}
+  .chip:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  .chip:disabled{opacity:.4;cursor:default}
+  .chip.sel{color:var(--text);border-color:var(--chipc,var(--muted));
+    background:color-mix(in srgb, var(--chipc,#8B98AC) 16%, transparent)}
+  .pickRow.use .chip{--chipc:#9A8BC4}
+
+  /* ── 파이프라인 (물들이기 무대) ─────────── */
+  .pipe{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:22px;margin-bottom:16px}
+  .pipeRow{display:flex;align-items:stretch;gap:0}
+  .card{position:relative;flex:1;border:1.5px solid var(--cardc,var(--line));border-radius:10px;
+    padding:13px 12px 11px;background:color-mix(in srgb, var(--cardc,#2B3648) 10%, transparent);
+    overflow:hidden;transition:border-color .4s, box-shadow .4s;min-width:0}
+  .card .kind{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--faint)}
+  .card .name{font-size:13.5px;font-weight:600;margin-top:4px;line-height:1.35;word-break:keep-all;
+    position:relative;z-index:1}
+  .card .grade{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:11px;
+    color:var(--cardc,var(--muted));border:1px solid var(--cardc,var(--line));border-radius:5px;
+    padding:2px 7px;position:relative;z-index:1;background:var(--panel2);transition:color .4s,border-color .4s}
+  .card .tint{position:absolute;inset:0;background:var(--tintc,transparent);opacity:0;
+    transition:opacity .55s ease}
+  .card.tinted .tint{opacity:.34}
+  .card.tinted{border-color:var(--tintc)}
+  .card.tinted .grade{color:var(--tintc);border-color:var(--tintc)}
+  .card.hatch .tint{background:repeating-linear-gradient(-45deg,
+    var(--tintc) 0 9px, color-mix(in srgb, var(--tintc) 40%, transparent) 9px 18px)}
+  .card.dominant{box-shadow:0 0 0 2.5px var(--tintc), 0 0 18px color-mix(in srgb, var(--tintc) 55%, transparent)}
+  .card.dominant .domTag{opacity:1}
+  .domTag{position:absolute;top:7px;right:8px;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.08em;color:var(--tintc);opacity:0;transition:opacity .4s;z-index:1}
+  .conn{flex:0 0 34px;position:relative;align-self:center;height:8px}
+  .conn .rail{position:absolute;inset:0;margin:3px 2px;background:var(--line);border-radius:2px}
+  .conn .flow{position:absolute;inset:0;margin:3px 2px;background:var(--tintc,transparent);
+    border-radius:2px;transform:scaleX(0);transition:transform .4s ease}
+  .conn.tinted .flow{transform:scaleX(1)}
+  .card.out{flex:1.1;border-style:dashed}
+  .pipeCap{margin-top:12px;font-size:12px;color:var(--faint);min-height:17px;transition:color .3s}
+
+  /* ── 하단: 랭크 사다리 + 판정 ───────────── */
+  .log{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:18px;
+    display:grid;grid-template-columns:1fr 320px;gap:18px}
+  @media (max-width:680px){.log{grid-template-columns:1fr}.pipeRow{flex-wrap:wrap}.conn{display:none}.card{flex:1 1 45%}}
+  .ladder{display:flex;flex-direction:column;gap:6px}
+  .lrow{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid transparent;
+    border-radius:8px;transition:all .35s;font-size:13.5px;color:var(--faint)}
+  .lrow i{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+  .lrow .rk{font-family:var(--mono);font-size:11px;width:16px;color:var(--faint)}
+  .lrow .rule{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .lrow.hit{color:var(--text);border-color:var(--hitc);
+    background:color-mix(in srgb, var(--hitc) 12%, transparent)}
+  .lrow.hit .rk,.lrow.hit .rule{color:var(--text)}
+  .right{display:flex;flex-direction:column}
+  .formula{font-family:var(--mono);font-size:14px;line-height:1.9;color:var(--faint)}
+  .formula .v{color:var(--text);opacity:0;transition:opacity .4s}
+  .formula .v.show{opacity:1}
+  .note{display:block;font-family:var(--sans);font-size:12px;min-height:48px;margin-top:6px;
+    color:var(--fail);opacity:0;transition:opacity .4s;line-height:1.5}
+  .note.show{opacity:1}
+  .note.info{color:var(--muted)}
+  .note.flip{color:var(--pass)}
+  .verdict{margin-top:auto;min-height:64px;display:flex;align-items:center;justify-content:center}
+  .stamp{font-size:18px;font-weight:800;letter-spacing:.03em;padding:10px 20px;border-radius:10px;
+    border:2.5px solid;transform:rotate(-3deg) scale(1.6);opacity:0;
+    transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .25s;white-space:nowrap}
+  .stamp.show{opacity:1;transform:rotate(-3deg) scale(1)}
+  .stamp.pass{color:var(--pass);border-color:var(--pass);background:rgba(88,183,126,.08)}
+  .stamp.fail{color:var(--fail);border-color:var(--fail);background:rgba(228,88,90,.08)}
+
+  footer{margin-top:14px;font-size:11.5px;color:var(--faint)}
+  footer code{font-family:var(--mono)}
+  @media (prefers-reduced-motion: reduce){
+    .card .tint,.conn .flow,.stamp,.formula .v,.note,.lrow{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-1 · Gate 3 · 조합 판정 = 구성원 중 가장 까다로운 등급</div>
+      <h1>라이선스 <span class="q">— 최솟값 규칙: 하나가 전체를 물들인다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="btnPlay" class="primary">▶ 이 조합 재생</button>
+      <button id="btnA">프리셋 A — NC 물들이기(§5)</button>
+      <button id="btnB">프리셋 B — 조건부 지배</button>
+      <button id="btnC">프리셋 C — 미확인</button>
+      <button id="btnR">초기화</button>
+    </div>
+  </header>
+
+  <div class="picker">
+    <div class="pickRow">
+      <div class="pickLabel"><i style="background:var(--asr)"></i>ASR</div>
+      <div class="chips" id="chipsAsr"></div>
+    </div>
+    <div class="pickRow">
+      <div class="pickLabel"><i style="background:var(--llm)"></i>LLM</div>
+      <div class="chips" id="chipsLlm"></div>
+    </div>
+    <div class="pickRow">
+      <div class="pickLabel"><i style="background:var(--tts)"></i>TTS</div>
+      <div class="chips" id="chipsTts"></div>
+    </div>
+    <div class="pickRow use">
+      <div class="pickLabel"><i style="background:#9A8BC4"></i>배포</div>
+      <div class="chips" id="chipsUse"></div>
+    </div>
+  </div>
+
+  <div class="pipe">
+    <div class="pipeRow" id="pipeRow"></div>
+    <div class="pipeCap" id="pipeCap">모델과 배포 의도를 고르고 ▶ 재생을 누르세요</div>
+  </div>
+
+  <div class="log">
+    <div class="ladder" id="ladder"></div>
+    <div class="right">
+      <div class="formula">
+        조합 판정 = max(구성원 랭크)<br>
+        = <span class="v" id="fWorst">·</span><br>
+        지배 구성원: <span class="v" id="fDom">·</span><br>
+        배포 의도: <span id="fIntent">·</span>
+        <span class="note" id="fNote"></span>
+      </div>
+      <div class="verdict"><div class="stamp" id="stamp"></div></div>
+    </div>
+  </div>
+
+  <footer>라이선스 표기는 과정 세션 <b>시점 기록</b>입니다 — 서명 전 <code>V2</code>(저장소 LICENSE <b>원문</b>, 카드 요약 금지) 재검증 의무. 재생이 끝난 뒤 <b>배포 칩을 바꿔 보세요</b> — 같은 조합의 판정이 바뀝니다. "커뮤니티-TTS(미표기)"는 미확인 등급 시연용 가상 항목입니다.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ── 노트북 LICENSE_RANK / RANK_NAME 그대로
+  var RANKS = [
+    {rank:0, name:"상업 자유",              color:"var(--lic0)", rule:"상업 ✓ · PoC ✓"},
+    {rank:1, name:"조건부(고지·약관 준수)", color:"var(--lic1)", rule:"상업 ✓ · PoC ✓"},
+    {rank:2, name:"비상업(NC)",             color:"var(--lic2)", rule:"상업 ✗ · PoC ✓"},
+    {rank:3, name:"연구 전용",              color:"var(--lic3)", rule:"상업 ✗ · PoC ✗"},
+    {rank:4, name:"미확인",                 color:"var(--lic4)", rule:"어떤 의도로도 ✗"}
+  ];
+  var LIC = { "상업 자유":0, "조건부 상업":1, "API 약관":1, "비상업(NC)":2, "연구 전용":3, "미확인":4 };
+
+  // ── 카탈로그: 라이선스는 시점 기록 (V2 재검증 의무)
+  var CATALOG = {
+    asr: [
+      {label:"faster-whisper-small(int8)",          lic:"상업 자유"},
+      {label:"SenseVoice-Small(fp16)",              lic:"상업 자유"},
+      {label:"faster-whisper-medium(int8)",         lic:"상업 자유"},
+      {label:"faster-whisper-large-v3-turbo(int8)", lic:"상업 자유"},
+      {label:"faster-whisper-large-v3",             lic:"상업 자유"}
+    ],
+    llm: [
+      {label:"EXAONE-4.0-1.2B(fp16)", lic:"조건부 상업"},
+      {label:"Midm-2.0-Mini(fp16)",   lic:"조건부 상업"},
+      {label:"Bllossom-3B(fp16)",     lic:"상업 자유"},
+      {label:"Qwen3-8B(4bit)",        lic:"상업 자유"},
+      {label:"Qwen3-8B(fp16)",        lic:"상업 자유"},
+      {label:"Gemini-API",            lic:"API 약관"}
+    ],
+    tts: [
+      {label:"Kokoro(82M)",             lic:"상업 자유"},
+      {label:"F5-TTS",                  lic:"비상업(NC)"},
+      {label:"Chatterbox-Multilingual", lic:"상업 자유"},
+      {label:"Fish-Speech-1.5",         lic:"비상업(NC)"},
+      {label:"커뮤니티-TTS(미표기)",     lic:"미확인"}
+    ]
+  };
+  var INTENTS = [
+    {key:"상업",            label:"상업 서비스"},
+    {key:"수업 PoC(비상업)", label:"수업 PoC(비상업)"}
+  ];
+  var PRESETS = {
+    A: {name:"프리셋 A — 조합 A + F5-TTS(음색이 탐나서), 배포 '상업'",
+        asr:"faster-whisper-small(int8)", llm:"EXAONE-4.0-1.2B(fp16)", tts:"F5-TTS", use:"상업"},
+    B: {name:"프리셋 B — 조건부 지배 (EXAONE + Kokoro), 배포 '상업'",
+        asr:"faster-whisper-small(int8)", llm:"EXAONE-4.0-1.2B(fp16)", tts:"Kokoro(82M)", use:"상업"},
+    C: {name:"프리셋 C — 라이선스 미표기 TTS를 넣으면",
+        asr:"faster-whisper-small(int8)", llm:"Bllossom-3B(fp16)", tts:"커뮤니티-TTS(미표기)", use:"수업 PoC(비상업)"}
+  };
+  var KINDCOLOR={asr:"var(--asr)",llm:"var(--llm)",tts:"var(--tts)"};
+  var KINDNAME={asr:"ASR",llm:"LLM",tts:"TTS"};
+
+  var $=function(id){return document.getElementById(id);};
+  var pipeRow=$("pipeRow"), pipeCap=$("pipeCap"), ladderEl=$("ladder"), stamp=$("stamp");
+  var btnPlay=$("btnPlay"), btnA=$("btnA"), btnB=$("btnB"), btnC=$("btnC"), btnR=$("btnR");
+  var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing=false, hasRun=false, runId=0, lastWorst=null, lastVerdict=null, lastDomNames=[];
+  var selected={asr:CATALOG.asr[0].label, llm:CATALOG.llm[0].label,
+                tts:CATALOG.tts[0].label, use:INTENTS[1].key};
+
+  // ── 랭크 사다리
+  var ladderRows=[];
+  RANKS.forEach(function(r){
+    var d=document.createElement("div"); d.className="lrow";
+    d.style.setProperty("--hitc", r.color);
+    d.innerHTML='<span class="rk">'+r.rank+'</span><i style="background:'+r.color+'"></i>'
+      + r.name + '<span class="rule">'+r.rule+'</span>';
+    ladderEl.appendChild(d); ladderRows.push(d);
+  });
+
+  // ── 칩
+  var chipEls={asr:[],llm:[],tts:[],use:[]};
+  function licColor(lic){ return RANKS[LIC[lic]].color; }
+  function buildModelChips(kind, holderId){
+    var holder=$(holderId);
+    CATALOG[kind].forEach(function(m){
+      var b=document.createElement("button");
+      b.className="chip"; b.type="button";
+      b.style.setProperty("--chipc", KINDCOLOR[kind]);
+      b.style.setProperty("--licc", licColor(m.lic));
+      b.innerHTML=m.label+'<span class="lic">'+m.lic+'</span>';
+      b.addEventListener("click", function(){
+        if (playing) return;
+        selected[kind]=m.label; syncChips();
+        if (hasRun) softReset();
+      });
+      holder.appendChild(b);
+      chipEls[kind].push({el:b, key:m.label});
+    });
+  }
+  function buildUseChips(){
+    var holder=$("chipsUse");
+    INTENTS.forEach(function(u){
+      var b=document.createElement("button");
+      b.className="chip"; b.type="button";
+      b.textContent=u.label;
+      b.addEventListener("click", function(){
+        if (playing) return;
+        selected.use=u.key; syncChips();
+        $("fIntent").textContent=u.key;
+        if (hasRun) reVerdict();     // 시그니처: 같은 조합, 의도만 바꿔 재판정
+      });
+      holder.appendChild(b);
+      chipEls.use.push({el:b, key:u.key});
+    });
+  }
+  function syncChips(){
+    ["asr","llm","tts","use"].forEach(function(kind){
+      chipEls[kind].forEach(function(c){
+        c.el.classList.toggle("sel", c.key===selected[kind]);
+      });
+    });
+  }
+  function setChipsDisabled(dis){
+    ["asr","llm","tts","use"].forEach(function(kind){
+      chipEls[kind].forEach(function(c){ c.el.disabled=dis; });
+    });
+  }
+  buildModelChips("asr","chipsAsr"); buildModelChips("llm","chipsLlm");
+  buildModelChips("tts","chipsTts"); buildUseChips(); syncChips();
+  $("fIntent").textContent=selected.use;
+
+  function findModel(kind,label){
+    for (var i=0;i<CATALOG[kind].length;i++)
+      if (CATALOG[kind][i].label===label) return CATALOG[kind][i];
+    return null;
+  }
+  function currentStack(){
+    return ["asr","llm","tts"].map(function(kind){
+      var m=findModel(kind, selected[kind]);
+      return {label:m.label, kind:kind, lic:m.lic, rank:LIC[m.lic]};
+    });
+  }
+  function sleep(ms){
+    return new Promise(function(res){
+      if (reduced){ res(); return; }
+      setTimeout(res, ms);
+    });
+  }
+
+  // ── 판정 (노트북 license_check 그대로)
+  function verdictOf(worst, intent){
+    if (worst>=4) return false;
+    if (intent==="상업") return worst<=1;
+    return worst<=2;
+  }
+  function setStamp(ok, worst, intent){
+    stamp.className="stamp"; void stamp.offsetHeight;
+    stamp.textContent=(ok?"✅ 통과":"❌ 탈락")+" — "+RANKS[worst].name+" / "+intent;
+    stamp.classList.add(ok?"pass":"fail");
+    requestAnimationFrame(function(){ stamp.classList.add("show"); });
+  }
+  function setNote(text, cls){
+    var n=$("fNote");
+    n.textContent=text||"";
+    n.className="note"+(cls?" "+cls:"")+(text?" show":"");
+  }
+  function baseNote(ok, worst, intent){
+    if (worst>=4){
+      setNote("미확인은 NC보다 나쁩니다 — NC는 '상업 불가'라는 경계라도 알려 주지만, 미확인은 경계의 위치조차 모르는 상태입니다. LICENSE 원문 확인(V2) 전에는 어떤 의도로도 서명할 수 없습니다.", null);
+    } else if (!ok && worst===2){
+      setNote("TTS 하나가 NC면 서비스 전체가 NC가 됩니다 — 평균이 아니라 최솟값 규칙.  ▶ 이제 배포 칩을 'PoC'로 바꿔 보세요.", null);
+    } else if (!ok){
+      setNote("이 배포 의도로는 통과할 수 없는 등급입니다.", null);
+    } else if (ok && worst===2){
+      setNote("PoC는 통과합니다. 단, 최종 목표가 상업이라면 지금 바꾸는 게 쌉니다 — 7-3에서 엔진 교체는 코드 한 줄이지만 음색·품질을 다시 맞추는 건 한 줄이 아닙니다.", "info");
+    } else if (ok && worst===1){
+      setNote("조건부 지배 — 통과하지만 고지 의무·약관 준수 조건이 산출물 전체에 걸립니다. 계약서 리스크란 후보입니다.", "info");
+    } else {
+      setNote("전 구성원 상업 자유 — 어떤 배포 의도로도 자유롭습니다.", "info");
+    }
+  }
+  function reVerdict(){
+    var intent=selected.use;
+    var ok=verdictOf(lastWorst, intent);
+    setStamp(ok, lastWorst, intent);
+    if (lastVerdict!==null && ok!==lastVerdict){
+      if (ok){
+        setNote("같은 조합, 배포 의도만 바꿨습니다 — 판정이 뒤집힙니다. 단, 색은 그대로입니다: 조합이 "+RANKS[lastWorst].name+"라는 사실은 변하지 않았습니다.", "flip");
+      } else {
+        setNote("배포 의도를 되돌리자 다시 탈락 — 물든 색(등급)은 그대로, 허용선만 달라졌습니다.", null);
+      }
+    } else {
+      baseNote(ok, lastWorst, intent);
+    }
+    lastVerdict=ok;
+  }
+
+  // ── 파이프라인 카드 구성
+  function buildPipe(models){
+    pipeRow.innerHTML="";
+    var cards=[], conns=[];
+    var seq=models.concat([{label:"파이프라인 산출물", kind:"out", lic:null}]);
+    seq.forEach(function(m, i){
+      if (i>0){
+        var c=document.createElement("div"); c.className="conn";
+        c.innerHTML='<div class="rail"></div><div class="flow"></div>';
+        pipeRow.appendChild(c); conns.push(c);
+      }
+      var card=document.createElement("div");
+      card.className="card"+(m.kind==="out"?" out":"");
+      var kindTxt = m.kind==="out" ? "OUTPUT" : KINDNAME[m.kind];
+      var gradeTxt = m.lic===null ? "등급 미정" : m.lic;
+      card.innerHTML='<div class="tint"></div><span class="domTag">지배 구성원</span>'
+        + '<div class="kind">'+kindTxt+'</div>'
+        + '<div class="name">'+m.label+'</div>'
+        + '<div class="grade">'+gradeTxt+'</div>';
+      if (m.lic!==null) card.style.setProperty("--cardc", licColor(m.lic));
+      pipeRow.appendChild(card); cards.push(card);
+    });
+    return {cards:cards, conns:conns};
+  }
+
+  function softReset(){
+    runId++;
+    playing=false; hasRun=false; lastWorst=null; lastVerdict=null; lastDomNames=[];
+    pipeRow.innerHTML="";
+    pipeCap.textContent="모델과 배포 의도를 고르고 ▶ 재생을 누르세요";
+    stamp.className="stamp"; stamp.textContent="";
+    ["fWorst","fDom"].forEach(function(id){
+      var e=$(id); e.classList.remove("show"); e.textContent="·";
+    });
+    setNote("", null);
+    ladderRows.forEach(function(r){ r.classList.remove("hit"); });
+    btnPlay.disabled=btnA.disabled=btnB.disabled=btnC.disabled=false;
+    setChipsDisabled(false);
+  }
+
+  async function play(comboName){
+    if (playing) return;
+    softReset();
+    playing=true;
+    btnPlay.disabled=btnA.disabled=btnB.disabled=btnC.disabled=true;
+    setChipsDisabled(true);
+    var myRun=runId;
+    var models=currentStack();
+    var intent=selected.use;
+    $("fIntent").textContent=intent;
+    pipeCap.textContent=comboName || models.map(function(m){return m.label;}).join(" + ");
+
+    var pipe=buildPipe(models);
+    await sleep(900);
+    if (myRun!==runId) return;
+
+    // 1) 지배 구성원 판정
+    var worst=Math.max.apply(null, models.map(function(m){return m.rank;}));
+    var domIdx=[];
+    models.forEach(function(m,i){ if (m.rank===worst) domIdx.push(i); });
+    lastDomNames=domIdx.map(function(i){return models[i].label;});
+    var tintColor=RANKS[worst].color;
+    var hatch=(worst>=4);
+
+    // 카드·연결선에 물들일 색 주입
+    pipe.cards.forEach(function(c){ c.style.setProperty("--tintc", tintColor); if (hatch) c.classList.add("hatch"); });
+    pipe.conns.forEach(function(c){ c.style.setProperty("--tintc", tintColor); });
+
+    // 지배 구성원 강조
+    var src=domIdx[0];
+    pipe.cards[src].classList.add("dominant");
+    pipeCap.textContent="지배 구성원: "+lastDomNames.join(", ")+" — "+RANKS[worst].name;
+    await sleep(850);
+    if (myRun!==runId) return;
+
+    // 2) 물들이기: 지배 구성원에서 양방향으로 파동 (연결선 → 카드 순)
+    var n=pipe.cards.length;
+    var order=[];
+    for (var d=0; d<n; d++){
+      [src-d, src+d].forEach(function(idx){
+        if (idx>=0 && idx<n && order.indexOf(idx)<0) order.push(idx);
+      });
+    }
+    for (var k=0;k<order.length;k++){
+      if (myRun!==runId) return;
+      var idx=order[k];
+      // 카드 사이 연결선: src에서 멀어지는 방향의 선을 먼저 채운다
+      if (idx>src && idx-1>=0) pipe.conns[idx-1].classList.add("tinted");
+      if (idx<src && idx<pipe.conns.length) pipe.conns[idx].classList.add("tinted");
+      pipe.cards[idx].classList.add("tinted");
+      await sleep(330);
+    }
+    await sleep(500);
+    if (myRun!==runId) return;
+
+    // 3) 사다리·판정식
+    ladderRows[worst].classList.add("hit");
+    $("fWorst").textContent=worst+" · "+RANKS[worst].name; $("fWorst").classList.add("show");
+    $("fDom").textContent=lastDomNames.join(", "); $("fDom").classList.add("show");
+    await sleep(550);
+    if (myRun!==runId) return;
+
+    // 4) 판정 도장
+    lastWorst=worst; hasRun=true;
+    var ok=verdictOf(worst, intent);
+    lastVerdict=ok;
+    setStamp(ok, worst, intent);
+    baseNote(ok, worst, intent);
+
+    playing=false;
+    btnPlay.disabled=btnA.disabled=btnB.disabled=btnC.disabled=false;
+    setChipsDisabled(false);
+  }
+
+  function applyPreset(key){
+    if (playing) return;
+    var p=PRESETS[key];
+    selected.asr=p.asr; selected.llm=p.llm; selected.tts=p.tts; selected.use=p.use;
+    syncChips(); $("fIntent").textContent=p.use;
+    play(p.name);
+  }
+
+  btnPlay.addEventListener("click", function(){ play(null); });
+  btnA.addEventListener("click", function(){ applyPreset("A"); });
+  btnB.addEventListener("click", function(){ applyPreset("B"); });
+  btnC.addEventListener("click", function(){ applyPreset("C"); });
+  btnR.addEventListener("click", softReset);
+})();
+</script>
+</body>
+</html>
