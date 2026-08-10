@@ -5,4 +5,5 @@
 - [지연 예산](https://imguru-mooc.github.io/AI_Voice/html/gate2_ttfa.html)
 - [라이센스](https://imguru-mooc.github.io/AI_Voice/html/gate3_license.html)
 - [4대 게이트 깔때기](https://imguru-mooc.github.io/AI_Voice/html/intro_funnel.html)
+- [실패의 지도 5번](https://imguru-mooc.github.io/AI_Voice/html/failmap5_scopecreep.html)
 
