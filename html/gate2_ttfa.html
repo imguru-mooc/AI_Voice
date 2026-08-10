@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gate 2 — 지연 예산: 주제의 유형이 예산을 정한다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --asr:#4C8DAE; --llm:#C48A3F; --tts:#7A9E6E;
+    --pass:#58B77E; --fail:#E4585A;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .stage{width:100%;max-width:920px}
+
+  /* ── 헤더 ─────────────────────────────── */
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s, background .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:#232E40}
+
+  /* ── 선택기 ───────────────────────────── */
+  .picker{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px}
+  .pickRow{display:flex;align-items:flex-start;gap:12px}
+  .pickLabel{flex:0 0 46px;padding-top:7px;display:flex;align-items:center;gap:7px;
+    font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted)}
+  .pickLabel i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{
+    font-family:var(--sans);font-size:13px;font-weight:500;color:var(--muted);
+    background:transparent;border:1px solid var(--line);border-radius:999px;
+    padding:6px 13px;cursor:pointer;transition:all .15s;
+  }
+  .chip .gb{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-left:5px}
+  .chip:hover:not(:disabled){border-color:var(--muted);color:var(--text)}
+  .chip:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  .chip:disabled{opacity:.4;cursor:default}
+  .chip.sel{color:var(--text);border-color:var(--chipc,var(--muted));
+    background:color-mix(in srgb, var(--chipc,#8B98AC) 16%, transparent)}
+  .chip.sel .gb{color:var(--text)}
+  .pickRow.use .chip{--chipc:#9A8BC4}
+
+  /* ── 타임라인 ─────────────────────────── */
+  .tl{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:20px 22px 16px;margin-bottom:16px}
+  .tlHead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:26px}
+  .comboName{font-size:14px;color:var(--muted)}
+  .comboName b{color:var(--text)}
+  .gate1warn{font-size:12px;color:var(--fail);min-height:16px;margin-top:3px;opacity:0;transition:opacity .3s}
+  .gate1warn.show{opacity:1}
+  .bignum{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+  .bignum .unit{font-size:14px;color:var(--muted);font-weight:500}
+  .track{position:relative;height:46px;border:1px solid var(--line);border-radius:6px;
+    background:rgba(255,255,255,.015);margin-bottom:34px}
+  .segs{position:absolute;inset:0;display:flex;overflow:hidden;border-radius:5px}
+  .tseg{height:100%;width:0%;position:relative;overflow:hidden}
+  .tseg .in{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:11.5px;color:rgba(255,255,255,.88);white-space:nowrap}
+  .tick{position:absolute;top:100%;transform:translateX(-50%);padding-top:5px;
+    font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .tickmark{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);opacity:.5}
+  /* 예산선 */
+  .budget{position:absolute;top:-14px;bottom:-14px;border-left:2px dashed var(--fail);
+    transition:left .8s cubic-bezier(.5,0,.2,1), opacity .5s;z-index:2}
+  .budget .tag{position:absolute;bottom:calc(100% + 2px);left:-2px;transform:translateX(-50%);
+    font-family:var(--mono);font-size:10.5px;color:var(--fail);letter-spacing:.04em;white-space:nowrap}
+  .budget.off{opacity:0}
+  .budget.flash{animation:bflash .55s ease-in-out 3}
+  @keyframes bflash{50%{filter:brightness(1.9) drop-shadow(0 0 6px rgba(228,88,90,.8))}}
+  .nolimit{position:absolute;right:10px;top:-24px;font-family:var(--mono);font-size:11px;
+    color:var(--muted);opacity:0;transition:opacity .5s}
+  .nolimit.show{opacity:1}
+
+  /* ── 로그 ─────────────────────────────── */
+  .log{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:18px;
+    display:grid;grid-template-columns:1fr 300px;gap:18px}
+  @media (max-width:680px){.log{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse}
+  td{padding:9px 4px;border-bottom:1px solid var(--line);font-size:14px;
+    color:var(--faint);transition:color .3s}
+  td.ms{font-family:var(--mono);text-align:right;white-space:nowrap}
+  td.dot{width:22px}
+  td.dot span{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--line);transition:background .3s}
+  tr.on td{color:var(--text)}
+  .right{display:flex;flex-direction:column}
+  .formula{font-family:var(--mono);font-size:14.5px;line-height:1.9;color:var(--faint)}
+  .formula .v{color:var(--text);opacity:0;transition:opacity .4s}
+  .formula .v.show{opacity:1}
+  .note{display:block;font-family:var(--sans);font-size:12px;min-height:36px;margin-top:6px;
+    color:var(--fail);opacity:0;transition:opacity .4s}
+  .note.show{opacity:1}
+  .note.info{color:var(--muted)}
+  .note.flip{color:var(--pass)}
+  .verdict{margin-top:auto;min-height:64px;display:flex;align-items:center;justify-content:center}
+  .stamp{font-size:19px;font-weight:800;letter-spacing:.03em;padding:10px 22px;border-radius:10px;
+    border:2.5px solid;transform:rotate(-3deg) scale(1.6);opacity:0;
+    transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .25s;white-space:nowrap}
+  .stamp.show{opacity:1;transform:rotate(-3deg) scale(1)}
+  .stamp.pass{color:var(--pass);border-color:var(--pass);background:rgba(88,183,126,.08)}
+  .stamp.fail{color:var(--fail);border-color:var(--fail);background:rgba(228,88,90,.08)}
+
+  footer{margin-top:14px;font-size:11.5px;color:var(--faint)}
+  footer code{font-family:var(--mono)}
+  @media (prefers-reduced-motion: reduce){
+    .tseg,.stamp,.formula .v,.budget,.note{transition:none}
+    .budget.flash{animation:none;filter:brightness(1.6)}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-1 · Gate 2 · 근사 TTFA = ASR + LLM 첫 문장 + TTS 첫 청크 (+ RTT)</div>
+      <h1>지연 예산 <span class="q">— 주제의 유형이 예산을 정한다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="btnPlay" class="primary">▶ 이 조합 재생</button>
+      <button id="btnA">프리셋 A</button>
+      <button id="btnB">프리셋 B — 판정 뒤집기</button>
+      <button id="btnC">프리셋 C — §9 동시통역</button>
+      <button id="btnR">초기화</button>
+    </div>
+  </header>
+
+  <div class="picker">
+    <div class="pickRow">
+      <div class="pickLabel"><i style="background:var(--asr)"></i>ASR</div>
+      <div class="chips" id="chipsAsr"></div>
+    </div>
+    <div class="pickRow">
+      <div class="pickLabel"><i style="background:var(--llm)"></i>LLM</div>
+      <div class="chips" id="chipsLlm"></div>
+    </div>
+    <div class="pickRow">
+      <div class="pickLabel"><i style="background:var(--tts)"></i>TTS</div>
+      <div class="chips" id="chipsTts"></div>
+    </div>
+    <div class="pickRow use">
+      <div class="pickLabel"><i style="background:#9A8BC4"></i>용도</div>
+      <div class="chips" id="chipsUse"></div>
+    </div>
+  </div>
+
+  <div class="tl">
+    <div class="tlHead">
+      <div>
+        <div class="comboName" id="comboName">모델과 용도를 고르고 ▶ 재생을 누르세요</div>
+        <div class="gate1warn" id="gate1warn"></div>
+      </div>
+      <div class="bignum"><span id="total">0</span> <span class="unit">ms</span></div>
+    </div>
+    <div class="track" id="track">
+      <div class="segs" id="segs"></div>
+      <div class="budget" id="budget"><span class="tag" id="budgetTag"></span></div>
+      <div class="nolimit" id="nolimit">예산 제한 없음 →</div>
+    </div>
+  </div>
+
+  <div class="log">
+    <table id="rows"></table>
+    <div class="right">
+      <div class="formula">
+        <span class="v" id="fAsr">·</span> + <span class="v" id="fLlm">·</span> + <span class="v" id="fTts">·</span> + RTT 0<br>
+        = <span class="v" id="fEst">·</span> &nbsp;vs&nbsp; <span id="fBudget">·</span>
+        <span class="note" id="fNote"></span>
+      </div>
+      <div class="verdict"><div class="stamp" id="stamp"></div></div>
+    </div>
+  </div>
+
+  <footer>수치는 과정 세션 실측 기반 근사 — 정밀 예측이 아니라 대략적인 규모 판정용입니다. 확정 전 <code>V3</code>(본인 T4 실측, 첫 실행 1회는 버림) 재검증 의무. 재생이 끝난 뒤 <b>용도 칩을 바꿔 보세요</b> — 막대는 그대로, 예산선만 움직입니다.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ── 스케일: 트랙 = 0 ~ 3500ms (최악 조합 3200ms 수용)
+  var MAXMS = 3500, T4 = 16.0;
+
+  // ── 노트북 MODEL_CATALOG의 first_ms/vram_gb (미기재 모델은 근사 보충)
+  var CATALOG = {
+    asr: [
+      {label:"faster-whisper-small(int8)",          ms:400,  gb:0.7},
+      {label:"SenseVoice-Small(fp16)",              ms:250,  gb:0.9},
+      {label:"faster-whisper-medium(int8)",         ms:600,  gb:1.2},
+      {label:"faster-whisper-large-v3-turbo(int8)", ms:500,  gb:1.5},
+      {label:"faster-whisper-large-v3",             ms:900,  gb:3.2}
+    ],
+    llm: [
+      {label:"EXAONE-4.0-1.2B(fp16)", ms:600,  gb:2.6},
+      {label:"Midm-2.0-Mini(fp16)",   ms:700,  gb:4.8},
+      {label:"Bllossom-3B(fp16)",     ms:800,  gb:6.5},
+      {label:"Qwen3-8B(4bit)",        ms:1200, gb:6.0},
+      {label:"Qwen3-8B(fp16)",        ms:1000, gb:16.5},
+      {label:"Gemini-API",            ms:700,  gb:0.0}
+    ],
+    tts: [
+      {label:"Kokoro(82M)",             ms:300,  gb:0.5},
+      {label:"F5-TTS",                  ms:900,  gb:1.5},
+      {label:"Chatterbox-Multilingual", ms:800,  gb:2.2},
+      {label:"Fish-Speech-1.5",         ms:1100, gb:4.0},
+      {label:"gTTS(API)",               ms:1000, gb:0.0}
+    ]
+  };
+  var USES = [
+    {key:"realtime_inbound", label:"실시간 인바운드", budget:1500,
+     note:"고객이 침묵을 견디는 시간 — 6-2 예산 그대로"},
+    {key:"outbound_notify",  label:"아웃바운드 통지", budget:3000,
+     note:"우리가 거는 전화 — 상용구 캐시로 첫 마디를 숨길 수 있어 여유"},
+    {key:"offline_batch",    label:"비실시간 배치",   budget:null,
+     note:"요약·분석 — TTFA 무의미, 처리량이 지표"}
+  ];
+  var PRESETS = {
+    A: {name:"프리셋 A — 경량 실시간 상담 스택",
+        asr:"faster-whisper-small(int8)", llm:"EXAONE-4.0-1.2B(fp16)", tts:"Kokoro(82M)",
+        use:"realtime_inbound"},
+    B: {name:"프리셋 B — LLM만 Qwen3-8B(4bit)로 (판정 뒤집기용)",
+        asr:"faster-whisper-small(int8)", llm:"Qwen3-8B(4bit)", tts:"Kokoro(82M)",
+        use:"realtime_inbound"},
+    C: {name:"프리셋 C — §9 실시간 동시통역 스택",
+        asr:"faster-whisper-large-v3", llm:"Qwen3-8B(4bit)", tts:"Chatterbox-Multilingual",
+        use:"realtime_inbound"}
+  };
+  var KINDCOLOR = {asr:"var(--asr)", llm:"var(--llm)", tts:"var(--tts)"};
+  var KINDNAME = {asr:"ASR", llm:"LLM", tts:"TTS"};
+
+  var $ = function(id){ return document.getElementById(id); };
+  var segsEl=$("segs"), track=$("track"), budgetEl=$("budget"), budgetTag=$("budgetTag");
+  var nolimitEl=$("nolimit"), totalEl=$("total"), rowsEl=$("rows");
+  var comboNameEl=$("comboName"), gate1warn=$("gate1warn"), stamp=$("stamp");
+  var btnPlay=$("btnPlay"), btnA=$("btnA"), btnB=$("btnB"), btnC=$("btnC"), btnR=$("btnR");
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing=false, hasRun=false, runId=0, lastEst=0, lastVerdict=null;
+  var selected = { asr: CATALOG.asr[0].label, llm: CATALOG.llm[0].label,
+                   tts: CATALOG.tts[0].label, use: USES[0].key };
+
+  // ── 칩 구성
+  var chipEls = {asr:[], llm:[], tts:[], use:[]};
+  function buildModelChips(kind, holderId){
+    var holder = $(holderId);
+    CATALOG[kind].forEach(function(m){
+      var b=document.createElement("button");
+      b.className="chip"; b.type="button";
+      b.style.setProperty("--chipc", KINDCOLOR[kind]);
+      b.innerHTML = m.label + '<span class="gb">' + m.ms + 'ms</span>';
+      b.addEventListener("click", function(){
+        if (playing) return;
+        selected[kind]=m.label; syncChips();
+        if (hasRun) softReset();          // 모델이 바뀌면 재생부터 다시
+      });
+      holder.appendChild(b);
+      chipEls[kind].push({el:b, key:m.label});
+    });
+  }
+  function buildUseChips(){
+    var holder=$("chipsUse");
+    USES.forEach(function(u){
+      var b=document.createElement("button");
+      b.className="chip"; b.type="button";
+      b.innerHTML = u.label + '<span class="gb">' + (u.budget===null ? "제한 없음" : u.budget+"ms") + '</span>';
+      b.addEventListener("click", function(){
+        if (playing) return;
+        selected.use = u.key; syncChips();
+        moveBudget(true);
+        if (hasRun) reVerdict();          // 시그니처: 막대는 그대로, 예산선만 이동 → 재판정
+      });
+      holder.appendChild(b);
+      chipEls.use.push({el:b, key:u.key});
+    });
+  }
+  function syncChips(){
+    ["asr","llm","tts","use"].forEach(function(kind){
+      chipEls[kind].forEach(function(c){
+        c.el.classList.toggle("sel", c.key === selected[kind]);
+      });
+    });
+  }
+  function setChipsDisabled(dis, exceptUse){
+    ["asr","llm","tts"].forEach(function(kind){
+      chipEls[kind].forEach(function(c){ c.el.disabled = dis; });
+    });
+    chipEls.use.forEach(function(c){ c.el.disabled = exceptUse ? false : dis; });
+  }
+  buildModelChips("asr","chipsAsr"); buildModelChips("llm","chipsLlm");
+  buildModelChips("tts","chipsTts"); buildUseChips(); syncChips();
+
+  function findModel(kind, label){
+    for (var i=0;i<CATALOG[kind].length;i++)
+      if (CATALOG[kind][i].label===label) return CATALOG[kind][i];
+    return null;
+  }
+  function findUse(key){
+    for (var i=0;i<USES.length;i++) if (USES[i].key===key) return USES[i];
+    return null;
+  }
+  function currentStack(){
+    return ["asr","llm","tts"].map(function(kind){
+      var m=findModel(kind, selected[kind]);
+      return {label:m.label, kind:kind, ms:m.ms, gb:m.gb};
+    });
+  }
+
+  // ── 트랙 눈금
+  for (var t=0; t<=MAXMS; t+=500){
+    var mk=document.createElement("div"); mk.className="tickmark";
+    mk.style.left=(t/MAXMS*100)+"%"; track.appendChild(mk);
+    var lb=document.createElement("div"); lb.className="tick";
+    lb.style.left=(t/MAXMS*100)+"%"; lb.textContent = t; track.appendChild(lb);
+  }
+
+  function sleep(ms){
+    return new Promise(function(res){
+      if (reduced){ res(); return; }
+      setTimeout(res, ms);
+    });
+  }
+  function countTo(target, ms){
+    var from = parseInt(totalEl.textContent,10) || 0;
+    if (reduced || ms<=0){ totalEl.textContent = String(target); return Promise.resolve(); }
+    var t0=performance.now(), myRun=runId;
+    return new Promise(function(res){
+      function tick(t){
+        if (myRun!==runId){ res(); return; }
+        var p=Math.min(1,(t-t0)/ms);
+        totalEl.textContent = String(Math.round(from+(target-from)*p));
+        if (p<1) requestAnimationFrame(tick); else res();
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  // ── 예산선 배치/이동
+  function moveBudget(animated){
+    var u=findUse(selected.use);
+    if (!animated){ budgetEl.style.transition="none"; }
+    if (u.budget===null){
+      budgetEl.classList.add("off");
+      nolimitEl.classList.add("show");
+    } else {
+      budgetEl.classList.remove("off");
+      nolimitEl.classList.remove("show");
+      budgetEl.style.left=(u.budget/MAXMS*100)+"%";
+      budgetTag.textContent = u.label + " " + u.budget + "ms";
+    }
+    if (!animated){ void budgetEl.offsetHeight; budgetEl.style.transition=""; }
+    $("fBudget").textContent = u.budget===null ? "제한 없음" : u.budget + " ms";
+  }
+
+  function buildRows(models){
+    rowsEl.innerHTML="";
+    var rows=[];
+    models.forEach(function(m){
+      var tr=document.createElement("tr");
+      tr.innerHTML='<td class="dot"><span></span></td>'
+        + '<td>'+KINDNAME[m.kind]+' · '+m.label+'</td>'
+        + '<td class="ms">'+m.ms+' ms</td>';
+      rowsEl.appendChild(tr); rows.push(tr);
+    });
+    return rows;
+  }
+  function lightRow(tr, kind){
+    tr.classList.add("on");
+    tr.querySelector(".dot span").style.background = KINDCOLOR[kind];
+  }
+
+  function setNote(text, cls){
+    var n=$("fNote");
+    n.textContent = text || "";
+    n.className = "note" + (cls ? " " + cls : "") + (text ? " show" : "");
+  }
+  function setStamp(ok, est, budget){
+    stamp.className="stamp";
+    void stamp.offsetHeight;
+    if (ok){
+      stamp.textContent = budget===null
+        ? "✅ 통과 — 예산 제한 없음"
+        : "✅ 통과 — " + est + "ms ≤ " + budget + "ms";
+      stamp.classList.add("pass");
+    } else {
+      stamp.textContent = "❌ 탈락 — " + est + "ms > " + budget + "ms";
+      stamp.classList.add("fail");
+    }
+    requestAnimationFrame(function(){ stamp.classList.add("show"); });
+  }
+
+  function verdictOf(est, u){ return u.budget===null ? true : est <= u.budget; }
+
+  // ── 용도 변경 시 재판정 (시그니처: 막대는 그대로)
+  function reVerdict(){
+    var u=findUse(selected.use);
+    var ok=verdictOf(lastEst, u);
+    setStamp(ok, lastEst, u.budget);
+    if (lastVerdict!==null && ok!==lastVerdict){
+      if (ok){
+        setNote("'탈락과 용도는 다르다' — 모델이 아니라 용도를 바꿨습니다. 같은 막대가 통과합니다.", "flip");
+      } else {
+        setNote("용도를 되돌리자 다시 탈락 — 예산은 주제 유형이 정합니다.", null);
+      }
+      budgetEl.classList.remove("flash"); void budgetEl.offsetHeight;
+      if (u.budget!==null) budgetEl.classList.add("flash");
+    } else if (!ok){
+      failNote(lastEst, u);
+    } else if (u.budget===null){
+      setNote(u.note + " — 대형 모델을 써도 되는 자유가 생깁니다.", "info");
+    } else {
+      setNote("", null);
+    }
+    lastVerdict=ok;
+  }
+  function failNote(est, u){
+    var over = est - u.budget;
+    var msg = "탈락 이유는 숫자로: " + est + "ms > " + u.budget + "ms (초과 " + over + "ms).";
+    if (u.key==="realtime_inbound"){
+      msg += " 6-2 스트리밍·상용구 캐시로 되찾을 여지가 있다면 리스크란에 '대비책'으로 적습니다.";
+    }
+    setNote(msg, null);
+  }
+
+  function softReset(){
+    runId++;
+    playing=false; hasRun=false; lastEst=0; lastVerdict=null;
+    segsEl.innerHTML=""; rowsEl.innerHTML="";
+    totalEl.textContent="0";
+    comboNameEl.textContent="모델과 용도를 고르고 ▶ 재생을 누르세요";
+    gate1warn.className="gate1warn"; gate1warn.textContent="";
+    stamp.className="stamp"; stamp.textContent="";
+    ["fAsr","fLlm","fTts","fEst"].forEach(function(id){
+      var e=$(id); e.classList.remove("show"); e.textContent="·";
+    });
+    setNote("", null);
+    btnPlay.disabled=btnA.disabled=btnB.disabled=btnC.disabled=false;
+    setChipsDisabled(false);
+  }
+  function reset(){ softReset(); moveBudget(false); }
+
+  async function play(comboName){
+    if (playing) return;
+    softReset(); moveBudget(false);
+    playing=true;
+    btnPlay.disabled=btnA.disabled=btnB.disabled=btnC.disabled=true;
+    setChipsDisabled(true, false);
+    var myRun=runId;
+    var models=currentStack();
+    var u=findUse(selected.use);
+    comboNameEl.innerHTML="<b>"+(comboName ||
+      models.map(function(m){return m.label;}).join(" + "))+"</b>";
+
+    // 게이트 직렬 원칙: 이 조합이 Gate 1(VRAM)을 통과하는지 먼저 알림
+    var vramNeed=Math.round((models.reduce(function(s,m){return s+m.gb;},0)*1.2+1.5)*10)/10;
+    if (vramNeed > T4){
+      gate1warn.textContent="⚠️ 이 조합은 Gate 1(VRAM)에서 이미 탈락한 조합입니다 ("+vramNeed+"GB > 16GB) — 게이트는 순서대로 전부 통과해야 합니다.";
+      gate1warn.classList.add("show");
+    }
+
+    var rows=buildRows(models);
+    var est=0;
+    var fIds={asr:"fAsr", llm:"fLlm", tts:"fTts"};
+
+    await sleep(450);
+
+    // 순차 구간 채우기 (재생 속도 = 실제 ms의 절반)
+    for (var i=0;i<models.length;i++){
+      if (myRun!==runId) return;
+      var m=models[i];
+      lightRow(rows[i], m.kind);
+      var seg=document.createElement("div");
+      seg.className="tseg";
+      seg.style.background=KINDCOLOR[m.kind];
+      var w=m.ms/MAXMS*100;
+      if (w>=7){
+        var inn=document.createElement("div"); inn.className="in";
+        inn.textContent=KINDNAME[m.kind]+" "+m.ms; seg.appendChild(inn);
+      }
+      var dur = reduced ? 0 : m.ms*0.5;
+      seg.style.transition = reduced ? "none" : "width "+dur+"ms linear";
+      segsEl.appendChild(seg);
+      void seg.offsetWidth;
+      seg.style.width=w+"%";
+      est+=m.ms;
+      await countTo(est, dur);
+      var f=$(fIds[m.kind]); f.textContent=String(m.ms); f.classList.add("show");
+      await sleep(260);
+    }
+    if (myRun!==runId) return;
+
+    $("fEst").textContent=est+" ms"; $("fEst").classList.add("show");
+    await sleep(400);
+
+    // 판정
+    lastEst=est; hasRun=true;
+    var ok=verdictOf(est, u);
+    lastVerdict=ok;
+    setStamp(ok, est, u.budget);
+    if (!ok){
+      budgetEl.classList.add("flash");
+      failNote(est, u);
+      await sleep(1200);
+      setNote($("fNote").textContent + "  ▶ 이제 용도 칩을 바꿔 보세요 — 막대는 그대로 둡니다.", null);
+    } else if (u.budget===null){
+      setNote(u.note+" — 대형 모델을 써도 되는 자유가 생깁니다.", "info");
+    }
+    playing=false;
+    btnPlay.disabled=btnA.disabled=btnB.disabled=btnC.disabled=false;
+    setChipsDisabled(false);
+  }
+
+  function applyPreset(key){
+    if (playing) return;
+    var p=PRESETS[key];
+    selected.asr=p.asr; selected.llm=p.llm; selected.tts=p.tts; selected.use=p.use;
+    syncChips();
+    play(p.name);
+  }
+
+  btnPlay.addEventListener("click", function(){ play(null); });
+  btnA.addEventListener("click", function(){ applyPreset("A"); });
+  btnB.addEventListener("click", function(){ applyPreset("B"); });
+  btnC.addEventListener("click", function(){ applyPreset("C"); });
+  btnR.addEventListener("click", reset);
+
+  moveBudget(false);
+})();
+</script>
+</body>
+</html>
