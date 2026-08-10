@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-1 도입 — 4대 게이트 깔때기: 주제는 검증을 통과해야 한다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --gate:#9A8BC4;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .stage{width:100%;max-width:920px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:#232E40}
+
+  /* ── 후보 대기열 ─────────────────────── */
+  .queue{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:12px 16px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .qlabel{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--faint);margin-right:4px}
+  .qpill{font-size:12.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;transition:opacity .4s}
+  .qpill.gone{opacity:.18}
+
+  /* ── 깔때기 무대 ─────────────────────── */
+  .funnel{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px 18px;margin-bottom:14px}
+  .gateRow{position:relative;display:grid;grid-template-columns:200px 1fr 250px;gap:12px;
+    align-items:center;border-top:1px dashed var(--line);padding:14px 0;min-height:84px}
+  .gateRow:first-child{border-top:none}
+  .gname{font-size:14px;font-weight:700}
+  .gname .gno{font-family:var(--mono);font-size:10.5px;color:var(--gate);letter-spacing:.14em;display:block;margin-bottom:3px}
+  .gcrit{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:4px}
+  .gzone{position:relative;height:56px;border-radius:8px;
+    background:rgba(255,255,255,.015);border:1px solid transparent;transition:border-color .3s, box-shadow .3s}
+  .gateRow.active .gzone{border-color:var(--gate);box-shadow:0 0 14px color-mix(in srgb, var(--gate) 30%, transparent)}
+  .gtag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-family:var(--mono);font-size:12.5px;white-space:nowrap;opacity:0;transition:opacity .3s}
+  .gtag.show{opacity:1}
+  .gtag.ok{color:var(--pass)} .gtag.no{color:var(--fail)}
+  .tray{display:flex;flex-direction:column;gap:5px;min-height:40px;justify-content:center}
+  .trayTitle{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--faint)}
+  .dead{font-size:12px;color:var(--muted);border:1px solid var(--line);border-left:3px solid var(--fail);
+    border-radius:6px;padding:5px 9px;opacity:0;transition:opacity .5s}
+  .dead.show{opacity:1}
+  .dead b{color:var(--text);font-weight:600}
+  .dead .why{font-family:var(--mono);font-size:11px;color:var(--fail);display:block;margin-top:2px}
+  .dead.revived{border-left-color:var(--pass);opacity:.35}
+  .dead.revived .why{color:var(--pass)}
+
+  /* 낙하 피lls */
+  .pill{position:absolute;z-index:5;left:50%;transform:translate(-50%,-50%);
+    font-size:13px;font-weight:700;color:var(--text);background:#232E40;
+    border:1.5px solid var(--muted);border-radius:999px;padding:8px 16px;white-space:nowrap;
+    transition:top .7s cubic-bezier(.4,.05,.5,1), opacity .45s, transform .45s;
+    box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .pill.drop-out{transform:translate(30%,-50%) rotate(6deg);opacity:0}
+  .pill.signed{border-color:var(--pass)}
+
+  /* 계약서 존 */
+  .charter{display:grid;grid-template-columns:200px 1fr 250px;gap:12px;align-items:center;
+    border-top:2px solid var(--line);padding-top:14px;margin-top:2px}
+  .cname{font-size:14px;font-weight:700}
+  .cname .gno{font-family:var(--mono);font-size:10.5px;color:var(--pass);letter-spacing:.14em;display:block;margin-bottom:3px}
+  .ccrit{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:4px}
+  .czone{position:relative;height:64px;border:1.5px dashed var(--line);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;gap:10px;transition:border-color .4s}
+  .czone.lit{border-color:var(--pass)}
+  .signedPill{font-size:12.5px;font-weight:700;color:var(--pass);border:1.5px solid var(--pass);
+    border-radius:999px;padding:6px 13px;opacity:0;transform:scale(1.5) rotate(-3deg);
+    transition:opacity .3s, transform .35s cubic-bezier(.2,1.6,.4,1)}
+  .signedPill.show{opacity:1;transform:scale(1) rotate(-3deg)}
+
+  .caption{margin-top:2px;min-height:22px;font-size:13.5px;color:var(--muted);text-align:center;
+    transition:color .3s}
+  .caption b{color:var(--text)}
+  .caption.flip{color:var(--pass)}
+
+  footer{margin-top:12px;font-size:11.5px;color:var(--faint)}
+  @media (prefers-reduced-motion: reduce){
+    .pill,.dead,.gtag,.signedPill,.qpill{transition:none}
+  }
+  @media (max-width:680px){
+    .gateRow,.charter{grid-template-columns:130px 1fr}
+    .tray{grid-column:1 / -1}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-1 · 도입 — 게이트는 직렬: 순서대로 전부 통과해야 한다</div>
+      <h1>4대 게이트 깔때기 <span class="q">— 아이디어를 믿지 말고 검증한다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="btnPlay" class="primary">▶ 전체 재생</button>
+      <button id="btnRevive" disabled>§9 다시 살리기 — 용도 변경</button>
+      <button id="btnR">초기화</button>
+    </div>
+  </header>
+
+  <div class="queue" id="queue"><span class="qlabel">후보</span></div>
+
+  <div class="funnel" id="funnel">
+    <div class="gateRow" data-g="0">
+      <div><div class="gname"><span class="gno">GATE 1</span>VRAM 계산</div>
+        <div class="gcrit">합계 ×1.2 +1.5GB ≤ 16GB</div></div>
+      <div class="gzone"><span class="gtag"></span></div>
+      <div class="tray"><span class="trayTitle">탈락 — 이유는 숫자로</span></div>
+    </div>
+    <div class="gateRow" data-g="1">
+      <div><div class="gname"><span class="gno">GATE 2</span>지연 예산</div>
+        <div class="gcrit">TTFA ≤ 예산(용도별)</div></div>
+      <div class="gzone"><span class="gtag"></span></div>
+      <div class="tray"><span class="trayTitle">탈락 — 이유는 숫자로</span></div>
+    </div>
+    <div class="gateRow" data-g="2">
+      <div><div class="gname"><span class="gno">GATE 3</span>라이선스</div>
+        <div class="gcrit">max(랭크) ≤ 배포 의도 허용선</div></div>
+      <div class="gzone"><span class="gtag"></span></div>
+      <div class="tray"><span class="trayTitle">탈락 — 이유는 숫자로</span></div>
+    </div>
+    <div class="gateRow" data-g="3">
+      <div><div class="gname"><span class="gno">GATE 4</span>데이터·평가</div>
+        <div class="gcrit">골든셋 의도 5종 × 발화 3개</div></div>
+      <div class="gzone"><span class="gtag"></span></div>
+      <div class="tray"><span class="trayTitle">탈락 — 이유는 숫자로</span></div>
+    </div>
+    <div class="charter">
+      <div><div class="cname"><span class="gno">서명</span>주제 계약서</div>
+        <div class="ccrit">validate_charter = 4개 게이트의 합성</div></div>
+      <div class="czone" id="czone"></div>
+      <div></div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption">▶ 전체 재생을 누르면 후보 5개가 차례로 게이트를 통과합니다</div>
+
+  <footer>수치는 앞선 게이트 시뮬레이터·노트북과 동일한 근사값입니다. 살아남는 것은 게이트를 다 통과한 주제뿐이고 — 탈락한 주제도 끝이 아닙니다: <b>탈락과 용도는 다릅니다</b> (§9).</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ── 후보: 각 게이트별 판정 (수치는 Gate 1~3 시뮬레이터·노트북과 정합)
+  var CANDIDATES = [
+    { name:"요금 상담 — '좋은 건 다 넣은' 스택",
+      short:"'좋은 건 다 넣은' 요금 상담",
+      gates:[ {ok:false, tag:"26.9GB > 16GB"} ],
+      moral:"메모리 한계 무시 — 다른 평가를 받기도 전에 덧셈에서 탈락합니다." },
+    { name:"실시간 동시통역 상담",
+      short:"실시간 동시통역",
+      gates:[ {ok:true, tag:"15.2GB ✓"}, {ok:false, tag:"2900ms > 1500ms"} ],
+      moral:"VRAM을 통과해도 지연에서 탈락할 수 있습니다 — 게이트는 직렬입니다." },
+    { name:"미납 안내 아웃바운드 — F5 음색 · 상업 배포",
+      short:"F5 음색 미납 안내(상업)",
+      gates:[ {ok:true, tag:"7.3GB ✓"}, {ok:true, tag:"1900ms ≤ 3000ms ✓"},
+              {ok:false, tag:"비상업(NC) × 상업"} ],
+      moral:"TTS 하나가 NC면 전체가 NC — 라이선스는 평균이 아니라 최솟값 규칙." },
+    { name:"'자연스러운 대화' 만능 비서",
+      short:"'자연스러운 대화' 만능 비서",
+      gates:[ {ok:true, tag:"6.1GB ✓"}, {ok:true, tag:"1300ms ✓"}, {ok:true, tag:"조건부 ✓"},
+              {ok:false, tag:"측정 가능 기준 0건"} ],
+      moral:"'자연스러움'은 목표가 아니라 소원입니다 — 재는 방법이 있어야 목표입니다." },
+    { name:"병원 예약 음성 접수 — 메디콜",
+      short:"병원 예약 음성 접수",
+      gates:[ {ok:true, tag:"6.1GB ✓"}, {ok:true, tag:"1300ms ✓"},
+              {ok:true, tag:"조건부 · PoC ✓"}, {ok:true, tag:"5의도 × 3발화 ✓"} ],
+      moral:"네 게이트를 전부 통과한 주제만 계약서에 서명합니다 — 오늘의 완주 예시입니다." }
+  ];
+  var REVIVED = {
+    name:"상담 녹취 이중자막 — 비실시간(§9 용도 변경)",
+    short:"녹취 이중자막(비실시간)",
+    gates:[ {ok:true, tag:"15.2GB ✓"}, {ok:true, tag:"예산 제한 없음 ✓"},
+            {ok:true, tag:"상업 자유 ✓"}, {ok:true, tag:"5의도 × 3발화 ✓"} ],
+    moral:"'탈락과 용도는 다르다' — 모델이 아니라 용도를 바꿨습니다. 같은 스택이 서명까지 갑니다."
+  };
+
+  var $=function(id){return document.getElementById(id);};
+  var funnel=$("funnel"), queue=$("queue"), caption=$("caption"), czone=$("czone");
+  var btnPlay=$("btnPlay"), btnRevive=$("btnRevive"), btnR=$("btnR");
+  var gateRows=[].slice.call(funnel.querySelectorAll(".gateRow"));
+  var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing=false, runId=0, mainDone=false, revivedDone=false;
+  var qpills=[], deadEls={};
+
+  // 대기열 구성
+  CANDIDATES.forEach(function(c){
+    var s=document.createElement("span");
+    s.className="qpill"; s.textContent=c.short;
+    queue.appendChild(s); qpills.push(s);
+  });
+
+  function sleep(ms){
+    return new Promise(function(res){
+      if (reduced){ res(); return; }
+      setTimeout(res, ms);
+    });
+  }
+  function setCaption(text, flip){
+    caption.innerHTML=text;
+    caption.classList.toggle("flip", !!flip);
+  }
+  function zoneCenterTop(el){
+    // funnel 기준 y 좌표 (구역 세로 중앙)
+    var fr=funnel.getBoundingClientRect(), zr=el.getBoundingClientRect();
+    return (zr.top - fr.top) + zr.height/2;
+  }
+  function gateTag(gi, ok, text){
+    var t=gateRows[gi].querySelector(".gtag");
+    t.textContent=(ok?"✓ ":"✗ ")+text;
+    t.className="gtag show "+(ok?"ok":"no");
+    return t;
+  }
+  function clearTag(gi){
+    var t=gateRows[gi].querySelector(".gtag");
+    t.className="gtag"; t.textContent="";
+  }
+  function addDead(gi, cand){
+    var d=document.createElement("div");
+    d.className="dead";
+    d.innerHTML="<b>"+cand.short+"</b><span class='why'>"+cand.gates[cand.gates.length-1].tag+"</span>";
+    gateRows[gi].querySelector(".tray").appendChild(d);
+    void d.offsetHeight; d.classList.add("show");
+    return d;
+  }
+
+  async function runCandidate(cand, myRun){
+    // 낙하 피ll 생성 (대기열 위치에서 시작하는 대신 무대 상단 중앙 진입)
+    var pill=document.createElement("div");
+    pill.className="pill"; pill.textContent=cand.short;
+    pill.style.top="-14px";
+    funnel.appendChild(pill);
+    await sleep(reduced?0:60);
+
+    for (var gi=0; gi<cand.gates.length; gi++){
+      if (myRun!==runId){ pill.remove(); return null; }
+      var zone=gateRows[gi].querySelector(".gzone");
+      gateRows[gi].classList.add("active");
+      pill.style.top=zoneCenterTop(zone)+"px";
+      await sleep(760);
+      var g=cand.gates[gi];
+      gateTag(gi, g.ok, g.tag);
+      await sleep(g.ok?820:1150);
+      gateRows[gi].classList.remove("active");
+      if (!g.ok){
+        // 옆으로 밀려나 탈락 트레이로
+        pill.classList.add("drop-out");
+        var dead=addDead(gi, cand);
+        setCaption("<b>"+cand.name+"</b> — "+cand.moral);
+        await sleep(650);
+        pill.remove();
+        clearTag(gi);
+        return {dead:dead, gate:gi};
+      }
+      clearTag(gi);
+    }
+    // 전 게이트 통과 → 계약서 서명
+    if (myRun!==runId){ pill.remove(); return null; }
+    czone.classList.add("lit");
+    pill.style.top=zoneCenterTop(czone)+"px";
+    await sleep(780);
+    pill.classList.add("signed");
+    await sleep(250);
+    pill.remove();
+    var sp=document.createElement("span");
+    sp.className="signedPill"; sp.textContent="✅ "+cand.short;
+    czone.appendChild(sp);
+    void sp.offsetHeight; sp.classList.add("show");
+    setCaption("<b>"+cand.name+"</b> — "+cand.moral, true);
+    return {signed:true};
+  }
+
+  async function playAll(){
+    if (playing) return;
+    reset();
+    playing=true; btnPlay.disabled=true; btnRevive.disabled=true;
+    var myRun=runId;
+    for (var i=0;i<CANDIDATES.length;i++){
+      if (myRun!==runId) return;
+      qpills[i].classList.add("gone");
+      var r=await runCandidate(CANDIDATES[i], myRun);
+      if (r===null) return;
+      if (r.dead && i===1) deadEls.interp=r.dead;   // 동시통역 → §9 부활 대상
+      await sleep(750);
+    }
+    if (myRun!==runId) return;
+    mainDone=true; playing=false;
+    btnPlay.disabled=false; btnRevive.disabled=false;
+    setCaption("생존 1 / 탈락 4 — 그런데 Gate 2 트레이의 동시통역, 정말 끝일까요? <b>§9 다시 살리기</b>를 눌러 보세요.");
+  }
+
+  async function playRevive(){
+    if (playing || !mainDone || revivedDone) return;
+    playing=true; btnPlay.disabled=true; btnRevive.disabled=true;
+    var myRun=runId;
+    if (deadEls.interp){ deadEls.interp.classList.add("revived");
+      deadEls.interp.querySelector(".why").textContent="용도 변경 → 재도전"; }
+    setCaption("실시간을 버리고 용도를 바꿉니다: 동시통역 → <b>녹취 이중자막(비실시간)</b>");
+    await sleep(1100);
+    if (myRun!==runId) return;
+    var r=await runCandidate(REVIVED, myRun);
+    if (r===null) return;
+    revivedDone=true; playing=false; btnPlay.disabled=false;
+    setCaption("<b>"+REVIVED.moral+"</b> 임팩트는 줄었지만, 8주 안에 완성되는 프로젝트가 됐습니다.", true);
+  }
+
+  function reset(){
+    runId++;
+    playing=false; mainDone=false; revivedDone=false; deadEls={};
+    btnPlay.disabled=false; btnRevive.disabled=true;
+    funnel.querySelectorAll(".pill").forEach(function(p){ p.remove(); });
+    funnel.querySelectorAll(".dead").forEach(function(d){ d.remove(); });
+    czone.innerHTML=""; czone.classList.remove("lit");
+    gateRows.forEach(function(r,i){ r.classList.remove("active"); clearTag(i); });
+    qpills.forEach(function(q){ q.classList.remove("gone"); });
+    setCaption("▶ 전체 재생을 누르면 후보 5개가 차례로 게이트를 통과합니다");
+  }
+
+  btnPlay.addEventListener("click", playAll);
+  btnRevive.addEventListener("click", playRevive);
+  btnR.addEventListener("click", reset);
+})();
+</script>
+</body>
+</html>
