@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-3 g03과 안전망 — 15문장 분류 여정</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#243447; --line:#334155;
+    --ink:#e2e8f0; --sub:#94a3b8; --green:#34d399; --red:#f87171;
+    --amber:#fbbf24; --blue:#60a5fa; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+       display:flex;justify-content:center;padding:24px 12px}
+  .wrap{width:100%;max-width:980px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin:0 0 16px;line-height:1.6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  h2{font-size:14px;margin:0 0 10px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+         border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--blue)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d4ed8;border-color:#1d4ed8}
+  button.danger-on{background:#7f1d1d;border-color:var(--red)}
+  .spd{color:var(--sub);font-size:12px}
+  /* 무대 */
+  .stage{position:relative}
+  .utter{position:relative;margin:0 auto 12px;max-width:560px;border:1px solid var(--blue);
+         background:#0b1220;border-radius:11px;padding:9px 12px;min-height:58px}
+  .utter .gid{font-size:11px;color:var(--blue);font-weight:800}
+  .utter .tx{font-size:13.5px;margin-top:2px;line-height:1.5}
+  .utter .gd{font-size:10.5px;color:var(--sub);margin-top:3px}
+  .utter.stamp:after{content:"⚠️ 오염됨 — 시험지에 답을 맞춰 넣었습니다";position:absolute;right:8px;top:-12px;
+         background:#7f1d1d;border:1px solid var(--red);color:#fecaca;border-radius:7px;
+         padding:2px 8px;font-size:10.5px;transform:rotate(-3deg)}
+  .gates{display:flex;gap:8px;margin-bottom:14px}
+  .gate{flex:1;border:1.5px dashed var(--line);border-radius:10px;background:var(--panel2);
+        padding:7px 5px;text-align:center;transition:border-color .2s, box-shadow .2s}
+  .gate .p{font-size:10px;color:var(--sub)}
+  .gate .n{font-size:11.5px;font-weight:700;margin-top:1px}
+  .gate .k{font-size:9.5px;color:var(--sub);margin-top:3px;line-height:1.5;min-height:26px}
+  .gate .k b{color:var(--amber)}
+  .gate.hit{border-color:var(--amber);box-shadow:0 0 0 3px rgba(251,191,36,.2)}
+  .gate.miss{border-color:#475569;opacity:.55}
+  .gate .k .newkw{color:var(--red);font-weight:800}
+  .bins{display:flex;gap:8px}
+  .bin{flex:1;border:1px solid var(--line);border-radius:10px;background:#0b1220;
+       padding:7px 5px;min-height:96px;transition:box-shadow .25s,border-color .25s}
+  .bin .n{font-size:11px;font-weight:700;text-align:center}
+  .bin .c{font-size:10px;color:var(--sub);text-align:center;margin-bottom:5px}
+  .bin.hit{border-color:var(--green);box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+  .bin.bad{border-color:var(--red);box-shadow:0 0 0 3px rgba(248,113,113,.22)}
+  .minis{display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
+  .mini{font-size:9.5px;border-radius:5px;padding:1px 4px;border:1px solid var(--line)}
+  .mini.o{color:var(--green);border-color:#14532d}
+  .mini.t{color:var(--amber);border-color:#713f12}
+  .mini.x{color:var(--red);border-color:#7f1d1d}
+  .net{margin-top:12px;border:2px dashed var(--violet);border-radius:10px;padding:8px 12px;
+       background:repeating-linear-gradient(45deg, rgba(167,139,250,.05) 0 8px, transparent 8px 16px);
+       display:flex;justify-content:space-between;align-items:center;transition:box-shadow .3s}
+  .net.hit{box-shadow:0 0 0 4px rgba(167,139,250,.25)}
+  .net .t{font-size:12px;color:var(--violet);font-weight:700}
+  .net .d{font-size:10.5px;color:var(--sub)}
+  .ghost{position:absolute;z-index:6;font-size:10.5px;font-weight:800;color:#0b1220;background:var(--blue);
+         border-radius:7px;padding:3px 7px;transition:left .55s ease, top .55s ease, opacity .3s;opacity:0}
+  /* 점수판 */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .board{display:flex;gap:10px}
+  .stat{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px;text-align:center}
+  .stat .v{font-size:24px;font-weight:800}
+  .stat .k{font-size:11px;color:var(--sub);margin-top:2px}
+  .stat.o .v{color:var(--green)} .stat.t .v{color:var(--amber)} .stat.x .v{color:var(--red)}
+  .gauge{margin-top:12px}
+  .gauge .lbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--sub);margin-bottom:4px}
+  .bar{position:relative;height:16px;background:#0b1220;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--green);transition:width .6s}
+  .thres{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--red);left:93%}
+  .thres:after{content:"93% 기준";position:absolute;top:-16px;left:-22px;font-size:10px;color:var(--red)}
+  .barwrap{position:relative;padding-top:16px}
+  .g03cmp{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;display:none}
+  .g03cmp.show{display:block}
+  .g03cmp table{width:100%;border-collapse:collapse;font-size:12px}
+  .g03cmp th,.g03cmp td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left}
+  .g03cmp th{background:var(--panel2);color:var(--sub);font-weight:600;font-size:11px}
+  .g03cmp .tri{color:var(--amber);font-weight:800}
+  .g03note{font-size:11.5px;color:var(--sub);line-height:1.7;padding:8px 9px}
+  .banner{display:none;margin-top:10px;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7}
+  .banner.red{border:1px solid var(--red);background:rgba(248,113,113,.08);color:#fecaca}
+  .banner.grn{border:1px solid var(--green);background:rgba(52,211,153,.07);color:#bbf7d0}
+  .banner.show{display:block}
+  /* 퀴즈 */
+  .quiz{opacity:.35;pointer-events:none;transition:opacity .4s}
+  .quiz.on{opacity:1;pointer-events:auto}
+  .q{margin-bottom:12px}
+  .q .qq{font-size:13px;margin-bottom:6px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:999px;
+        padding:6px 12px;font-size:12.5px;cursor:pointer}
+  .chip.ok{border-color:var(--green);color:var(--green)}
+  .chip.no{border-color:var(--red);color:var(--red)}
+  .fb{font-size:12px;margin-top:6px;color:var(--sub);min-height:16px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🕸️ 7-3 g03과 안전망 — 15문장 분류 여정</h1>
+  <p class="sub">골든셋 15문장이 키워드 관문 5개(우선순위 순)를 차례로 지나 의도 상자에 담깁니다.
+  단 한 문장, <b>g03</b>만 어떤 키워드에도 걸리지 않고 아래 <b>안전망</b>(unknown → 상담원 연결)에
+  받아집니다. ▶ 재생을 본 뒤, 🕳️ 몰래 키워드 추가 실험으로 "15/15 만점"의 함정도 확인해 보세요.</p>
+
+  <div class="controls">
+    <button id="play" class="primary">▶ 재생 (15문장 분류)</button>
+    <button id="cheat">🕳️ 몰래 키워드 추가: make에 "있나요"</button>
+    <button id="reset">↺ 처음부터</button>
+    <span class="spd">속도
+      <button data-s="1" class="spdb" style="padding:4px 8px">1×</button>
+      <button data-s="2" class="spdb" style="padding:4px 8px">2×</button>
+    </span>
+  </div>
+
+  <div class="card">
+    <div class="stage" id="stage">
+      <div class="ghost" id="ghost">g01</div>
+      <div class="utter" id="utter">
+        <span class="gid" id="uGid">대기 중</span>
+        <div class="tx" id="uTx">▶ 재생을 누르면 골든셋 문장이 한 장씩 들어옵니다.</div>
+        <div class="gd" id="uGd">&nbsp;</div>
+      </div>
+      <div class="gates" id="gates">
+        <div class="gate" id="gt0"><div class="p">우선순위 1</div><div class="n">handoff</div><div class="k" id="kw0">상담원 · 사람과 · 직원</div></div>
+        <div class="gate" id="gt1"><div class="p">우선순위 2</div><div class="n">cancel</div><div class="k" id="kw1">취소 · 없던 걸로</div></div>
+        <div class="gate" id="gt2"><div class="p">우선순위 3</div><div class="n">change</div><div class="k" id="kw2">변경 · 바꾸 · 미루 · 미룰</div></div>
+        <div class="gate" id="gt3"><div class="p">우선순위 4</div><div class="n">make</div><div class="k" id="kw3">예약 · 잡아</div></div>
+        <div class="gate" id="gt4"><div class="p">우선순위 5</div><div class="n">inquiry</div><div class="k" id="kw4">어떻게 되나요 · 가능한가요 · 얼마 · 비용 · 진료 시간 · 주차</div></div>
+      </div>
+      <div class="bins" id="bins">
+        <div class="bin" id="bn3"><div class="n">make</div><div class="c">예약 접수</div><div class="minis" id="mn3"></div></div>
+        <div class="bin" id="bn2"><div class="n">change</div><div class="c">예약 변경</div><div class="minis" id="mn2"></div></div>
+        <div class="bin" id="bn1"><div class="n">cancel</div><div class="c">예약 취소</div><div class="minis" id="mn1"></div></div>
+        <div class="bin" id="bn4"><div class="n">inquiry</div><div class="c">단순 문의</div><div class="minis" id="mn4"></div></div>
+        <div class="bin" id="bn0"><div class="n">handoff</div><div class="c">상담원 연결</div><div class="minis" id="mn0"></div></div>
+      </div>
+      <div class="net" id="net">
+        <div><div class="t">🕸️ 안전망 — unknown은 상담원에게 (HANDOFF)</div>
+        <div class="d">못 알아들은 문장을 실패가 아니라 "사람에게 넘긴다는 약속의 이행"으로 바꿉니다</div></div>
+        <div class="minis" id="mnNet"></div>
+      </div>
+    </div>
+    <div class="banner" id="banner"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>📟 3분류 판정판 (셀 6-1의 기준)</h2>
+      <div class="board">
+        <div class="stat o"><div class="v" id="vO">0</div><div class="k">○ 기대와 일치</div></div>
+        <div class="stat t"><div class="v" id="vT">0</div><div class="k">△ 안전망 발동 (허용)</div></div>
+        <div class="stat x"><div class="v" id="vX">0</div><div class="k">✗ 실패 (수락 불가)</div></div>
+      </div>
+      <div class="gauge">
+        <div class="lbl"><span>골든셋 정확도 (계약서 성공 기준)</span><span id="accTxt">0 / 15</span></div>
+        <div class="barwrap"><div class="bar"><div class="fill" id="accFill"></div><div class="thres"></div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🔍 g03 — 기대표와 안전망의 시선 차이 (셀 6-1의 실제 사건)</h2>
+      <div class="g03cmp" id="g03cmp">
+        <table>
+          <tr><th>문장</th><th>기대표 (7-2)</th><th>실제 행동</th><th>판정</th></tr>
+          <tr><td>g03 "…진료 받을 수 있나요"</td><td>ASK_SLOT<br><span style="color:var(--sub);font-size:10.5px">잘 알아들었을 때의 정답</span></td>
+              <td>HANDOFF<br><span style="color:var(--sub);font-size:10.5px">못 알아들었을 때의 약속</span></td>
+              <td class="tri">△ 허용</td></tr>
+        </table>
+        <div class="g03note">이 자료를 만들 때 처음에는 g03이 ✗로 판정됐습니다. 버그가 아니라 두 문서의 시선
+        차이였습니다 — 그래서 판정을 ○/✗ 둘이 아니라 ○/△/✗ 셋으로 나눴습니다. △는 수락하지만,
+        △가 자꾸 늘어나면 시스템이 말을 점점 못 알아듣는다는 경보입니다.</div>
+      </div>
+      <div id="g03wait" style="font-size:12px;color:var(--sub)">재생이 끝나면 g03의 판정 근거가 여기에 나타납니다.</div>
+    </div>
+  </div>
+
+  <div class="card quiz" id="quiz">
+    <h2>🎯 판정 연습 <span style="color:var(--sub);font-weight:400;font-size:12px">(정상 재생과 몰래 추가 실험을 모두 보면 열립니다)</span></h2>
+    <div class="q">
+      <div class="qq">Q1. g03이 안전망(HANDOFF)으로 간 것은 실패일까요?</div>
+      <div class="chips" data-q="1">
+        <button class="chip" data-ok="0">예 — 정답 의도를 못 맞혔으니 무조건 실패다</button>
+        <button class="chip" data-ok="1">아니오 — "모르면 사람에게"라는 약속을 지킨 것이므로 △로 수락한다</button>
+        <button class="chip" data-ok="0">XPASS이므로 마커를 떼면 된다</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q2. 몰래 키워드를 추가해 골든셋이 15/15가 됐습니다. 이 만점의 의미는?</div>
+      <div class="chips" data-q="2">
+        <button class="chip" data-ok="0">분류기가 완성됐다는 뜻이다</button>
+        <button class="chip" data-ok="0">이제 배포해도 된다는 뜻이다</button>
+        <button class="chip" data-ok="1">심판이 눈을 감았다는 뜻 — 실전 성능은 오히려 나빠질 수 있다</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q3. g03 같은 문장을 제대로 알아듣게 만드는 정석은?</div>
+      <div class="chips" data-q="3">
+        <button class="chip" data-ok="0">잡힐 때까지 키워드를 계속 추가한다</button>
+        <button class="chip" data-ok="1">7-4 재협상 테이블에서 분류기 승격(키워드 → LLM)을 예산과 함께 검토한다</button>
+        <button class="chip" data-ok="0">골든셋에서 g03을 삭제한다</button>
+      </div><div class="fb"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var speed = 1, timer = null, playing = false, cheatMode = false;
+var played = {normal:false, cheat:false};
+
+/* 노트북 골든셋·분류 결과 그대로 (gate: 0 handoff / 1 cancel / 2 change / 3 make / 4 inquiry / -1 unknown) */
+var DATA = [
+  {id:"g01", tx:"다음 주 화요일에 내과 진료 예약하고 싶어요", gold:"make",    gate:3,  kw:"예약"},
+  {id:"g02", tx:"정형외과 예약 좀 잡아 주세요",               gold:"make",    gate:3,  kw:"예약"},
+  {id:"g03", tx:"십일월 삼 일 오전에 피부과 진료 받을 수 있나요", gold:"make", gate:-1, kw:null},
+  {id:"g04", tx:"예약 시간을 금요일 오후로 바꾸고 싶습니다",    gold:"change",  gate:2,  kw:"바꾸"},
+  {id:"g05", tx:"예약 날짜 변경하려고 전화드렸어요",            gold:"change",  gate:2,  kw:"변경"},
+  {id:"g06", tx:"예약을 다음 주로 미룰 수 있을까요",            gold:"change",  gate:2,  kw:"미룰"},
+  {id:"g07", tx:"내일 예약 취소해 주세요",                     gold:"cancel",  gate:1,  kw:"취소"},
+  {id:"g08", tx:"예약을 취소하고 싶은데요",                     gold:"cancel",  gate:1,  kw:"취소"},
+  {id:"g09", tx:"예약 잡은 거 없던 걸로 해 주세요",             gold:"cancel",  gate:1,  kw:"없던 걸로"},
+  {id:"g10", tx:"진료 시간이 어떻게 되나요",                    gold:"inquiry", gate:4,  kw:"어떻게 되나요"},
+  {id:"g11", tx:"주차장 이용이 가능한가요",                     gold:"inquiry", gate:4,  kw:"가능한가요"},
+  {id:"g12", tx:"독감 예방 접종 비용이 얼마인가요",              gold:"inquiry", gate:4,  kw:"얼마"},
+  {id:"g13", tx:"상담원 연결해 주세요",                         gold:"handoff", gate:0,  kw:"상담원"},
+  {id:"g14", tx:"사람과 직접 통화하고 싶어요",                   gold:"handoff", gate:0,  kw:"사람과"},
+  {id:"g15", tx:"직원분과 이야기하게 해 주세요",                 gold:"handoff", gate:0,  kw:"직원"}
+];
+var GATE_NAME = ["handoff","cancel","change","make","inquiry"];
+/* 오염 실험의 실전 문장: "있나요"가 make에 추가되면 우선순위 4에서 오분류 */
+var REAL = {id:"실전", tx:"주차 자리 있나요?", gold:"inquiry", gate:3, kw:"있나요"};
+
+function log_counts(o,t,x){
+  $("vO").textContent = o; $("vT").textContent = t; $("vX").textContent = x;
+  var hit = o;                             /* 정확도 = gold와 일치한 수(안전망·오분류는 불일치) */
+  var pct = Math.round(hit/15*1000)/10;
+  $("accTxt").textContent = hit + " / 15 (" + pct + " %)";
+  $("accFill").style.width = (hit/15*100) + "%";
+  $("accFill").style.background = (hit >= 14) ? "var(--green)" : "var(--red)";
+}
+function clearGates(){
+  for(var i=0;i<5;i++){ $("gt"+i).classList.remove("hit","miss"); }
+}
+function flyGhost(gid, targetEl, cb){
+  var g = $("ghost"), st = $("stage");
+  var u = $("utter");
+  g.textContent = gid;
+  g.style.transition = "none";
+  g.style.left = (u.offsetLeft + u.offsetWidth/2 - 16) + "px";
+  g.style.top  = (u.offsetTop + u.offsetHeight - 6) + "px";
+  g.style.opacity = "1";
+  void g.offsetWidth;
+  g.style.transition = "";
+  g.style.left = (targetEl.offsetLeft + targetEl.offsetWidth/2 - 16 + (targetEl.id==="net" ? 60 : 0)) + "px";
+  g.style.top  = (targetEl.offsetTop + 26) + "px";
+  timer = setTimeout(function(){
+    g.style.opacity = "0";
+    cb();
+  }, 600 / speed);
+}
+function addMini(binMinis, gid, cls){
+  var m = document.createElement("span");
+  m.className = "mini " + cls;
+  m.textContent = gid;
+  $(binMinis).appendChild(m);
+}
+
+var counts = {o:0, t:0, x:0};
+
+function showCard(u){
+  $("uGid").textContent = u.id;
+  $("uTx").textContent = "\u201C" + u.tx + "\u201D";
+  $("uGd").textContent = "정답 의도(골든셋): " + u.gold;
+}
+
+function stepCard(idx, list, done){
+  if(idx >= list.length){ done(); return; }
+  var u = list[idx];
+  clearGates();
+  showCard(u);
+  timer = setTimeout(function(){
+    if(u.gate >= 0){
+      for(var i=0;i<u.gate;i++){ $("gt"+i).classList.add("miss"); }
+      $("gt"+u.gate).classList.add("hit");
+      var binId = "bn"+u.gate, mnId = "mn"+u.gate;
+      var pred = GATE_NAME[u.gate];
+      var okv = (pred === u.gold);
+      flyGhost(u.id, $(binId), function(){
+        $(binId).classList.add(okv ? "hit" : "bad");
+        timer = setTimeout(function(){ $(binId).classList.remove("hit","bad"); }, 350/speed);
+        if(okv){ counts.o += 1; addMini(mnId, u.id, "o"); }
+        else   { counts.x += 1; addMini(mnId, u.id, "x"); }
+        log_counts(counts.o, counts.t, counts.x);
+        timer = setTimeout(function(){ stepCard(idx+1, list, done); }, 320/speed);
+      });
+    }else{
+      for(var j=0;j<5;j++){ $("gt"+j).classList.add("miss"); }
+      flyGhost(u.id, $("net"), function(){
+        $("net").classList.add("hit");
+        timer = setTimeout(function(){ $("net").classList.remove("hit"); }, 400/speed);
+        counts.t += 1; addMini("mnNet", u.id, "t");
+        log_counts(counts.o, counts.t, counts.x);
+        timer = setTimeout(function(){ stepCard(idx+1, list, done); }, 320/speed);
+      });
+    }
+  }, 620 / speed);
+}
+
+function resetAll(keepQuiz){
+  clearTimeout(timer); playing = false; cheatMode = false;
+  counts = {o:0, t:0, x:0};
+  log_counts(0,0,0);
+  $("accTxt").textContent = "0 / 15";
+  clearGates();
+  ["mn0","mn1","mn2","mn3","mn4","mnNet"].forEach(function(m){ $(m).innerHTML = ""; });
+  $("uGid").textContent = "대기 중";
+  $("uTx").textContent = "▶ 재생을 누르면 골든셋 문장이 한 장씩 들어옵니다.";
+  $("uGd").innerHTML = "&nbsp;";
+  $("utter").classList.remove("stamp");
+  $("kw3").innerHTML = "예약 · 잡아";
+  $("banner").className = "banner";
+  $("ghost").style.opacity = "0";
+  $("g03cmp").classList.remove("show");
+  $("g03wait").style.display = "";
+  $("cheat").classList.remove("danger-on");
+  $("play").disabled = false; $("cheat").disabled = false;
+  if(!keepQuiz){
+    played = {normal:false, cheat:false};
+    $("quiz").classList.remove("on");
+    var chips = document.querySelectorAll(".chip");
+    for(var i=0;i<chips.length;i++){ chips[i].classList.remove("ok","no"); }
+    var fbs = document.querySelectorAll(".fb");
+    for(var j=0;j<fbs.length;j++){ fbs[j].textContent = ""; }
+  }
+}
+function maybeOpenQuiz(){
+  if(played.normal && played.cheat){ $("quiz").classList.add("on"); }
+}
+
+/* ── 정상 재생 ── */
+$("play").addEventListener("click", function(){
+  if(playing){ return; }
+  resetAll(true); playing = true;
+  $("play").disabled = true; $("cheat").disabled = true;
+  stepCard(0, DATA, function(){
+    var b = $("banner");
+    b.className = "banner grn show";
+    b.innerHTML = "✅ <b>판정: ○ 14 · △ 1 · ✗ 0 — 정확도 14/15 (93.3 %) ≥ 계약서 기준 93 %.</b> "
+      + "g03에는 '예약'이라는 단어가 아예 없어서 키워드 분류기로는 원리상 잡을 수 없습니다. "
+      + "그 한계를 숫자(14/15)로 드러내고, 안전망이 덮고 있음을 보이는 것 — 이것이 정직한 상태입니다.";
+    $("g03cmp").classList.add("show");
+    $("g03wait").style.display = "none";
+    played.normal = true; playing = false;
+    $("play").disabled = false; $("cheat").disabled = false;
+    maybeOpenQuiz();
+  });
+});
+
+/* ── 몰래 키워드 추가 실험 ── */
+$("cheat").addEventListener("click", function(){
+  if(playing){ return; }
+  resetAll(true); playing = true; cheatMode = true;
+  this.classList.add("danger-on");
+  $("play").disabled = true; $("cheat").disabled = true;
+  $("kw3").innerHTML = '예약 · 잡아 · <span class="newkw">있나요 (몰래 추가)</span>';
+  $("utter").classList.add("stamp");
+  var data2 = DATA.map(function(u){
+    if(u.id !== "g03"){ return u; }
+    return {id:u.id, tx:u.tx, gold:u.gold, gate:3, kw:"있나요"};
+  });
+  stepCard(0, data2, function(){
+    var b = $("banner");
+    b.className = "banner grn show";
+    b.innerHTML = "🟢 골든셋 15/15 (100 %) — 화면은 만점입니다. 그런데 정말 좋아진 걸까요? "
+      + "실전에서 올 법한 문장을 하나 던져 봅니다…";
+    timer = setTimeout(function(){
+      showCard(REAL);
+      clearGates();
+      timer = setTimeout(function(){
+        for(var i=0;i<REAL.gate;i++){ $("gt"+i).classList.add("miss"); }
+        $("gt3").classList.add("hit");
+        flyGhost("실전", $("bn3"), function(){
+          $("bn3").classList.add("bad");
+          addMini("mn3", "실전", "x");
+          var b2 = $("banner");
+          b2.className = "banner red show";
+          b2.innerHTML = "🔴 <b>\u201C주차 자리 있나요?\u201D(정답: inquiry) → make_reservation 오분류.</b> "
+            + "몰래 추가한 '있나요'가 우선순위 4(make)에서 문의 문장을 가로챘습니다. "
+            + "골든셋은 만점인데 실전은 틀립니다 — 시험지에 답을 맞춰 넣는 순간 심판은 눈을 감고, "
+            + "만점은 아무것도 보증하지 않게 됩니다. g03의 정석 처방은 키워드 추가가 아니라 "
+            + "안전망(오늘) + 분류기 승격 검토(7-4 재협상 테이블)입니다.";
+          played.cheat = true; playing = false;
+          $("play").disabled = false; $("cheat").disabled = false;
+          $("cheat").classList.remove("danger-on");
+          maybeOpenQuiz();
+        });
+      }, 900/speed);
+    }, 1600/speed);
+  });
+});
+
+$("reset").addEventListener("click", function(){ resetAll(false); });
+var spdbs = document.querySelectorAll(".spdb");
+for(var i=0;i<spdbs.length;i++){
+  spdbs[i].addEventListener("click", function(){ speed = Number(this.getAttribute("data-s")); });
+}
+
+/* 퀴즈 칩 */
+var FB = {
+  "1": ["정답입니다. 안전망 발동은 '못 알아들었을 때는 사람에게 넘긴다'는 설계된 약속의 이행이라 △로 수락합니다. 다만 △가 늘어나는 것은 이해율 하락의 경보입니다.",
+        "다시 생각해 보세요. 기대표는 '잘 알아들었을 때의 정답'이고, 안전망은 '못 알아들었을 때의 약속'입니다 — 약속을 지킨 것을 실패로 세지 않습니다."],
+  "2": ["정답입니다. 시험 문제에 맞춰 답을 고치면 그 15문장만 잘 맞추게 되고, 골든셋은 실력을 재는 심판 자격을 잃습니다 — 실전 문장이 바로 그것을 증명했죠.",
+        "다시 보세요. 만점 직후의 실전 문장(\u201C주차 자리 있나요?\u201D)이 오분류됐습니다 — 만점이 실전 성능을 보증하지 못한다는 뜻입니다."],
+  "3": ["정답입니다. 오늘은 안전망으로 덮고, 근본 해결(키워드 → LLM 승격)은 7-4에서 메모리·지연 예산과 함께 재협상 테이블에 올리는 것이 5주차부터 배운 순서입니다.",
+        "다시 생각해 보세요. 키워드 추가는 과적합의 길이고, 골든셋 삭제는 심판을 매수하는 길입니다 — 둘 다 문제를 가릴 뿐 풀지 못합니다."]
+};
+var chipEls = document.querySelectorAll(".chips");
+for(var c=0;c<chipEls.length;c++){
+  chipEls[c].addEventListener("click", function(e){
+    var btn = e.target.closest(".chip");
+    if(!btn){ return; }
+    var q = this.getAttribute("data-q");
+    var ok = btn.getAttribute("data-ok") === "1";
+    var all = this.querySelectorAll(".chip");
+    for(var k=0;k<all.length;k++){ all[k].classList.remove("ok","no"); }
+    btn.classList.add(ok ? "ok" : "no");
+    this.parentNode.querySelector(".fb").textContent = ok ? FB[q][0] : FB[q][1];
+  });
+}
+</script>
+</body>
+</html>

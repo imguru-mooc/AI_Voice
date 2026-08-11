@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-2 도입 — 파생 사슬 조감도: 정본은 하나, 나머지는 전부 파생</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --xf:#C4A03F; --guard:#9A8BC4;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .stage{width:100%;max-width:960px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:#232E40}
+
+  .canvasWrap{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:12px;margin-bottom:12px;overflow-x:auto}
+  .canvas{position:relative;width:900px;height:496px;margin:0 auto}
+  svg.edges{position:absolute;inset:0;pointer-events:none}
+  svg.edges path{fill:none;stroke:var(--line);stroke-width:1.6;
+    stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .7s ease, stroke .35s, opacity .35s}
+  svg.edges path.drawn{stroke-dashoffset:0}
+  svg.edges path.lit{stroke:var(--guard);stroke-width:2.4;
+    filter:drop-shadow(0 0 4px color-mix(in srgb, var(--guard) 70%, transparent))}
+  svg.edges path.dim{opacity:.18}
+  svg.edges path.inherit{stroke-dasharray:.03 .02;stroke-dashoffset:0;opacity:0;transition:opacity .7s}
+  svg.edges path.inherit.drawn{opacity:.55}
+
+  .node{position:absolute;transform:translateX(-50%);border:1.5px solid var(--line);border-radius:9px;
+    background:var(--panel);padding:8px 11px;text-align:center;
+    opacity:0; scale:.85; transition:opacity .45s, scale .45s, border-color .35s, box-shadow .35s, filter .35s}
+  .node.show{opacity:1;scale:1}
+  .node .nn{font-family:var(--mono);font-size:11.5px;color:var(--text);white-space:nowrap}
+  .node .ns{font-size:10.5px;color:var(--faint);margin-top:2px;white-space:nowrap}
+  .node.lit{border-color:var(--guard);
+    box-shadow:0 0 0 2px color-mix(in srgb, var(--guard) 45%, transparent),
+               0 0 14px color-mix(in srgb, var(--guard) 40%, transparent)}
+  .node.dim{filter:grayscale(.4);opacity:.28}
+  .node.inheritN{border-style:dashed;background:transparent}
+  .node.inheritN .nn{color:var(--faint)}
+
+  /* 정본 카드 */
+  .rootCard{position:absolute;left:450px;transform:translateX(-50%);top:10px;width:430px;
+    border:1.5px solid var(--guard);border-radius:11px;background:var(--panel);
+    padding:10px 13px;opacity:0;scale:.9;transition:opacity .5s, scale .5s}
+  .rootCard.show{opacity:1;scale:1}
+  .rootCard .rt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--guard)}
+  .rootCard .rs{font-size:11px;color:var(--faint);margin:2px 0 8px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .fchip{font-family:var(--mono);font-size:11px;color:var(--muted);background:transparent;
+    border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer;
+    transition:all .2s}
+  .fchip:hover:not(:disabled){border-color:var(--muted);color:var(--text)}
+  .fchip:disabled{opacity:.4;cursor:default}
+  .fchip.sel{color:var(--text);border-color:var(--guard);
+    background:color-mix(in srgb, var(--guard) 16%, transparent)}
+  .fchip:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+
+  .caption{min-height:44px;font-size:13.5px;color:var(--muted);text-align:center;line-height:1.55}
+  .caption b{color:var(--text)}
+  .caption.good{color:var(--pass)} .caption.good b{color:var(--pass)}
+  .verdictBar{display:flex;align-items:center;justify-content:center;min-height:52px}
+  .stamp{font-size:16.5px;font-weight:800;letter-spacing:.03em;padding:9px 20px;border-radius:10px;
+    border:2.5px solid;transform:rotate(-3deg) scale(1.6);opacity:0;white-space:nowrap;
+    transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .25s}
+  .stamp.show{opacity:1;transform:rotate(-3deg) scale(1)}
+  .stamp.pass{color:var(--pass);border-color:var(--pass);background:rgba(88,183,126,.08)}
+
+  footer{margin-top:10px;font-size:11.5px;color:var(--faint)}
+  footer code{font-family:var(--mono)}
+  @media (prefers-reduced-motion: reduce){
+    .node,.rootCard,.stamp{transition:opacity .01s}
+    svg.edges path{transition:none;stroke-dashoffset:0}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-2 · 도입 — 오늘 만드는 것의 전체 지도</div>
+      <h1>파생 사슬 조감도 <span class="q">— 정본은 하나, 나머지는 전부 파생</span></h1>
+    </div>
+    <div class="controls">
+      <button id="btnPlay" class="primary">▶ 파생 트리 재생</button>
+      <button id="btnR">초기화</button>
+    </div>
+  </header>
+
+  <div class="canvasWrap">
+    <div class="canvas" id="canvas">
+      <svg class="edges" id="edgeSvg" viewBox="0 0 900 496" width="900" height="496"></svg>
+      <div class="rootCard" id="rootCard">
+        <div class="rt">정본 — project_charter.json (7-1에서 서명)</div>
+        <div class="rs">팀이 고치는 곳은 여기뿐 — 필드를 눌러 전파 경로를 확인하세요</div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <!-- 노드는 JS가 배치 -->
+    </div>
+  </div>
+
+  <div class="caption" id="caption">▶ 재생을 누르면 계약서 하나에서 오늘의 산출물 전부가 파생됩니다</div>
+  <div class="verdictBar"><div class="stamp" id="stamp"></div></div>
+
+  <footer>회색 점선은 <b>상속 자산</b>(6-5에서 복원 — 파생이 아니라 재사용)입니다. 규칙: 파생물은 손으로 고치지 않는다 — <b>정본을 고치고, 사슬을 다시 돌린다.</b></footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ── 노드 좌표 (canvas 900×496, x=중심) ──────────────────────
+  var NODES = {
+    schema: {x:105, y:168, nn:"project_schema.json",  ns:"의도 enum — 게이트 기준표"},
+    plan:   {x:300, y:168, nn:"dialog_plan.json",     ns:"슬롯·확인·handoff 계획"},
+    wiring: {x:520, y:168, nn:"WIRING 배선표",         ns:"소켓 ↔ 스택 + TODO"},
+    spikes: {x:700, y:168, nn:"spikes.json",          ns:"리스크 → 2시간 실험"},
+    miles:  {x:838, y:168, nn:"milestones.json",      ns:"역산 일정"},
+    tgold:  {x:105, y:286, nn:"test_golden.py",       ns:"정합 영구 테스트"},
+    scen:   {x:300, y:286, nn:"acceptance_scenarios", ns:"발화 15건 × 기대 행동"},
+    mmd:    {x:445, y:286, nn:"sequence_*.mmd (5종)", ns:"다이어그램도 파생물"},
+    eng:    {x:610, y:286, nn:"project_engines.py",   ns:"스텁 — TODO = 7-3 지시서"},
+    bases:  {x:790, y:286, nn:"aicc_bases.py",        ns:"상속 자산 (6-5 복원)", inherit:true},
+    tproj:  {x:455, y:408, nn:"test_project.py",      ns:"xfail 수락 테스트 + conftest"}
+  };
+  var EDGES = [
+    {f:"root", t:"schema", field:"intents"},
+    {f:"root", t:"plan",   field:"intents"},
+    {f:"root", t:"scen",   field:"golden"},
+    {f:"root", t:"wiring", field:"stack"},
+    {f:"root", t:"spikes", field:"risks"},
+    {f:"root", t:"miles",  field:"demo"},
+    {f:"schema", t:"tgold"},
+    {f:"plan",   t:"scen"},
+    {f:"plan",   t:"mmd"},
+    {f:"wiring", t:"eng"},
+    {f:"bases",  t:"eng", inherit:true},
+    {f:"scen",   t:"tproj"},
+    {f:"eng",    t:"tproj"}
+  ];
+  var FIELDS = [
+    {id:"intents", label:"intents"},
+    {id:"golden",  label:"golden_set"},
+    {id:"stack",   label:"model_stack"},
+    {id:"risks",   label:"risks"},
+    {id:"demo",    label:"시연일(7-5)"}
+  ];
+  // 필드별 하류 집합 (전파 순서대로)
+  var DOWN = {
+    intents: ["schema","plan","tgold","scen","mmd","tproj"],
+    golden:  ["scen","tproj"],
+    stack:   ["wiring","eng","tproj"],
+    risks:   ["spikes"],
+    demo:    ["miles"]
+  };
+  var FIELD_MSG = {
+    intents: "의도 하나를 고치면 <b>파생 6종</b>이 재생성 대상입니다 — 스키마부터 수락 테스트까지. 손 동기화라면 여섯 번의 기억력, 파생이라면 <b>재실행 한 번</b>입니다.",
+    golden:  "골든셋 발화를 고치면 <b>시나리오와 수락 테스트 2종</b>이 따라 바뀝니다 — 7-5 시연 대본이 자동으로 최신을 유지합니다.",
+    stack:   "스파이크 결과로 모델을 교체하면 <b>배선표·스텁·수락 테스트 3종</b>이 재생성됩니다 — 엔진 교체가 코드 한 줄인 이유입니다.",
+    risks:   "리스크를 수정하면 <b>스파이크 계획 1종</b>이 갱신됩니다 — 걱정과 실험이 항상 짝을 이룹니다.",
+    demo:    "시연일이 바뀌면 <b>역산 일정 1종</b>이 다시 계산됩니다 — 날짜는 손으로 세지 않습니다."
+  };
+  var LEVELS = [["schema","plan","wiring","spikes","miles"],
+                ["tgold","scen","mmd","eng","bases"],
+                ["tproj"]];
+  var ROOT_ANCHOR = {x:450, y:104};
+
+  var $=function(id){return document.getElementById(id);};
+  var canvas=$("canvas"), svg=$("edgeSvg"), rootCard=$("rootCard");
+  var caption=$("caption"), stamp=$("stamp");
+  var btnPlay=$("btnPlay"), btnR=$("btnR");
+  var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing=false, built=false, runId=0, selField=null;
+  var nodeEls={}, edgeEls=[], chipEls=[];
+
+  function sleep(ms){
+    return new Promise(function(res){
+      if (reduced){ res(); return; }
+      setTimeout(res, ms);
+    });
+  }
+  function setCaption(html, cls){
+    caption.innerHTML=html; caption.className="caption"+(cls?" "+cls:"");
+  }
+  function setStamp(text){
+    stamp.className="stamp"; void stamp.offsetHeight;
+    if (text===null){ stamp.textContent=""; return; }
+    stamp.textContent=text; stamp.classList.add("pass");
+    requestAnimationFrame(function(){ stamp.classList.add("show"); });
+  }
+
+  // ── 노드·엣지 생성 ─────────────────────────────
+  Object.keys(NODES).forEach(function(id){
+    var n=NODES[id];
+    var d=document.createElement("div");
+    d.className="node"+(n.inherit?" inheritN":"");
+    d.style.left=n.x+"px"; d.style.top=n.y+"px";
+    d.innerHTML='<div class="nn">'+n.nn+'</div><div class="ns">'+n.ns+'</div>';
+    canvas.appendChild(d);
+    nodeEls[id]=d;
+  });
+  function anchor(id, side){
+    if (id==="root") return ROOT_ANCHOR;
+    var n=NODES[id], el=nodeEls[n===undefined?null:id];
+    var h=el.offsetHeight||44, w=el.offsetWidth||120;
+    return side==="top" ? {x:n.x, y:n.y} : {x:n.x, y:n.y+h};
+  }
+  function buildEdges(){
+    svg.innerHTML="";
+    edgeEls=[];
+    EDGES.forEach(function(e){
+      var a = e.f==="root" ? ROOT_ANCHOR : anchor(e.f, "bottom");
+      var b = anchor(e.t, "top");
+      var midY=(a.y+b.y)/2;
+      var dPath="M "+a.x+" "+a.y+" C "+a.x+" "+midY+", "+b.x+" "+midY+", "+b.x+" "+b.y;
+      var p=document.createElementNS("http://www.w3.org/2000/svg","path");
+      p.setAttribute("d", dPath);
+      p.setAttribute("pathLength","1");
+      if (e.inherit) p.classList.add("inherit");
+      svg.appendChild(p);
+      edgeEls.push({el:p, e:e});
+    });
+  }
+
+  // ── 필드 칩 ───────────────────────────────────
+  FIELDS.forEach(function(f){
+    var b=document.createElement("button");
+    b.className="fchip"; b.type="button"; b.textContent=f.label; b.disabled=true;
+    b.addEventListener("click", function(){ waveField(f.id, b); });
+    $("chips").appendChild(b);
+    chipEls.push({el:b, id:f.id});
+  });
+  function setChipsDisabled(dis){
+    chipEls.forEach(function(c){ c.el.disabled=dis; });
+  }
+
+  function edgeInPath(e, field){
+    var set=DOWN[field];
+    if (e.inherit) return false;
+    if (e.f==="root") return e.field===field;
+    return set.indexOf(e.f)>=0 && set.indexOf(e.t)>=0;
+  }
+
+  // ── 전파 파동 (시그니처) ───────────────────────
+  async function waveField(field, chipEl){
+    if (playing || !built) return;
+    playing=true; runId++;
+    var myRun=runId;
+    selField=field;
+    chipEls.forEach(function(c){ c.el.classList.toggle("sel", c.id===field); });
+    setStamp(null); stamp.className="stamp";
+
+    var set=DOWN[field];
+    // 전체 dim → 경로만 점등
+    Object.keys(nodeEls).forEach(function(id){
+      nodeEls[id].classList.remove("lit");
+      nodeEls[id].classList.toggle("dim", set.indexOf(id)<0);
+    });
+    edgeEls.forEach(function(x){
+      x.el.classList.remove("lit");
+      x.el.classList.toggle("dim", !edgeInPath(x.e, field) && !x.e.inherit);
+    });
+    setCaption("정본의 <b>"+field+"</b> 필드를 수정했다고 합시다 — 전파 경로를 따라가 봅니다.");
+    await sleep(700);
+    if (myRun!==runId){ playing=false; return; }
+
+    for (var i=0;i<set.length;i++){
+      if (myRun!==runId){ playing=false; return; }
+      var id=set[i];
+      edgeEls.forEach(function(x){
+        if (edgeInPath(x.e, field) && x.e.t===id) x.el.classList.add("lit");
+      });
+      nodeEls[id].classList.add("lit");
+      await sleep(380);
+    }
+    setCaption(FIELD_MSG[field], "good");
+    playing=false;
+  }
+
+  function clearWave(){
+    selField=null;
+    chipEls.forEach(function(c){ c.el.classList.remove("sel"); });
+    Object.keys(nodeEls).forEach(function(id){
+      nodeEls[id].classList.remove("lit","dim");
+    });
+    edgeEls.forEach(function(x){ x.el.classList.remove("lit","dim"); });
+  }
+
+  // ── 트리 재생 ─────────────────────────────────
+  async function play(){
+    if (playing) return;
+    reset();
+    playing=true; btnPlay.disabled=true;
+    var myRun=runId;
+
+    rootCard.classList.add("show");
+    setCaption("모든 것의 출발점 — 7-1에서 서명한 계약서입니다. 오늘 손으로 만드는 파일은 <b>0개</b>입니다.");
+    await sleep(1700);
+    if (myRun!==runId) return;
+
+    buildEdges();
+    var msgs=[
+      "1층 파생 — 계약서의 다섯 필드가 각자 산출물을 낳습니다.",
+      "2층 파생 — 파생물이 다시 파생물을 낳습니다. 회색 점선은 6-5에서 <b>상속</b>받는 자산입니다(파생 아님).",
+      "3층 파생 — 시나리오와 스텁이 만나 <b>xfail 수락 테스트</b>가 됩니다: '초록 + 예고된 빨강'의 재료."
+    ];
+    for (var L=0; L<LEVELS.length; L++){
+      if (myRun!==runId) return;
+      setCaption(msgs[L]);
+      var lvl=LEVELS[L];
+      // 이 층으로 들어오는 엣지 먼저
+      edgeEls.forEach(function(x){
+        if (lvl.indexOf(x.e.t)>=0) x.el.classList.add("drawn");
+      });
+      await sleep(520);
+      for (var i=0;i<lvl.length;i++){
+        if (myRun!==runId) return;
+        nodeEls[lvl[i]].classList.add("show");
+        await sleep(230);
+      }
+      await sleep(950);
+    }
+    if (myRun!==runId) return;
+
+    built=true;
+    setChipsDisabled(false);
+    setStamp("파생 산출물 11종 + .mmd 5 — 손으로 만든 파일 0개");
+    setCaption("이제 <b>정본 카드의 필드 칩</b>을 눌러 보세요 — 어떤 수정이 어디까지 전파되는지 보입니다.", "good");
+    playing=false; btnPlay.disabled=false;
+  }
+
+  function reset(){
+    runId++;
+    playing=false; built=false;
+    btnPlay.disabled=false;
+    setChipsDisabled(true);
+    clearWave();
+    rootCard.classList.remove("show");
+    Object.keys(nodeEls).forEach(function(id){ nodeEls[id].classList.remove("show"); });
+    svg.innerHTML=""; edgeEls=[];
+    setStamp(null); stamp.className="stamp";
+    setCaption("▶ 재생을 누르면 계약서 하나에서 오늘의 산출물 전부가 파생됩니다", null);
+  }
+
+  btnPlay.addEventListener("click", play);
+  btnR.addEventListener("click", reset);
+})();
+</script>
+</body>
+</html>

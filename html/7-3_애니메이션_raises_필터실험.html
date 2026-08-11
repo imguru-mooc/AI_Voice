@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-3 raises= 필터 실험 — 다른 이유의 실패는 숨지 못한다</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#243447; --line:#334155;
+    --ink:#e2e8f0; --sub:#94a3b8; --green:#34d399; --red:#f87171;
+    --amber:#fbbf24; --blue:#60a5fa; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+       display:flex;justify-content:center;padding:24px 12px}
+  .wrap{width:100%;max-width:980px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin:0 0 16px;line-height:1.6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  h2{font-size:14px;margin:0 0 10px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+         border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--blue)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d4ed8;border-color:#1d4ed8}
+  .spd{color:var(--sub);font-size:12px}
+  /* 모드 스위치 */
+  .mode{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .mode button{border:0;border-radius:0;background:var(--panel2)}
+  .mode button.on{background:#1d4ed8;color:#fff}
+  .marker{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#0b1220;
+          border:1px dashed var(--amber);color:var(--amber);border-radius:9px;
+          padding:8px 10px;margin-bottom:10px;line-height:1.6;overflow-x:auto;white-space:nowrap}
+  .marker b{color:#fde68a}
+  /* 장면 */
+  .scene{position:relative;height:250px;background:#0b1220;border:1px solid var(--line);
+         border-radius:12px;overflow:hidden}
+  .lanelbl{position:absolute;left:12px;font-size:11.5px;color:var(--sub)}
+  .track{position:absolute;left:0;right:0;height:2px;background:var(--line)}
+  .launch{position:absolute;left:14px;top:36px;width:128px;border:1px solid var(--line);
+          background:var(--panel2);border-radius:10px;padding:8px;text-align:center}
+  .launch .t{font-size:12px;font-weight:700}
+  .launch .d{font-size:10.5px;color:var(--sub);margin-top:3px;line-height:1.45}
+  .filter{position:absolute;left:436px;top:22px;bottom:52px;width:56px;border:2px dashed var(--amber);
+          border-radius:10px;background:rgba(251,191,36,.05);display:flex;align-items:center;
+          justify-content:center;transition:box-shadow .3s}
+  .filter.glow{box-shadow:0 0 0 4px rgba(251,191,36,.22)}
+  .filter .fl{writing-mode:vertical-rl;font-size:11px;color:var(--amber);letter-spacing:1px}
+  .rule{position:absolute;left:388px;bottom:8px;width:152px;text-align:center;font-size:10.5px;
+        color:var(--sub);line-height:1.5}
+  .board{position:absolute;right:14px;top:26px;width:168px;border:1px solid var(--line);
+         background:var(--panel2);border-radius:10px;padding:10px}
+  .board .t{font-size:12px;font-weight:700;margin-bottom:6px}
+  .brow{display:flex;justify-content:space-between;font-size:12px;margin:4px 0}
+  .brow .v{font-weight:800}
+  .v.amber{color:var(--amber)} .v.red{color:var(--red)} .v.green{color:var(--green)}
+  .board.hit{border-color:var(--red);box-shadow:0 0 0 4px rgba(248,113,113,.22)}
+  .ball{position:absolute;width:118px;padding:6px 4px;border-radius:10px;text-align:center;
+        font-size:11px;font-weight:700;transition:left 1.1s linear, opacity .45s, transform .45s;z-index:4}
+  .ball .ic{font-size:16px}
+  .ball.nie{background:rgba(251,191,36,.14);border:1.5px solid var(--amber);color:#fde68a}
+  .ball.ce{background:rgba(248,113,113,.14);border:1.5px solid var(--red);color:#fecaca}
+  .ball.gone{opacity:0;transform:scale(.25)}
+  .tag{position:absolute;font-size:10.5px;color:var(--sub)}
+  .banner{display:none;margin-top:10px;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7}
+  .banner.red{border:1px solid var(--red);background:rgba(248,113,113,.08);color:#fecaca}
+  .banner.amb{border:1px solid var(--amber);background:rgba(251,191,36,.07);color:#fde68a}
+  .banner.show{display:block}
+  .log{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:10px;height:108px;
+       overflow-y:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;line-height:1.7;margin-top:10px}
+  .log .g{color:var(--green)} .log .a{color:var(--amber)} .log .r{color:var(--red)} .log .s{color:var(--sub)}
+  .cite{font-size:11.5px;color:var(--sub);margin-top:8px;line-height:1.7}
+  .cite code{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--blue);font-size:11px}
+  /* 퀴즈 */
+  .quiz{opacity:.35;pointer-events:none;transition:opacity .4s}
+  .quiz.on{opacity:1;pointer-events:auto}
+  .q{margin-bottom:12px}
+  .q .qq{font-size:13px;margin-bottom:6px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:999px;
+        padding:6px 12px;font-size:12.5px;cursor:pointer}
+  .chip.ok{border-color:var(--green);color:var(--green)}
+  .chip.no{border-color:var(--red);color:var(--red)}
+  .fb{font-size:12px;margin-top:6px;color:var(--sub);min-height:16px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧪 7-3 raises= 필터 실험 — 다른 이유의 실패는 숨지 못한다</h1>
+  <p class="sub">xfail 마커는 실패를 걸러 주는 <b>필터</b>입니다. 문제는 "무엇까지 걸러 주느냐"입니다.
+  같은 필터에 두 종류의 예외를 던져 봅니다 — 하나는 예정해 둔 이유(미구현), 하나는 예정에 없던 버그.
+  먼저 ▶ 재생을 누르고, 그다음 모드를 바꿔 다시 재생해 두 결과를 비교해 보세요.</p>
+
+  <div class="controls">
+    <button id="play" class="primary">▶ 재생 (예외 2개 던지기)</button>
+    <button id="reset">↺ 처음부터</button>
+    <div class="mode">
+      <button id="mRaises" class="on">raises=NotImplementedError</button>
+      <button id="mBare">이유 없는 xfail</button>
+    </div>
+    <span class="spd">속도
+      <button data-s="1" class="spdb" style="padding:4px 8px">1×</button>
+      <button data-s="2" class="spdb" style="padding:4px 8px">2×</button>
+    </span>
+  </div>
+
+  <div class="card">
+    <div class="marker" id="markerCode">@pytest.mark.xfail(<b>raises=NotImplementedError</b>, reason="7-3 구현 예정")</div>
+    <div class="scene" id="scene">
+      <div class="lanelbl" style="top:78px">예외 ① — 스텁 상태의 실행</div>
+      <div class="lanelbl" style="top:168px">예외 ② — 버그 있는 구현의 실행 (셀 5-3: sr 22050)</div>
+      <div class="track" style="top:112px"></div>
+      <div class="track" style="top:202px"></div>
+      <div class="launch">
+        <div class="t">test_tts 실행</div>
+        <div class="d">pytest가 테스트를<br>돌리는 순간</div>
+      </div>
+      <div class="filter" id="filter"><div class="fl">xfail 필터</div></div>
+      <div class="rule" id="rule">통과 규칙: NotImplementedError만 흡수</div>
+      <div class="board" id="board">
+        <div class="t">📟 판정 보드</div>
+        <div class="brow"><span>xfailed</span><span class="v amber" id="bXf">0</span></div>
+        <div class="brow"><span>failed</span><span class="v red" id="bF">0</span></div>
+        <div class="brow"><span>종료 코드</span><span class="v green" id="bExit">0</span></div>
+      </div>
+      <div class="ball nie" id="ballN" style="left:150px;top:88px"><span class="ic">🟡</span> NotImplementedError<br><span style="font-weight:400">"아직 구현 전"</span></div>
+      <div class="ball ce" id="ballC" style="left:150px;top:178px"><span class="ic">🔴</span> ContractError<br><span style="font-weight:400">"sr 위반: 22050"</span></div>
+    </div>
+    <div class="banner" id="banner"></div>
+    <div class="log" id="log"></div>
+    <div class="cite">근거(설치된 pytest 9.1.1 소스에서 직접 확인): <code>_pytest/skipping.py:290–300</code> —
+    필터는 실패의 예외가 <b>raises=에 적힌 것과 같은지</b>부터 검사합니다.
+    같으면 흡수(xfailed), 다르면 <code>skipping.py:303</code> — <b>rep.outcome = "failed"</b>, 그대로 실패로 남습니다.
+    이유를 적지 않은 xfail은 이 검사 자체가 없어서 모든 실패를 흡수합니다.</div>
+  </div>
+
+  <div class="card quiz" id="quiz">
+    <h2>🎯 판정 연습 <span style="color:var(--sub);font-weight:400;font-size:12px">(두 모드를 모두 재생하면 열립니다)</span></h2>
+    <div class="q">
+      <div class="qq">Q1. 이유 없는 xfail 모드에서 버그(ContractError)까지 결과가 초록으로 보인 까닭은?</div>
+      <div class="chips" data-q="1">
+        <button class="chip" data-ok="0">ContractError가 필터를 통과해서</button>
+        <button class="chip" data-ok="1">어떤 예외든 "예정된 실패"로 흡수하기 때문에</button>
+        <button class="chip" data-ok="0">pytest가 버그를 자동 수정해서</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q2. raises=NotImplementedError 모드에서 ContractError는 어떻게 될까요?</div>
+      <div class="chips" data-q="2">
+        <button class="chip" data-ok="0">xfailed로 흡수된다</button>
+        <button class="chip" data-ok="0">XPASS가 된다</button>
+        <button class="chip" data-ok="1">failed로 남는다 (skipping.py:303)</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q3. 이 실험이 가르쳐 주는 습관은?</div>
+      <div class="chips" data-q="3">
+        <button class="chip" data-ok="1">실패를 예정할 때는 "왜 실패할 것인지"까지 구체적으로 적는다</button>
+        <button class="chip" data-ok="0">xfail 마커는 최대한 오래 남겨 둔다</button>
+        <button class="chip" data-ok="0">버그가 보이면 마커를 하나 더 붙인다</button>
+      </div><div class="fb"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var speed = 1, timer = null, playing = false;
+var mode = "raises";                 /* "raises" | "bare" */
+var playedModes = {raises:false, bare:false};
+
+var X_START = 150, X_FILTER = 405, X_BOARD = 700;
+
+function log(msg, cls){
+  var d = document.createElement("div");
+  d.className = cls || "";
+  d.textContent = msg;
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function setMode(m){
+  if(playing){ return; }
+  mode = m;
+  $("mRaises").classList.toggle("on", m === "raises");
+  $("mBare").classList.toggle("on", m === "bare");
+  if(m === "raises"){
+    $("markerCode").innerHTML = '@pytest.mark.xfail(<b>raises=NotImplementedError</b>, reason="7-3 구현 예정")';
+    $("rule").textContent = "통과 규칙: NotImplementedError만 흡수";
+  }else{
+    $("markerCode").innerHTML = '@pytest.mark.xfail(reason="7-3 구현 예정")   ← raises 없음';
+    $("rule").textContent = "통과 규칙: 모든 예외를 흡수";
+  }
+  resetScene(true);
+}
+function setBoard(xf, f){
+  $("bXf").textContent = xf;
+  $("bF").textContent = f;
+  $("bExit").textContent = (f === 0) ? "0" : "1";
+  $("bExit").className = "v " + ((f === 0) ? "green" : "red");
+  $("board").classList.toggle("hit", f > 0);
+}
+function resetScene(keepQuiz){
+  clearTimeout(timer); playing = false;
+  var bn = $("ballN"), bc = $("ballC");
+  [bn, bc].forEach(function(b){
+    b.classList.remove("gone");
+    b.style.transition = "none";
+    b.style.left = X_START + "px";
+    void b.offsetWidth;                       /* reflow로 transition 재무장 */
+    b.style.transition = "";
+  });
+  setBoard(0, 0);
+  $("banner").className = "banner";
+  $("banner").innerHTML = "";
+  $("filter").classList.remove("glow");
+  $("log").innerHTML = "";
+  $("play").disabled = false;
+  if(!keepQuiz){
+    playedModes = {raises:false, bare:false};
+    $("quiz").classList.remove("on");
+    var chips = document.querySelectorAll(".chip");
+    for(var i=0;i<chips.length;i++){ chips[i].classList.remove("ok","no"); }
+    var fbs = document.querySelectorAll(".fb");
+    for(var j=0;j<fbs.length;j++){ fbs[j].textContent = ""; }
+  }
+}
+
+/* 공 하나를 굴린다: absorbed=true면 필터에서 흡수, 아니면 보드까지 관통 */
+function roll(ball, absorbed, onArrive){
+  ball.style.left = X_FILTER + "px";
+  timer = setTimeout(function(){
+    if(absorbed){
+      $("filter").classList.add("glow");
+      ball.classList.add("gone");
+      timer = setTimeout(function(){
+        $("filter").classList.remove("glow");
+        onArrive();
+      }, 500 / speed);
+    }else{
+      ball.style.left = X_BOARD + "px";
+      timer = setTimeout(onArrive, 1200 / speed);
+    }
+  }, 1200 / speed);
+}
+
+function playSeq(){
+  if(playing){ return; }
+  resetScene(true);
+  playing = true;
+  $("play").disabled = true;
+  var xf = 0, f = 0;
+  log(mode === "raises"
+      ? "[모드] raises=NotImplementedError — 흡수 전에 예외의 종류를 검사합니다"
+      : "[모드] 이유 없는 xfail — 어떤 예외든 전부 흡수합니다", "s");
+
+  /* 예외 ① NotImplementedError — 두 모드 모두 흡수 */
+  timer = setTimeout(function(){
+    log("예외 ① NotImplementedError 발생 — 스텁이 '아직 구현 전'이라고 던진 예외", "a");
+    roll($("ballN"), true, function(){
+      xf += 1; setBoard(xf, f);
+      log("→ 흡수: 예정한 이유 그대로의 실패 → xfailed +1 (정상 동작)", "g");
+
+      /* 예외 ② ContractError — 모드에 따라 갈림 */
+      timer = setTimeout(function(){
+        log("예외 ② ContractError 발생 — 버그 있는 구현이 던진, 예정에 없던 예외", "r");
+        var absorbed = (mode === "bare");
+        roll($("ballC"), absorbed, function(){
+          if(absorbed){
+            xf += 1; setBoard(xf, f);
+            log("→ 흡수: 버그의 실패까지 '예정된 실패'로 처리 → xfailed +1", "a");
+            log("결과: 2 xfailed · 종료 코드 0 — 화면은 온통 초록입니다", "g");
+            var b = $("banner");
+            b.className = "banner amb show";
+            b.innerHTML = "🟡 <b>버그가 초록 뒤에 숨었습니다.</b> 팀원 누구도 이 실패를 보지 못합니다 — "
+              + "테스트는 통과처럼 보이고, sr 22050 버그는 7-5 시연 날까지 조용히 살아남습니다. "
+              + "이것이 이유 없는 xfail의 값싼 편리함이 치르게 하는 비용입니다.";
+          }else{
+            f += 1; setBoard(xf, f);
+            log("→ 관통: 예정한 이유(미구현)와 다른 예외 → failed +1 (skipping.py:303)", "r");
+            log("결과: 1 failed · 종료 코드 1 — 버그가 그날 바로 드러납니다", "r");
+            var b2 = $("banner");
+            b2.className = "banner red show";
+            b2.innerHTML = "🔴 <b>버그가 드러났습니다.</b> 필터가 예외의 종류를 검사해서, 예정한 이유와 "
+              + "다른 실패는 통과시켰기 때문입니다. 실패를 예정해 둘 때 \"왜 실패할 것인지\"까지 "
+              + "구체적으로 적어 두면, 낯선 버그는 예고 뒤에 숨을 수 없습니다.";
+          }
+          playedModes[mode] = true;
+          if(playedModes.raises && playedModes.bare){
+            $("quiz").classList.add("on");
+          }else{
+            var other = (mode === "raises") ? "이유 없는 xfail" : "raises=NotImplementedError";
+            log("이제 모드를 [" + other + "]로 바꿔 같은 실험을 다시 돌려 보세요.", "s");
+          }
+          playing = false;
+          $("play").disabled = false;
+        });
+      }, 700 / speed);
+    });
+  }, 500 / speed);
+}
+
+$("play").addEventListener("click", playSeq);
+$("reset").addEventListener("click", function(){ resetScene(false); });
+$("mRaises").addEventListener("click", function(){ setMode("raises"); });
+$("mBare").addEventListener("click", function(){ setMode("bare"); });
+var spdbs = document.querySelectorAll(".spdb");
+for(var i=0;i<spdbs.length;i++){
+  spdbs[i].addEventListener("click", function(){ speed = Number(this.getAttribute("data-s")); });
+}
+
+/* 퀴즈 칩 */
+var FB = {
+  "1": ["정답입니다. 이유 없는 xfail에는 예외 종류 검사가 없어서, 미구현이든 버그든 전부 '예정된 실패'로 흡수합니다.",
+        "다시 보세요. 이유 없는 모드에서는 ContractError도 필터에 흡수되어 화면이 초록이었습니다 — 그게 바로 문제였죠."],
+  "2": ["정답입니다. 필터가 예외 종류를 비교해서(skipping.py:290–300), 다르면 rep.outcome=\"failed\"로 남깁니다(:303).",
+        "다시 생각해 보세요. raises=에 적힌 것과 다른 예외는 흡수되지 않고 필터를 관통해 실패로 남습니다."],
+  "3": ["정답입니다. 예고가 구체적일수록, 예고와 다른 원인의 버그가 숨을 자리가 없어집니다.",
+        "다시 생각해 보세요. 마커는 오래 남길수록, 많이 붙일수록 위험합니다 — 낡은 마커가 진짜 문제를 덮기 때문입니다."]
+};
+var chipEls = document.querySelectorAll(".chips");
+for(var c=0;c<chipEls.length;c++){
+  chipEls[c].addEventListener("click", function(e){
+    var btn = e.target.closest(".chip");
+    if(!btn){ return; }
+    var q = this.getAttribute("data-q");
+    var ok = btn.getAttribute("data-ok") === "1";
+    var all = this.querySelectorAll(".chip");
+    for(var k=0;k<all.length;k++){ all[k].classList.remove("ok","no"); }
+    btn.classList.add(ok ? "ok" : "no");
+    this.parentNode.querySelector(".fb").textContent = ok ? FB[q][0] : FB[q][1];
+  });
+}
+</script>
+</body>
+</html>

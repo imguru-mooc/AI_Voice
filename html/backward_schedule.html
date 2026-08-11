@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-2 §6-2 — 역산 일정: 판정은 인상보다 종료 코드</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --xf:#C4A03F; --guard:#9A8BC4; --blue:#4C8DAE;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .stage{width:100%;max-width:960px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:#232E40}
+
+  /* ── 타임라인 ─────────────────────────── */
+  .board{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:18px 22px 14px;margin-bottom:12px}
+  .track{position:relative;height:210px}
+  .axis{position:absolute;left:0;right:0;top:150px;border-top:1.5px solid var(--line)}
+  .tick{position:absolute;top:154px;transform:translateX(-50%);
+    font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;padding-top:6px}
+  .tickmark{position:absolute;top:146px;height:9px;border-left:1px solid var(--line)}
+  .today{position:absolute;top:20px;bottom:38px;border-left:2px solid var(--faint);opacity:.6}
+  .today .tag{position:absolute;bottom:100%;left:-2px;transform:translateX(-50%);
+    font-family:var(--mono);font-size:10px;color:var(--faint);white-space:nowrap;padding-bottom:2px}
+
+  /* 시연 깃발 */
+  .flag{position:absolute;top:8px;bottom:52px;border-left:2.5px solid var(--fail);
+    opacity:0;transition:opacity .5s}
+  .flag.show{opacity:1}
+  .flag .ftag{position:absolute;top:-6px;left:2px;font-size:12px;font-weight:800;color:var(--fail);
+    white-space:nowrap;background:color-mix(in srgb, var(--fail) 12%, transparent);
+    border:1px solid var(--fail);border-radius:0 6px 6px 0;padding:3px 9px}
+  .flag.flash{animation:fflash .5s ease-in-out 3}
+  @keyframes fflash{50%{filter:brightness(1.9) drop-shadow(0 0 8px rgba(228,88,90,.8))}}
+
+  /* 순산 막대 */
+  .bar{position:absolute;top:86px;height:30px;border-radius:6px;overflow:visible;
+    opacity:0;transition:opacity .4s}
+  .bar.show{opacity:1}
+  .bar .fillB{position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:6px;
+    transition:width .8s cubic-bezier(.3,.7,.35,1)}
+  .bar .over{position:absolute;top:0;bottom:0;width:0;border-radius:0 6px 6px 0;
+    background:repeating-linear-gradient(-45deg, var(--fail) 0 7px,
+      color-mix(in srgb, var(--fail) 40%, transparent) 7px 14px);
+    transition:width .7s ease}
+  .bar .bl{position:absolute;bottom:calc(100% + 4px);left:4px;font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .bar .delay{position:absolute;bottom:calc(100% + 4px);right:0;font-family:var(--mono);
+    font-size:10.5px;color:var(--fail);opacity:0;transition:opacity .4s}
+  .bar .delay.show{opacity:1}
+  .ghost{position:absolute;top:86px;height:30px;border:1.5px dashed var(--pass);border-radius:6px;
+    opacity:0;transition:opacity .4s}
+  .ghost.show{opacity:.65}
+  .ghost .bl{position:absolute;bottom:calc(100% + 4px);left:4px;font-size:11.5px;color:var(--pass);white-space:nowrap}
+  .ghost.killed{border-color:var(--fail)}
+  .ghost.killed .bl{color:var(--fail);text-decoration:line-through}
+  .ghost .kill{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:11px;color:var(--fail);opacity:0;transition:opacity .4s}
+  .ghost.killed .kill{opacity:1}
+
+  /* 역산 다이아몬드 + 구간 */
+  .ms{position:absolute;top:114px;transform:translate(-50%,-50%) rotate(45deg);
+    width:16px;height:16px;border:2px solid var(--guard);background:var(--panel2);
+    opacity:0;scale:.4;transition:opacity .4s, scale .4s}
+  .ms.show{opacity:1;scale:1}
+  .ms.hit{background:var(--guard)}
+  .msLabel{position:absolute;top:34px;transform:translateX(-50%);text-align:center;
+    opacity:0;transition:opacity .4s;width:150px}
+  .msLabel.show{opacity:1}
+  .msLabel .mn{font-size:12px;font-weight:700}
+  .msLabel .md{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .badge{font-family:var(--mono);font-size:9.5px;border-radius:5px;padding:2px 6px;margin-top:3px;
+    display:inline-block;opacity:0;transition:opacity .4s;white-space:nowrap}
+  .badge.show{opacity:1}
+  .badge.py{color:var(--pass);border:1px solid var(--pass)}
+  .badge.hu{color:var(--xf);border:1px solid var(--xf)}
+  .backArrow{position:absolute;top:114px;height:0;border-top:1.5px dashed var(--guard);
+    transform-origin:right center;opacity:0;transition:opacity .4s}
+  .backArrow.show{opacity:.75}
+  .backArrow::before{content:"◀";position:absolute;left:-4px;top:-8px;font-size:10px;color:var(--guard)}
+  .phase{position:absolute;top:130px;height:16px;border-radius:4px;opacity:0;transition:opacity .5s, left .7s, width .7s}
+  .phase.show{opacity:1}
+  .phase .pl{position:absolute;top:100%;left:50%;transform:translateX(-50%);padding-top:3px;
+    font-size:10.5px;color:var(--muted);white-space:nowrap}
+  .phase.buffer{background:repeating-linear-gradient(-45deg, rgba(255,255,255,.14) 0 6px,
+    rgba(255,255,255,.03) 6px 12px)}
+  .phase.buffer .consumed{position:absolute;left:0;top:0;bottom:0;width:0;
+    background:repeating-linear-gradient(-45deg, var(--xf) 0 6px,
+      color-mix(in srgb, var(--xf) 35%, transparent) 6px 12px);
+    border-radius:4px 0 0 4px;transition:width .8s ease}
+
+  .caption{min-height:44px;font-size:13.5px;color:var(--muted);text-align:center;line-height:1.55}
+  .caption b{color:var(--text)}
+  .caption.warn{color:var(--fail)} .caption.warn b{color:var(--fail)}
+  .caption.good{color:var(--pass)} .caption.good b{color:var(--pass)}
+  .verdictBar{display:flex;align-items:center;justify-content:center;min-height:56px}
+  .stamp{font-size:16.5px;font-weight:800;letter-spacing:.03em;padding:9px 20px;border-radius:10px;
+    border:2.5px solid;transform:rotate(-3deg) scale(1.6);opacity:0;white-space:nowrap;
+    transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .25s}
+  .stamp.show{opacity:1;transform:rotate(-3deg) scale(1)}
+  .stamp.pass{color:var(--pass);border-color:var(--pass);background:rgba(88,183,126,.08)}
+  .stamp.fail{color:var(--fail);border-color:var(--fail);background:rgba(228,88,90,.08)}
+
+  footer{margin-top:10px;font-size:11.5px;color:var(--faint)}
+  footer code{font-family:var(--mono)}
+  @media (prefers-reduced-motion: reduce){
+    .bar .fillB,.bar .over,.ms,.msLabel,.badge,.phase,.stamp,.flag,.ghost{transition:none}
+    .flag.flash{animation:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-2 · §6-2 · milestones.json — 시연일에서 거꾸로</div>
+      <h1>역산 일정 <span class="q">— 판정은 사람의 인상보다 종료 코드</span></h1>
+    </div>
+    <div class="controls">
+      <button id="btnFwd" class="primary">▶ 순산 — 오늘부터 차례로</button>
+      <button id="btnBwd" class="primary">▶ 역산 — 시연일에서 거꾸로</button>
+      <button id="btnR">초기화</button>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="track" id="track">
+      <div class="axis"></div>
+      <div class="today" id="todayLine"><span class="tag">오늘 (D-24)</span></div>
+      <div class="flag" id="flag"><span class="ftag">🚩 7-5 시연 D-0</span></div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption">같은 24일, 같은 작업량 — 계획의 <b>방향</b>만 다릅니다. 두 버튼을 차례로 재생해 보세요.</div>
+  <div class="verdictBar"><div class="stamp" id="stamp"></div></div>
+
+  <footer>마일스톤 계약(<code>validate_milestones</code>): pytest 판정 마일스톤 <b>2개 이상</b> — 판정은 사람의 인상보다 종료 코드가 낫습니다. 종료 코드가 못 재는 품질(리허설의 완성도)은 <b>측정 절차가 있는 사람 평가</b>(체크리스트)로 보완합니다 (퀴즈 4).</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var TOTAL=24;                     // D-24(오늘) ~ D-0(시연)
+  function pct(d){ return ((TOTAL-d)/TOTAL*100); }   // d = 시연까지 남은 일수
+
+  // 순산: 계획 기간과 실제 지연
+  var FWD=[
+    {name:"설계",   dur:5, delay:1, color:"var(--guard)"},
+    {name:"구현",   dur:8, delay:3, color:"var(--blue)"},
+    {name:"통합",   dur:6, delay:2, color:"var(--xf)"}
+  ];
+  // 역산: 앵커(시연까지 남은 일수)와 판정
+  var MS=[
+    {id:"M4", d:3,  name:"M4 리허설 시작",  judge:"hu", btxt:"사람 평가: 대본 완주 체크리스트"},
+    {id:"M3", d:7,  name:"M3 통합 완료",    judge:"py", btxt:"pytest: E2E exit 0 · TTFA p95 기록"},
+    {id:"M2", d:14, name:"M2 구현 완료",    judge:"py", btxt:"pytest: xfail 0"},
+    {id:"M1", d:21, name:"M1 설계 완료",    judge:"py", btxt:"pytest: 3 xfailed · exit 0"}
+  ];
+  var PHASES=[
+    {from:24, to:21, name:"여유 + 스파이크 주간", cls:"buffer"},
+    {from:21, to:14, name:"구현",      color:"var(--blue)"},
+    {from:14, to:7,  name:"통합",      color:"var(--xf)"},
+    {from:7,  to:3,  name:"시연 준비", color:"var(--guard)"},
+    {from:3,  to:0,  name:"리허설",    color:"var(--pass)"}
+  ];
+
+  var $=function(id){return document.getElementById(id);};
+  var track=$("track"), flag=$("flag"), caption=$("caption"), stamp=$("stamp");
+  var btnFwd=$("btnFwd"), btnBwd=$("btnBwd"), btnR=$("btnR");
+  var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing=false, runId=0, dyn=[];
+
+  // 고정 배치
+  $("todayLine").style.left=pct(24)+"%";
+  flag.style.left=pct(0)+"%";
+  [24,21,14,7,3,0].forEach(function(d){
+    var m=document.createElement("div"); m.className="tickmark"; m.style.left=pct(d)+"%";
+    track.appendChild(m);
+    var t=document.createElement("div"); t.className="tick"; t.style.left=pct(d)+"%";
+    t.textContent = d===0 ? "D-0" : "D-"+d;
+    track.appendChild(t);
+  });
+
+  function sleep(ms){
+    return new Promise(function(res){
+      if (reduced){ res(); return; }
+      setTimeout(res, ms);
+    });
+  }
+  function el(tag, cls, styles){
+    var d=document.createElement(tag); d.className=cls;
+    if (styles) Object.keys(styles).forEach(function(k){ d.style[k]=styles[k]; });
+    track.appendChild(d); dyn.push(d);
+    return d;
+  }
+  function setCaption(html, cls){
+    caption.innerHTML=html; caption.className="caption"+(cls?" "+cls:"");
+  }
+  function setStamp(ok, text){
+    stamp.className="stamp"; void stamp.offsetHeight;
+    if (text===null){ stamp.textContent=""; return; }
+    stamp.textContent=text;
+    stamp.classList.add(ok?"pass":"fail");
+    requestAnimationFrame(function(){ stamp.classList.add("show"); });
+  }
+  function reset(){
+    runId++;
+    playing=false;
+    btnFwd.disabled=btnBwd.disabled=false;
+    dyn.forEach(function(d){ d.remove(); }); dyn=[];
+    flag.classList.remove("show","flash");
+    setStamp(true, null); stamp.className="stamp";
+    setCaption("같은 24일, 같은 작업량 — 계획의 <b>방향</b>만 다릅니다. 두 버튼을 차례로 재생해 보세요.", null);
+  }
+
+  // ── 순산: 지연이 마지막 조각을 삼킨다 ──────────────────────
+  async function playFwd(){
+    if (playing) return;
+    reset();
+    playing=true; btnFwd.disabled=btnBwd.disabled=true;
+    var myRun=runId;
+    flag.classList.add("show");
+    setCaption("순산: 오늘부터 <b>차례로</b> 쌓습니다 — 설계 5일, 구현 8일, 통합 6일, 리허설 3일. 서류상으로는 2일이 남습니다.");
+
+    // 리허설 예약석 (유령)
+    var gStart=24-(5+8+6), gEnd=gStart-3;   // D-5 ~ D-2
+    var ghost=el("div","ghost",{left:pct(gStart)+"%", width:(pct(gEnd)-pct(gStart))+"%"});
+    ghost.innerHTML='<span class="bl">리허설(예약)</span><span class="kill">0회 — 삼켜짐</span>';
+    await sleep(1400);
+    ghost.classList.add("show");
+    await sleep(1100);
+    if (myRun!==runId) return;
+
+    var cursor=24;                           // 남은 일수 기준 커서
+    for (var i=0;i<FWD.length;i++){
+      if (myRun!==runId) return;
+      var ph=FWD[i];
+      var start=cursor, plannedEnd=cursor-ph.dur;
+      var bar=el("div","bar",{left:pct(start)+"%", width:(pct(plannedEnd)-pct(start))+"%"});
+      bar.innerHTML='<div class="fillB" style="background:'+ph.color+'"></div>'
+        +'<span class="bl">'+ph.name+' '+ph.dur+'일</span>'
+        +'<span class="delay">+'+ph.delay+'일</span>'
+        +'<div class="over" style="left:100%"></div>';
+      bar.classList.add("show");
+      void bar.offsetHeight;
+      bar.querySelector(".fillB").style.width="100%";
+      await sleep(950);
+      if (myRun!==runId) return;
+      // 지연 발생 — 빨간 초과분이 뒤 구간을 밀어냄
+      var overW=(pct(plannedEnd-ph.delay)-pct(plannedEnd));
+      bar.querySelector(".over").style.width=overW+"%";
+      bar.querySelector(".delay").classList.add("show");
+      cursor=plannedEnd-ph.delay;
+      setCaption(ph.name+"이 <b>+"+ph.delay+"일</b> 늦어집니다. 뒤 일정 전체가 그만큼 밀립니다 — 지연은 사라지지 않고 <b>뒤로 전달</b>됩니다.", "warn");
+      await sleep(1500);
+    }
+    if (myRun!==runId) return;
+
+    // cursor = 24-25 = -1 → 통합이 시연일을 침범
+    flag.classList.add("flash");
+    ghost.classList.add("killed");
+    setCaption("통합이 끝난 날짜: <b>D+1 — 시연일을 지났습니다.</b> 밀린 6일은 전부 마지막 조각이 삼켰습니다: 리허설 예약석은 비어 있습니다.", "warn");
+    setStamp(false, "❌ 리허설 0회 — 통합 직후 그대로 무대에");
+    await sleep(600);
+    playing=false; btnFwd.disabled=btnBwd.disabled=false;
+  }
+
+  // ── 역산: 깃발부터, 오른쪽에서 왼쪽으로 ─────────────────────
+  async function playBwd(){
+    if (playing) return;
+    reset();
+    playing=true; btnFwd.disabled=btnBwd.disabled=true;
+    var myRun=runId;
+
+    setCaption("역산: 가장 먼저 하는 일은 <b>깃발을 꽂는 것</b>입니다 — 7-5 시연일. 협상 불가능한 점부터 고정합니다.");
+    flag.classList.add("show"); flag.classList.add("flash");
+    await sleep(1900);
+    flag.classList.remove("flash");
+    if (myRun!==runId) return;
+
+    // 오른쪽 → 왼쪽으로 마일스톤 배치
+    var prev=0;
+    for (var i=0;i<MS.length;i++){
+      if (myRun!==runId) return;
+      var m=MS[i];
+      var arrow=el("div","backArrow",{left:pct(m.d)+"%", width:(pct(prev)-pct(m.d))+"%"});
+      arrow.classList.add("show");
+      var dia=el("div","ms",{left:pct(m.d)+"%"});
+      var lb=el("div","msLabel",{left:pct(m.d)+"%"});
+      lb.innerHTML='<div class="mn">'+m.name+'</div><div class="md">D-'+m.d+'</div>'
+        +'<span class="badge '+(m.judge==="py"?"py":"hu")+'">'+m.btxt+'</span>';
+      dia.classList.add("show"); lb.classList.add("show");
+      setCaption("시연에서 <b>거꾸로</b> 셉니다: "+m.name+" — D-"+m.d+". "
+        +(m.id==="M4" ? "리허설 3일이 <b>가장 먼저 예약</b>됐습니다 — 아무도 이 자리를 뺏을 수 없습니다."
+                       : "다음 앵커를 또 왼쪽에 놓습니다."));
+      await sleep(1250);
+      lb.querySelector(".badge").classList.add("show");
+      await sleep(550);
+      prev=m.d;
+    }
+    if (myRun!==runId) return;
+
+    // 구간 채우기 (여유가 맨 앞)
+    setCaption("앵커 사이가 작업 구간이 되고 — 남는 시간은 뒤가 아니라 <b>맨 앞의 여유 구간</b>이 됩니다. 스파이크가 사는 곳입니다.");
+    var bufferEl=null;
+    for (var j=0;j<PHASES.length;j++){
+      if (myRun!==runId) return;
+      var p=PHASES[j];
+      var ph=el("div","phase"+(p.cls?" "+p.cls:""),
+        {left:pct(p.from)+"%", width:(pct(p.to)-pct(p.from))+"%"});
+      if (p.color) ph.style.background="color-mix(in srgb, "+p.color+" 45%, transparent)";
+      ph.innerHTML=(p.cls==="buffer"?'<div class="consumed"></div>':'')+'<span class="pl">'+p.name+'</span>';
+      ph.classList.add("show");
+      if (p.cls==="buffer") bufferEl=ph;
+      await sleep(330);
+    }
+    await sleep(1300);
+    if (myRun!==runId) return;
+
+    // 판정 규약 확인
+    setCaption("판정 배지를 보세요 — <b>pytest 판정 3개</b>(초록) + 사람 평가 1개(호박). 계약 조건 \"pytest 판정 ≥ 2\" 통과: 마일스톤 절반 이상이 <b>종료 코드로</b> 판정됩니다.", "good");
+    await sleep(2700);
+    if (myRun!==runId) return;
+
+    // 같은 지연(+2일) — 여유가 흡수
+    setCaption("이제 순산 때와 같은 사고를 넣어 봅니다 — 구현이 <b>+2일</b> 늦어집니다.");
+    await sleep(1500);
+    if (myRun!==runId) return;
+    if (bufferEl){
+      var consumedW = (pct(22)-pct(24)) / (pct(21)-pct(24)) * 100;   // 3일 중 2일
+      bufferEl.querySelector(".consumed").style.width=consumedW+"%";
+    }
+    setCaption("지연은 <b>맨 앞의 여유 구간</b>이 흡수합니다(3일 중 2일 소모). 앵커는 그대로, 리허설 3일도 그대로입니다 — 순산에서는 같은 지연이 리허설을 삼켰습니다.", "good");
+    setStamp(true, "✅ 리허설 3일 사수 — 지연이 먹는 것은 여유이지, 시연이 아니다");
+    playing=false; btnFwd.disabled=btnBwd.disabled=false;
+  }
+
+  btnFwd.addEventListener("click", playFwd);
+  btnBwd.addEventListener("click", playBwd);
+  btnR.addEventListener("click", reset);
+})();
+</script>
+</body>
+</html>

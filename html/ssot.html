@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-2 §2 — 손 사본의 배신 vs 파생 구조: 조용한 어긋남</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --xf:#C4A03F; --guard:#9A8BC4;
+    --stale-bg:#221D14; --stale-line:#5C5240; --stale-txt:#8A7F63;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .stage{width:100%;max-width:940px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:#232E40}
+
+  /* ── 상단: 정본 ↔ 사본 ─────────────────── */
+  .top{display:grid;grid-template-columns:1fr 190px 1fr;gap:0;align-items:stretch;
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
+  .doc{border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;position:relative;
+    transition:background 2.2s ease, border-color 2.2s ease}
+  .doc .dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--guard)}
+  .doc .ds{font-size:11.5px;color:var(--faint);margin:2px 0 9px}
+  .iline{font-family:var(--mono);font-size:12.5px;color:var(--muted);padding:4px 8px;margin-bottom:4px;
+    border:1px solid var(--line);border-radius:6px;transition:all .4s;opacity:1}
+  .iline.new{border-color:var(--pass);color:var(--text);
+    background:color-mix(in srgb, var(--pass) 12%, transparent)}
+  .iline.enter{opacity:0;transform:translateY(-6px)}
+  .doc.stale{background:var(--stale-bg);border-color:var(--stale-line)}
+  .doc.stale .iline{color:var(--stale-txt);border-color:var(--stale-line)}
+  .doc.stale .dt,.doc.stale .ds{color:var(--stale-txt)}
+  .doc.culprit{border-color:var(--fail);box-shadow:0 0 0 2.5px var(--fail),
+    0 0 20px color-mix(in srgb, var(--fail) 50%, transparent);transition:box-shadow .4s, border-color .4s}
+  .culpritTag{position:absolute;top:-11px;right:10px;font-family:var(--mono);font-size:10.5px;
+    color:var(--fail);background:var(--panel2);border:1px solid var(--fail);border-radius:5px;
+    padding:1px 7px;opacity:0;transition:opacity .4s}
+  .doc.culprit .culpritTag{opacity:1}
+  .syncBadge{position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);
+    font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:999px;
+    background:var(--panel2);border:1px solid var(--pass);color:var(--pass);
+    transition:opacity 2.2s, border-color .4s, color .4s;white-space:nowrap}
+  .syncBadge.gone{opacity:0}
+
+  /* 연결부 */
+  .link{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 10px}
+  .linkLabel{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;line-height:1.5}
+  .wire{position:relative;width:100%;height:10px}
+  .wire .base{position:absolute;left:0;right:0;top:4px;border-top:2px dashed var(--faint)}
+  .wire.solid .base{border-top:2px solid var(--guard)}
+  .wire .pulse{position:absolute;top:0;left:-8%;width:22%;height:8px;border-radius:4px;
+    background:linear-gradient(90deg, transparent, var(--guard), transparent);opacity:0}
+  .wire.firing .pulse{animation:flow 0.9s ease-in-out 1;opacity:1}
+  @keyframes flow{from{left:-15%}to{left:95%}}
+
+  /* ── 런타임 레인 ───────────────────────── */
+  .lane{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px;min-height:96px}
+  .laneTag{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--faint);
+    writing-mode:vertical-rl;text-orientation:mixed}
+  .utt{font-size:12.5px;color:var(--text);background:#232E40;border:1.5px solid var(--muted);
+    border-radius:999px;padding:7px 13px;opacity:0;transform:translateX(-14px);
+    transition:opacity .45s, transform .45s;white-space:nowrap}
+  .utt.show{opacity:1;transform:none}
+  .node{position:relative;border:1.5px solid var(--line);border-radius:10px;padding:9px 13px;
+    text-align:center;opacity:.4;transition:opacity .3s, border-color .3s, box-shadow .3s;min-width:120px}
+  .node.on{opacity:1}
+  .node .nt{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--faint)}
+  .node .nv{font-family:var(--mono);font-size:12px;margin-top:3px;color:var(--muted);min-height:16px;
+    transition:color .3s}
+  .node.ok{border-color:var(--pass)} .node.ok .nv{color:var(--pass)}
+  .node.bad{border-color:var(--fail)} .node.bad .nv{color:var(--fail)}
+  .node.accused{box-shadow:0 0 0 2.5px var(--xf);border-color:var(--xf)}
+  .accuseTag{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+    font-family:var(--mono);font-size:10px;color:var(--xf);background:var(--panel2);
+    border:1px solid var(--xf);border-radius:5px;padding:1px 6px;opacity:0;transition:opacity .4s;white-space:nowrap}
+  .node.accused .accuseTag{opacity:1}
+  .arrow{font-family:var(--mono);color:var(--faint);flex:0 0 auto}
+  .bubble{font-size:12px;color:var(--xf);border:1px dashed var(--xf);border-radius:10px;
+    padding:6px 11px;opacity:0;transition:opacity .45s;white-space:nowrap}
+  .bubble.show{opacity:1}
+
+  /* ── 파생 사슬 (결말) ───────────────────── */
+  .chain{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:14px 18px;margin-bottom:14px;display:none}
+  .chain.show{display:block}
+  .chainTitle{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--faint);margin-bottom:10px}
+  .chainRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .cnode{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);
+    border-radius:7px;padding:5px 9px;transition:all .35s;white-space:nowrap}
+  .cnode.lit{color:var(--text);border-color:var(--guard);
+    background:color-mix(in srgb, var(--guard) 14%, transparent);
+    box-shadow:0 0 10px color-mix(in srgb, var(--guard) 35%, transparent)}
+  .carrow{color:var(--faint);font-family:var(--mono);font-size:11px}
+
+  .caption{min-height:44px;font-size:13.5px;color:var(--muted);text-align:center;line-height:1.55}
+  .caption b{color:var(--text)}
+  .caption.warn{color:var(--fail)} .caption.warn b{color:var(--fail)}
+  .caption.good{color:var(--pass)} .caption.good b{color:var(--pass)}
+  .verdictBar{display:flex;align-items:center;justify-content:center;min-height:56px}
+  .stamp{font-size:17px;font-weight:800;letter-spacing:.03em;padding:9px 20px;border-radius:10px;
+    border:2.5px solid;transform:rotate(-3deg) scale(1.6);opacity:0;white-space:nowrap;
+    transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .25s}
+  .stamp.show{opacity:1;transform:rotate(-3deg) scale(1)}
+  .stamp.pass{color:var(--pass);border-color:var(--pass);background:rgba(88,183,126,.08)}
+  .stamp.fail{color:var(--fail);border-color:var(--fail);background:rgba(228,88,90,.08)}
+  .timeSkip{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.2em;
+    text-align:center;opacity:0;transition:opacity .5s;margin-bottom:6px}
+  .timeSkip.show{opacity:1}
+
+  footer{margin-top:10px;font-size:11.5px;color:var(--faint)}
+  footer code{font-family:var(--mono)}
+  @media (prefers-reduced-motion: reduce){
+    .doc,.iline,.utt,.node,.stamp,.cnode,.syncBadge,.bubble{transition:none}
+    .wire.firing .pulse{animation:none;opacity:0}
+  }
+  @media (max-width:720px){.top{grid-template-columns:1fr}.link{padding:12px 0}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-2 · §2 · SSOT — 정본은 하나, 파생은 코드로</div>
+      <h1>손 사본의 배신 <span class="q">— 조용한 어긋남, 그리고 파생 구조</span></h1>
+    </div>
+    <div class="controls">
+      <button id="btnHand" class="primary">▶ 손 사본 모드</button>
+      <button id="btnDerive" class="primary">▶ 파생 모드</button>
+      <button id="btnR">초기화</button>
+    </div>
+  </header>
+
+  <div class="top">
+    <div class="doc" id="charter">
+      <div class="dt">정본 — project_charter.json</div>
+      <div class="ds">유일한 기준. 팀이 고치는 곳은 여기뿐입니다.</div>
+      <div id="charterLines"></div>
+    </div>
+    <div class="link">
+      <div class="wire" id="wire"><div class="base"></div><div class="pulse"></div></div>
+      <div class="linkLabel" id="linkLabel">연결 방식을 선택하세요</div>
+    </div>
+    <div class="doc" id="copy">
+      <div class="dt">사본 — INTENT_SCHEMA enum</div>
+      <div class="ds" id="copyDesc">LLM 출력을 심사하는 게이트의 기준표.</div>
+      <div id="copyLines"></div>
+      <span class="culpritTag">진범: 지난주의 손 사본</span>
+      <span class="syncBadge" id="syncBadge">정합 ✓</span>
+    </div>
+  </div>
+
+  <div class="timeSkip" id="timeSkip">· · · 며 칠 뒤 · · ·</div>
+
+  <div class="lane">
+    <div class="laneTag">런타임</div>
+    <div class="utt" id="utt">"토요일에도 진료하시나요."</div>
+    <span class="arrow" id="ar1" style="opacity:.3">→</span>
+    <div class="node" id="nLLM">
+      <span class="accuseTag">팀의 의심</span>
+      <div class="nt">LLM 분류</div><div class="nv" id="vLLM">—</div>
+    </div>
+    <span class="arrow" id="ar2" style="opacity:.3">→</span>
+    <div class="node" id="nGate">
+      <div class="nt">스키마 게이트</div><div class="nv" id="vGate">—</div>
+    </div>
+    <div class="bubble" id="bubble">"프롬프트가 이상한가…?"</div>
+  </div>
+
+  <div class="chain" id="chain">
+    <div class="chainTitle">파생 사슬 — 정본 수정 한 번이 어디까지 전파되는가</div>
+    <div class="chainRow" id="chainRow"></div>
+  </div>
+
+  <div class="caption" id="caption">같은 사건(정본에 의도 <b>inquiry</b> 추가)을 두 가지 연결 방식으로 재생합니다</div>
+  <div class="verdictBar"><div class="stamp" id="stamp"></div></div>
+
+  <footer>노트북 셀 2-1의 위반 포착을 극화한 것입니다. 파생 규칙은 그림(.mmd)에도 똑같이 적용됩니다 — <b>파생물을 손으로 고치지 말 것, 정본을 고치고 재생성할 것</b> (V4).</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var BASE_INTENTS=["reserve","change","cancel","handoff"];
+  var CHAIN=["project_schema.json","dialog_plan.json","scenarios + .mmd",
+             "project_engines.py(스텁)","test_project.py","spikes.json","milestones.json"];
+
+  var $=function(id){return document.getElementById(id);};
+  var charter=$("charter"), copy=$("copy"), wire=$("wire"), linkLabel=$("linkLabel");
+  var syncBadge=$("syncBadge"), timeSkip=$("timeSkip"), utt=$("utt");
+  var nLLM=$("nLLM"), nGate=$("nGate"), vLLM=$("vLLM"), vGate=$("vGate"), bubble=$("bubble");
+  var chain=$("chain"), chainRow=$("chainRow"), caption=$("caption"), stamp=$("stamp");
+  var btnHand=$("btnHand"), btnDerive=$("btnDerive"), btnR=$("btnR");
+  var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing=false, runId=0;
+
+  function sleep(ms){
+    return new Promise(function(res){
+      if (reduced){ res(); return; }
+      setTimeout(res, ms);
+    });
+  }
+  function setCaption(html, cls){
+    caption.innerHTML=html; caption.className="caption"+(cls?" "+cls:"");
+  }
+  function setStamp(ok, text){
+    stamp.className="stamp"; void stamp.offsetHeight;
+    if (text===null){ stamp.textContent=""; return; }
+    stamp.textContent=text;
+    stamp.classList.add(ok?"pass":"fail");
+    requestAnimationFrame(function(){ stamp.classList.add("show"); });
+  }
+  function fillLines(holder, intents){
+    holder.innerHTML="";
+    intents.forEach(function(it){
+      var d=document.createElement("div"); d.className="iline"; d.textContent='"'+it+'"';
+      holder.appendChild(d);
+    });
+  }
+  function addLine(holder, it){
+    var d=document.createElement("div"); d.className="iline new enter"; d.textContent='"'+it+'"';
+    holder.appendChild(d);
+    void d.offsetHeight; d.classList.remove("enter");
+    return d;
+  }
+  function firePulse(){
+    wire.classList.remove("firing"); void wire.offsetWidth;
+    wire.classList.add("firing");
+  }
+  function buildChain(){
+    chainRow.innerHTML="";
+    var head=document.createElement("span");
+    head.className="cnode lit"; head.textContent="charter(정본)";
+    chainRow.appendChild(head);
+    var nodes=[];
+    CHAIN.forEach(function(name){
+      var a=document.createElement("span"); a.className="carrow"; a.textContent="→";
+      chainRow.appendChild(a);
+      var n=document.createElement("span"); n.className="cnode"; n.textContent=name;
+      chainRow.appendChild(n); nodes.push(n);
+    });
+    return nodes;
+  }
+  function resetLane(){
+    utt.classList.remove("show");
+    [nLLM,nGate].forEach(function(n){ n.className="node"; });
+    vLLM.textContent="—"; vGate.textContent="—";
+    bubble.classList.remove("show");
+    timeSkip.classList.remove("show");
+  }
+  function reset(){
+    runId++;
+    playing=false;
+    btnHand.disabled=btnDerive.disabled=false;
+    fillLines($("charterLines"), BASE_INTENTS);
+    fillLines($("copyLines"), BASE_INTENTS);
+    copy.classList.remove("stale","culprit");
+    syncBadge.classList.remove("gone");
+    syncBadge.textContent="정합 ✓";
+    wire.classList.remove("solid","firing");
+    linkLabel.textContent="연결 방식을 선택하세요";
+    $("copyDesc").textContent="LLM 출력을 심사하는 게이트의 기준표.";
+    resetLane();
+    chain.classList.remove("show"); chainRow.innerHTML="";
+    setStamp(true, null); stamp.className="stamp";
+    setCaption("같은 사건(정본에 의도 <b>inquiry</b> 추가)을 두 가지 연결 방식으로 재생합니다", null);
+  }
+
+  // ── 손 사본 모드 ─────────────────────────────────────────────
+  async function playHand(){
+    if (playing) return;
+    reset();
+    playing=true; btnHand.disabled=btnDerive.disabled=true;
+    var myRun=runId;
+    linkLabel.innerHTML="✍ 손 복사<br>(지난주에 한 번 베낌)";
+    $("copyDesc").textContent="지난주에 손으로 베껴 둔 enum.";
+    setCaption("두 문서는 지금 정합 상태입니다 — 지난주에 손으로 베꼈고, 그 뒤로 아무도 안 봤습니다.");
+    await sleep(2000);
+    if (myRun!==runId) return;
+
+    // 정본에 inquiry 추가 — 사본은 침묵
+    addLine($("charterLines"), "inquiry");
+    setCaption("이번 주, 정본에 <b>inquiry</b>가 추가됐습니다. 그리고 — <b>아무 일도 일어나지 않습니다.</b> 에러도, 경고도 없습니다. 그게 문제입니다.");
+    copy.classList.add("stale");           // 2.2초에 걸쳐 조용히 낡아감
+    syncBadge.classList.add("gone");        // 정합 배지가 소리 없이 사라짐
+    await sleep(3300);
+    if (myRun!==runId) return;
+
+    // 며칠 뒤 — 발화 도착
+    timeSkip.classList.add("show");
+    await sleep(1300);
+    setCaption("inquiry 발화가 들어옵니다.");
+    utt.classList.add("show"); $("ar1").style.opacity=1;
+    await sleep(1100);
+    if (myRun!==runId) return;
+
+    nLLM.classList.add("on","ok");
+    vLLM.textContent='{"intent":"inquiry"}';
+    setCaption("LLM은 <b>옳게</b> 분류합니다.");
+    await sleep(1500);
+    if (myRun!==runId) return;
+
+    $("ar2").style.opacity=1;
+    nGate.classList.add("on","bad");
+    vGate.textContent="'inquiry' is not one of enum";
+    setCaption("낡은 사본을 기준으로 든 게이트도 <b>'올바르게'</b> 거부합니다 — 모든 부품이 각자 정상 동작 중입니다.", "warn");
+    await sleep(2400);
+    if (myRun!==runId) return;
+
+    // 오진: 비난이 LLM으로
+    nLLM.classList.remove("ok"); nLLM.classList.add("accused");
+    bubble.classList.add("show");
+    setCaption("예외 메시지는 LLM 출력을 가리킵니다. 팀은 <b>엉뚱하게 프롬프트를 의심</b>하고 며칠을 팝니다. (퀴즈 1의 오진 경로)", "warn");
+    await sleep(3000);
+    if (myRun!==runId) return;
+
+    // 진범 공개
+    copy.classList.add("culprit");
+    setCaption("진범은 구석에서 조용히 낡아 가던 <b>지난주의 손 사본</b>이었습니다.", "warn");
+    setStamp(false, "❌ 조용한 어긋남 — 규율(\"잊지 말자\")은 확률적으로 실패한다");
+    playing=false; btnHand.disabled=btnDerive.disabled=false;
+  }
+
+  // ── 파생 모드 ───────────────────────────────────────────────
+  async function playDerive(){
+    if (playing) return;
+    reset();
+    playing=true; btnHand.disabled=btnDerive.disabled=true;
+    var myRun=runId;
+    wire.classList.add("solid");
+    linkLabel.innerHTML="derive_project_schema()<br>파생 — 사본을 만들 수 있는 유일한 주체";
+    $("copyDesc").textContent="정본에서 함수로 파생된 enum — 손 편집 금지.";
+    setCaption("이번엔 사본을 손이 아니라 <b>함수</b>가 만듭니다. 같은 사건을 다시 봅니다.");
+    await sleep(2100);
+    if (myRun!==runId) return;
+
+    // 정본 수정 → 즉시 동기화 파동
+    addLine($("charterLines"), "inquiry");
+    setCaption("정본에 <b>inquiry</b> 추가 — 파생 함수를 재실행하면…");
+    await sleep(900);
+    firePulse();
+    await sleep(700);
+    if (myRun!==runId) return;
+    addLine($("copyLines"), "inquiry");
+    syncBadge.textContent="정합 ✓ (재파생)";
+    setCaption("사본이 <b>즉시 같은 상태</b>가 됩니다. 어긋난 상태는 아예 <b>생성이 불가능</b>합니다.", "good");
+    await sleep(2300);
+    if (myRun!==runId) return;
+
+    // 같은 발화 — 이번엔 통과
+    utt.classList.add("show"); $("ar1").style.opacity=1;
+    await sleep(900);
+    nLLM.classList.add("on","ok"); vLLM.textContent='{"intent":"inquiry"}';
+    await sleep(900);
+    $("ar2").style.opacity=1;
+    nGate.classList.add("on","ok"); vGate.textContent="jsonschema 통과 ✓";
+    setCaption("같은 발화가 이번에는 게이트를 통과합니다 — 파본 대신 파생.", "good");
+    await sleep(2100);
+    if (myRun!==runId) return;
+
+    // 결말: 파생 사슬 전파
+    chain.classList.add("show");
+    var nodes=buildChain();
+    setCaption("그리고 이 구조는 스키마 하나에 그치지 않습니다 — 오늘 만드는 산출물 <b>전부</b>가 같은 사슬에 매달립니다.");
+    await sleep(1600);
+    if (myRun!==runId) return;
+    firePulse();
+    for (var i=0;i<nodes.length;i++){
+      if (myRun!==runId) return;
+      nodes[i].classList.add("lit");
+      await sleep(340);
+    }
+    setCaption("<b>정본은 하나, 나머지는 전부 파생.</b> 파생 구조는 실수의 확률을 줄이는 게 아니라 실수의 <b>통로</b>를 없앱니다 — 계약서를 고치면, 사슬을 다시 돌리면 됩니다.", "good");
+    setStamp(true, "✅ 어긋난 상태가 '생성 불가능' — 규율이 아니라 구조");
+    playing=false; btnHand.disabled=btnDerive.disabled=false;
+  }
+
+  btnHand.addEventListener("click", playHand);
+  btnDerive.addEventListener("click", playDerive);
+  btnR.addEventListener("click", reset);
+  reset();
+})();
+</script>
+</body>
+</html>

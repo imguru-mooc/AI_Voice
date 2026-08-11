@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-3 손 편집의 소멸 — write_engines 재생성</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#243447; --line:#334155;
+    --ink:#e2e8f0; --sub:#94a3b8; --green:#34d399; --red:#f87171;
+    --amber:#fbbf24; --blue:#60a5fa; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+       display:flex;justify-content:center;padding:24px 12px}
+  .wrap{width:100%;max-width:980px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin:0 0 16px;line-height:1.6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  h2{font-size:14px;margin:0 0 10px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+         border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--blue)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d4ed8;border-color:#1d4ed8}
+  .spd{color:var(--sub);font-size:12px}
+  /* 두 노선 */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+  .lanebox{border:1px solid var(--line);border-radius:12px;padding:12px;background:#0b1220}
+  .lanebox .head{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;gap:6px;align-items:center}
+  .lanebox.left .head{color:#fca5a5}
+  .lanebox.right .head{color:#86efac}
+  .src{border:1px solid var(--line);border-radius:10px;padding:9px;background:var(--panel2);
+       transition:border-color .3s, box-shadow .3s;margin-bottom:6px}
+  .src .t{font-size:11px;color:var(--sub);margin-bottom:5px}
+  .src.glow{border-color:var(--blue);box-shadow:0 0 0 3px rgba(96,165,250,.18)}
+  .downarr{text-align:center;color:var(--sub);font-size:13px;margin:2px 0 6px}
+  .file{border:1px solid var(--line);border-radius:10px;padding:9px;background:#0d1526;
+        transition:border-color .3s, box-shadow .3s;position:relative}
+  .file .t{font-size:11px;color:var(--sub);margin-bottom:5px}
+  .file.rebuild{border-color:var(--violet);box-shadow:0 0 0 3px rgba(167,139,250,.2)}
+  .code{font-family:ui-monospace,Consolas,monospace;font-size:10.6px;line-height:1.85;white-space:pre;overflow-x:auto}
+  .ln{display:block;padding:0 4px;border-radius:4px;transition:background .3s,color .3s,opacity .5s}
+  .ln .cm{color:#64748b}
+  .ln .num{color:var(--amber);font-weight:800}
+  .ln.edit{background:rgba(96,165,250,.14);outline:1px solid rgba(96,165,250,.5)}
+  .ln.lost{background:rgba(248,113,113,.14);outline:1px solid rgba(248,113,113,.6)}
+  .ln.kept{background:rgba(52,211,153,.12);outline:1px solid rgba(52,211,153,.5)}
+  .stamp{position:absolute;right:8px;top:6px;background:#7f1d1d;border:1px solid var(--red);color:#fecaca;
+         border-radius:7px;padding:2px 8px;font-size:10.5px;transform:rotate(-3deg);opacity:0;transition:opacity .4s}
+  .stamp.show{opacity:1}
+  .stat{font-size:11.5px;margin-top:8px;min-height:34px;line-height:1.6;color:var(--sub)}
+  .stat .r{color:#fca5a5} .stat .g{color:#86efac} .stat .a{color:var(--amber)}
+  .hist{margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;min-height:22px}
+  .hchip{font-size:10px;border:1px solid #14532d;color:var(--green);border-radius:6px;padding:2px 6px;
+         font-family:ui-monospace,Consolas,monospace}
+  /* 재실행 번개 */
+  .bolt{margin:14px 0 4px;text-align:center;border:1px dashed var(--line);border-radius:10px;
+        padding:8px;font-size:12.5px;color:var(--sub);transition:border-color .3s, box-shadow .3s, color .3s}
+  .bolt.zap{border-color:var(--violet);color:#ddd6fe;box-shadow:0 0 0 4px rgba(167,139,250,.2)}
+  .banner{display:none;margin-top:12px;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7}
+  .banner.red{border:1px solid var(--red);background:rgba(248,113,113,.08);color:#fecaca}
+  .banner.show{display:block}
+  /* 흔적 찾기 */
+  .greppanel{display:none;margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .greppanel.show{display:block}
+  .greppanel table{width:100%;border-collapse:collapse;font-size:12px}
+  .greppanel th,.greppanel td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left}
+  .greppanel th{background:var(--panel2);color:var(--sub);font-size:11px;font-weight:600}
+  .greppanel td.z{color:var(--red);font-weight:800}
+  .greppanel td.h{color:var(--green);font-weight:800}
+  .grepnote{font-size:11.5px;color:var(--sub);line-height:1.7;padding:8px 10px}
+  /* 퀴즈 */
+  .quiz{opacity:.35;pointer-events:none;transition:opacity .4s}
+  .quiz.on{opacity:1;pointer-events:auto}
+  .q{margin-bottom:12px}
+  .q .qq{font-size:13px;margin-bottom:6px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:999px;
+        padding:6px 12px;font-size:12.5px;cursor:pointer}
+  .chip.ok{border-color:var(--green);color:var(--green)}
+  .chip.no{border-color:var(--red);color:var(--red)}
+  .fb{font-size:12px;margin-top:6px;color:var(--sub);min-height:16px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🫥 7-3 손 편집의 소멸 — write_engines 재생성</h1>
+  <p class="sub">같은 수정("침묵 기준을 0.1초 → 0.2초로")을 두 방식으로 해 봅니다. 왼쪽은
+  <b>project_engines.py 파일을 직접</b> 고치고, 오른쪽은 파일을 만들어 내는 <b>작성기(정본)</b>를
+  고칩니다. 그리고 Colab에서 늘 일어나는 일 — <b>런타임 재시작 → 0장부터 재실행</b> — 이 지나가면
+  무슨 차이가 생기는지 지켜보세요. ▶ 재생 후 🔍 흔적 찾기도 눌러 보세요.</p>
+
+  <div class="controls">
+    <button id="play" class="primary">▶ 재생 (두 노선 동시 비교)</button>
+    <button id="grep" disabled>🔍 흔적 찾기 — 잃어버린 줄은 어디에?</button>
+    <button id="reset">↺ 처음부터</button>
+    <span class="spd">속도
+      <button data-s="1" class="spdb" style="padding:4px 8px">1×</button>
+      <button data-s="2" class="spdb" style="padding:4px 8px">2×</button>
+    </span>
+  </div>
+
+  <div class="card">
+    <div class="cols">
+      <!-- 왼쪽: 손 편집 -->
+      <div class="lanebox left">
+        <div class="head">✏️ 노선 A — 파일을 직접 고친다</div>
+        <div class="src" id="srcA">
+          <div class="t">수정 위치: 편집기에서 파일을 연다</div>
+          <div class="code"><span class="ln"><span class="cm"># 파일 더블클릭 → 숫자만 바꾸면 되니까…</span></span></div>
+        </div>
+        <div class="downarr">↓ 저장</div>
+        <div class="file" id="fileA">
+          <div class="stamp" id="stampA">🫥 소멸 — 아무 오류도 없이</div>
+          <div class="t">project_engines.py</div>
+          <div class="code">
+<span class="ln">class ProjectASR:</span>
+<span class="ln">    def transcribe(self, audio, sr, audio_id=None):</span>
+<span class="ln">        check_audio_contract(audio, sr)</span>
+<span class="ln" id="lineA">        if len(audio) &lt; int(<span class="num" id="numA">0.1</span> * TARGET_SR):</span>
+<span class="ln">            return ""  <span class="cm"># 침묵 취급</span></span>
+          </div>
+        </div>
+        <div class="stat" id="statA">대기 중</div>
+        <div class="hist" id="histA"></div>
+      </div>
+      <!-- 오른쪽: 작성기 -->
+      <div class="lanebox right">
+        <div class="head">🏭 노선 B — 작성기(정본)를 고친다</div>
+        <div class="src" id="srcB">
+          <div class="t">수정 위치: 노트북 셀의 작성기 부품 문자열</div>
+          <div class="code"><span class="ln">IMPL_ASR = '''… int(<span class="num" id="numBs">0.1</span> * TARGET_SR) …'''</span>
+<span class="ln">write_engines(asr=True, nlu=False, tts=False)</span></div>
+        </div>
+        <div class="downarr">↓ 재생성</div>
+        <div class="file" id="fileB">
+          <div class="t">project_engines.py</div>
+          <div class="code">
+<span class="ln">class ProjectASR:</span>
+<span class="ln">    def transcribe(self, audio, sr, audio_id=None):</span>
+<span class="ln">        check_audio_contract(audio, sr)</span>
+<span class="ln" id="lineB">        if len(audio) &lt; int(<span class="num" id="numB">0.1</span> * TARGET_SR):</span>
+<span class="ln">            return ""  <span class="cm"># 침묵 취급</span></span>
+          </div>
+        </div>
+        <div class="stat" id="statB">대기 중</div>
+        <div class="hist" id="histB"></div>
+      </div>
+    </div>
+    <div class="bolt" id="bolt">⚡ 이벤트 대기 — Colab 런타임 재시작 → 복귀 규칙대로 0장부터 재실행 (셀 0-3의 write_engines 포함)</div>
+    <div class="banner" id="banner"></div>
+    <div class="greppanel" id="greppanel">
+      <table>
+        <tr><th>흔적 찾기: "0.2" 는 어디에 남아 있나</th><th>노선 A (손 편집)</th><th>노선 B (작성기)</th></tr>
+        <tr><td>project_engines.py 파일 안</td><td class="z">0건</td><td class="h">1건</td></tr>
+        <tr><td>정본(작성기 부품 문자열) 안</td><td class="z">0건 — 애초에 안 고쳤음</td><td class="h">1건</td></tr>
+        <tr><td>변경 기록(호출 이력·재작성 출력)</td><td class="z">0건 — 수정이 있었다는 사실 자체가 없음</td><td class="h">1건</td></tr>
+      </table>
+      <div class="grepnote">노선 A에서는 "0.2로 고쳤었다"는 사실을 증명할 자료가 어디에도 없습니다.
+      고친 사람의 기억 속에만 있고, 그 기억은 "분명히 고쳤는데 왜 또 0.1이지?"라는 30분짜리 미궁이 됩니다.
+      노선 B에서는 정본과 기록 양쪽에 남습니다 — 7-2에서 다이어그램(.mmd)에 적용했던 규칙
+      ("손으로 고치지 말고, 정본을 고쳐 재생성한다")이 소스 파일에도 똑같이 적용되는 이유입니다.</div>
+    </div>
+  </div>
+
+  <div class="card quiz" id="quiz">
+    <h2>🎯 판정 연습 <span style="color:var(--sub);font-weight:400;font-size:12px">(재생과 흔적 찾기를 모두 보면 열립니다)</span></h2>
+    <div class="q">
+      <div class="qq">Q1. 노선 A의 수정이 사라졌는데, 왜 오류나 경고가 하나도 없었을까요?</div>
+      <div class="chips" data-q="1">
+        <button class="chip" data-ok="0">Colab의 저장 버그 때문에</button>
+        <button class="chip" data-ok="1">파생 파일을 다시 만드는 것은 정상 동작이라서 — 이 사고는 원래 조용하다</button>
+        <button class="chip" data-ok="0">파이썬이 주석을 무시해서</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q2. 파생 파일(project_engines.py)의 내용을 바꾸고 싶을 때의 규칙은?</div>
+      <div class="chips" data-q="2">
+        <button class="chip" data-ok="1">정본(작성기)을 고치고 재생성한다</button>
+        <button class="chip" data-ok="0">파일을 고친 뒤, 재실행을 최대한 피한다</button>
+        <button class="chip" data-ok="0">파일을 읽기 전용으로 만들어 재생성을 막는다</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q3. 이 규칙("손 편집 금지, 재생성만")이 7-2에서 이미 적용됐던 대상은?</div>
+      <div class="chips" data-q="3">
+        <button class="chip" data-ok="0">골든셋 15문장</button>
+        <button class="chip" data-ok="1">Mermaid 다이어그램(.mmd) — 그림도 파생물이라서</button>
+        <button class="chip" data-ok="0">pytest 자체</button>
+      </div><div class="fb"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var speed = 1, timer = null, playing = false;
+var played = {main:false, grep:false};
+
+function run(steps, i, done){
+  if(i >= steps.length){ if(done){ done(); } return; }
+  steps[i]();
+  timer = setTimeout(function(){ run(steps, i+1, done); }, 1400 / speed);
+}
+function setStat(id, html){ $(id).innerHTML = html; }
+function addHist(id, text){
+  var c = document.createElement("span");
+  c.className = "hchip"; c.textContent = text;
+  $(id).appendChild(c);
+}
+function resetAll(keepQuiz){
+  clearTimeout(timer); playing = false;
+  $("numA").textContent = "0.1"; $("numB").textContent = "0.1"; $("numBs").textContent = "0.1";
+  ["lineA","lineB"].forEach(function(l){ $(l).classList.remove("edit","lost","kept"); });
+  ["srcA","srcB"].forEach(function(s){ $(s).classList.remove("glow"); });
+  ["fileA","fileB"].forEach(function(f){ $(f).classList.remove("rebuild"); });
+  $("stampA").classList.remove("show");
+  $("bolt").classList.remove("zap");
+  $("bolt").textContent = "⚡ 이벤트 대기 — Colab 런타임 재시작 → 복귀 규칙대로 0장부터 재실행 (셀 0-3의 write_engines 포함)";
+  setStat("statA","대기 중"); setStat("statB","대기 중");
+  $("histA").innerHTML = ""; $("histB").innerHTML = "";
+  $("banner").className = "banner";
+  $("greppanel").classList.remove("show");
+  $("play").disabled = false; $("grep").disabled = true;
+  if(!keepQuiz){
+    played = {main:false, grep:false};
+    $("quiz").classList.remove("on");
+    var chips = document.querySelectorAll(".chip");
+    for(var i=0;i<chips.length;i++){ chips[i].classList.remove("ok","no"); }
+    var fbs = document.querySelectorAll(".fb");
+    for(var j=0;j<fbs.length;j++){ fbs[j].textContent = ""; }
+  }
+}
+function maybeOpenQuiz(){
+  if(played.main && played.grep){ $("quiz").classList.add("on"); }
+}
+
+function mainSteps(){
+  return [
+    function(){ /* 수정 의도 */
+      setStat("statA", "목표: 침묵 기준 0.1초 → <span class='a'>0.2초</span>");
+      setStat("statB", "목표: 침묵 기준 0.1초 → <span class='a'>0.2초</span>");
+    },
+    function(){ /* A: 파일 직접 수정 */
+      $("srcA").classList.add("glow");
+      $("numA").textContent = "0.2";
+      $("lineA").classList.add("edit");
+      setStat("statA", "✏️ 파일을 직접 열어 숫자만 바꿈 — <span class='a'>빠르고 간단해 보입니다</span>");
+    },
+    function(){ /* B: 작성기 수정 + 재생성 */
+      $("srcA").classList.remove("glow");
+      $("srcB").classList.add("glow");
+      $("numBs").textContent = "0.2";
+      setStat("statB", "🏭 작성기의 IMPL_ASR 문자열을 고침 (정본 수정)");
+    },
+    function(){
+      $("srcB").classList.remove("glow");
+      $("fileB").classList.add("rebuild");
+      $("numB").textContent = "0.2";
+      $("lineB").classList.add("edit");
+      addHist("histB", "write_engines(asr=True, …)");
+      setStat("statB", "재생성 → 파일에 반영 + <span class='g'>호출 기록이 남음</span>");
+      timer = setTimeout(function(){ $("fileB").classList.remove("rebuild"); }, 700/speed);
+    },
+    function(){ /* 번개: 재시작 */
+      $("bolt").classList.add("zap");
+      $("bolt").textContent = "⚡ 런타임 재시작 발생! 복귀 규칙대로 0장부터 재실행합니다 — 셀 0-3이 write_engines로 파일을 다시 만듭니다";
+    },
+    function(){ /* 재생성 스윕 */
+      $("fileA").classList.add("rebuild");
+      $("fileB").classList.add("rebuild");
+      setStat("statA", "🔄 write_engines가 파일을 재작성 중…");
+      setStat("statB", "🔄 write_engines가 파일을 재작성 중…");
+    },
+    function(){ /* 결과 */
+      $("fileA").classList.remove("rebuild");
+      $("fileB").classList.remove("rebuild");
+      /* A: 소멸 */
+      $("numA").textContent = "0.1";
+      $("lineA").classList.remove("edit");
+      $("lineA").classList.add("lost");
+      $("stampA").classList.add("show");
+      setStat("statA", "<span class='r'>0.2가 사라지고 0.1로 되돌아옴 — 오류도, 경고도, 기록도 없음</span>");
+      timer = setTimeout(function(){ $("lineA").classList.remove("lost"); }, 1200/speed);
+      /* B: 생존 */
+      $("lineB").classList.remove("edit");
+      $("lineB").classList.add("kept");
+      addHist("histB", "write_engines(asr=True, …) ← 재실행");
+      setStat("statB", "<span class='g'>정본이 0.2이므로 파일도 0.2로 재생성 — 수정이 살아남음</span>");
+    },
+    function(){
+      $("bolt").classList.remove("zap");
+      var b = $("banner");
+      b.className = "banner red show";
+      b.innerHTML = "🫥 <b>이 사고의 고약한 점은 조용하다는 것입니다.</b> 파생 파일을 다시 만드는 일은 "
+        + "정상 동작이라 어떤 오류도 나지 않습니다 — 그래서 손 편집은 사라진 뒤에야, "
+        + "\u201C분명히 고쳤는데 왜 그대로지?\u201D라는 미궁으로 발견됩니다. 규칙은 하나입니다: "
+        + "<b>파일을 고치지 말고, 파일을 만들어 내는 작성기(정본)를 고치십시오.</b> "
+        + "재생성은 그때 적이 아니라 아군이 됩니다.";
+    }
+  ];
+}
+
+$("play").addEventListener("click", function(){
+  if(playing){ return; }
+  resetAll(true); playing = true;
+  $("play").disabled = true;
+  run(mainSteps(), 0, function(){
+    played.main = true; playing = false;
+    $("play").disabled = false; $("grep").disabled = false;
+    maybeOpenQuiz();
+  });
+});
+$("grep").addEventListener("click", function(){
+  $("greppanel").classList.add("show");
+  played.grep = true;
+  maybeOpenQuiz();
+});
+$("reset").addEventListener("click", function(){ resetAll(false); });
+var spdbs = document.querySelectorAll(".spdb");
+for(var i=0;i<spdbs.length;i++){
+  spdbs[i].addEventListener("click", function(){ speed = Number(this.getAttribute("data-s")); });
+}
+
+/* 퀴즈 칩 */
+var FB = {
+  "1": ["정답입니다. 파생 파일의 재생성은 설계된 정상 동작이라 경고할 이유가 없습니다 — 그래서 손 편집의 소멸은 언제나 조용하고, 한참 뒤에 미궁으로 발견됩니다.",
+        "다시 생각해 보세요. 버그가 아니라 정상 동작이 수정을 지운 것입니다 — 문제는 도구가 아니라 수정한 위치에 있었습니다."],
+  "2": ["정답입니다. 정본을 고치면 재생성이 몇 번 일어나도 같은 내용이 다시 만들어집니다 — 재생성이 적이 아니라 아군이 됩니다.",
+        "다시 생각해 보세요. 재실행을 피하는 것은 Colab의 현실(재시작은 반드시 온다)과 싸우는 일이고, 재생성을 막는 것은 파생 구조의 장점을 버리는 일입니다."],
+  "3": ["정답입니다. 7-2에서 다이어그램을 dialog_plan에서 생성하며 세운 규칙 — \u201C.mmd를 손으로 고치지 말 것, 계획을 고치고 재생성한다\u201D — 이 오늘 소스 파일로 확장된 것입니다.",
+        "다시 생각해 보세요. 이 규칙은 '파생물'에 적용됩니다 — 7-2에서 그 첫 사례가 된 파생물은 Mermaid 다이어그램이었습니다."]
+};
+var chipEls = document.querySelectorAll(".chips");
+for(var c=0;c<chipEls.length;c++){
+  chipEls[c].addEventListener("click", function(e){
+    var btn = e.target.closest(".chip");
+    if(!btn){ return; }
+    var q = this.getAttribute("data-q");
+    var ok = btn.getAttribute("data-ok") === "1";
+    var all = this.querySelectorAll(".chip");
+    for(var k=0;k<all.length;k++){ all[k].classList.remove("ok","no"); }
+    btn.classList.add(ok ? "ok" : "no");
+    this.parentNode.querySelector(".fb").textContent = ok ? FB[q][0] : FB[q][1];
+  });
+}
+</script>
+</body>
+</html>

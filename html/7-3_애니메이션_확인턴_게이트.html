@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-3 확인 턴 게이트 — 되돌릴 수 없는 문 앞의 관문</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#243447; --line:#334155;
+    --ink:#e2e8f0; --sub:#94a3b8; --green:#34d399; --red:#f87171;
+    --amber:#fbbf24; --blue:#60a5fa; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+       display:flex;justify-content:center;padding:24px 12px}
+  .wrap{width:100%;max-width:980px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin:0 0 16px;line-height:1.6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  h2{font-size:14px;margin:0 0 10px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+         border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--blue)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d4ed8;border-color:#1d4ed8}
+  button.danger-on{background:#7f1d1d;border-color:var(--red)}
+  .spd{color:var(--sub);font-size:12px}
+  /* 레인 */
+  .lanehead{font-size:12.5px;color:var(--sub);margin:2px 0 20px}
+  .lanehead b{color:var(--ink)}
+  .lane{position:relative;display:flex;gap:0;margin:0 0 26px}
+  .st{flex:1;background:var(--panel2);border:2px solid var(--line);border-radius:12px;
+      padding:9px 6px;text-align:center;transition:border-color .25s, box-shadow .25s, opacity .3s}
+  .st+.st{margin-left:24px}
+  .st .no{font-size:10.5px;color:var(--sub)}
+  .st .nm{font-size:12.5px;font-weight:700;margin-top:2px}
+  .st .ds{font-size:10.5px;color:var(--sub);margin-top:3px;line-height:1.45}
+  .st.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(96,165,250,.18)}
+  .st.gate{border-color:var(--amber);background:rgba(251,191,36,.06)}
+  .st.gate .nm{color:var(--amber)}
+  .st.gate.off{border-style:dashed;border-color:var(--sub);background:transparent;opacity:.45}
+  .st.gate.off .nm{color:var(--sub);text-decoration:line-through}
+  .st.boom{border-color:var(--red);box-shadow:0 0 0 4px rgba(248,113,113,.25)}
+  .st.ok{border-color:var(--green)}
+  .st.none{border-style:dashed;opacity:.85}
+  .arr{position:absolute;top:50%;width:24px;height:2px;background:var(--line)}
+  .arr:after{content:"";position:absolute;right:-1px;top:-4px;border:5px solid transparent;border-left-color:var(--line)}
+  .tok{position:absolute;top:-15px;left:0;width:26px;height:26px;border-radius:50%;
+       display:flex;align-items:center;justify-content:center;font-size:14px;
+       background:var(--blue);transition:left .55s ease;z-index:3}
+  .tok.hide{opacity:0}
+  .banner{display:none;margin-top:4px;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7}
+  .banner.red{border:1px solid var(--red);background:rgba(248,113,113,.08);color:#fecaca}
+  .banner.grn{border:1px solid var(--green);background:rgba(52,211,153,.07);color:#bbf7d0}
+  .banner.show{display:block}
+  /* 하단 그리드 */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .chat{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:10px;
+        height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+  .msg{max-width:82%;padding:7px 10px;border-radius:11px;font-size:12.5px;line-height:1.55}
+  .msg.user{align-self:flex-end;background:#1d4ed8;color:#fff;border-bottom-right-radius:3px}
+  .msg.agent{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:3px}
+  .msg.agent.gate{border-color:var(--amber);color:#fde68a}
+  .msg.sys{align-self:center;color:var(--sub);font-size:11.5px;background:none}
+  .elog{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:10px;
+        height:132px;overflow-y:auto;font-family:ui-monospace,Consolas,monospace;font-size:11px;line-height:1.7}
+  .elog .g{color:var(--green)} .elog .a{color:var(--amber)} .elog .r{color:var(--red)} .elog .s{color:var(--sub)}
+  /* 저울 */
+  .scale{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--panel2)}
+  .scale .t{font-size:12px;font-weight:700;margin-bottom:8px}
+  .beamwrap{display:flex;justify-content:center}
+  .beam{width:92%;display:flex;justify-content:space-between;align-items:flex-end;
+        border-bottom:3px solid var(--line);padding:0 4px 6px;
+        transform:rotate(0deg);transition:transform .8s ease;transform-origin:center bottom}
+  .beam.tilt{transform:rotate(4deg)}
+  .pan{width:46%;border:1px solid var(--line);border-radius:9px;padding:7px;text-align:center;background:#0b1220}
+  .pan .w{font-size:16px}
+  .pan .l{font-size:11px;color:var(--sub);margin-top:2px;line-height:1.5}
+  .pan.heavy{border-color:var(--red)}
+  .pan.heavy .l b{color:var(--red)}
+  .pan.light .l b{color:var(--green)}
+  .scale .m{font-size:11.5px;color:var(--sub);margin-top:8px;line-height:1.6;text-align:center}
+  /* 계보 */
+  .lineage{display:flex;gap:8px;flex-wrap:wrap}
+  .badge{border:1px solid var(--line);background:var(--panel2);border-radius:999px;
+         padding:6px 12px;font-size:12px;color:var(--sub)}
+  .badge b{color:var(--ink)}
+  .lin-note{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.7}
+  /* 퀴즈 */
+  .quiz{opacity:.35;pointer-events:none;transition:opacity .4s}
+  .quiz.on{opacity:1;pointer-events:auto}
+  .q{margin-bottom:12px}
+  .q .qq{font-size:13px;margin-bottom:6px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:999px;
+        padding:6px 12px;font-size:12.5px;cursor:pointer}
+  .chip.ok{border-color:var(--green);color:var(--green)}
+  .chip.no{border-color:var(--red);color:var(--red)}
+  .fb{font-size:12px;margin-top:6px;color:var(--sub);min-height:16px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🚧 7-3 확인 턴 게이트 — 되돌릴 수 없는 문 앞의 관문</h1>
+  <p class="sub">예약 취소는 실행하고 나면 되돌릴 수 없습니다. 그래서 대화 엔진은 실행(EXECUTE) 바로 앞에
+  <b>확인 관문</b>("취소해 드릴까요?")을 세워 두고, 관문 없이 실행하려 하면 <b>PolicyViolation</b> 예외를
+  던지게 만들었습니다. ▶ 재생으로 정상 흐름을 본 뒤, ⚠️ 위험 실험으로 관문을 꺼 보세요.</p>
+
+  <div class="controls">
+    <button id="play" class="primary">▶ 재생 (취소 → 문의, 두 트랙)</button>
+    <button id="hazard">⚠️ 위험 실험: 확인 관문 끄기</button>
+    <button id="reset">↺ 처음부터</button>
+    <span class="spd">속도
+      <button data-s="1" class="spdb" style="padding:4px 8px">1×</button>
+      <button data-s="2" class="spdb" style="padding:4px 8px">2×</button>
+    </span>
+  </div>
+
+  <div class="card">
+    <div class="lanehead">🅰 트랙 — <b>cancel_reservation</b> (되돌릴 수 없는 의도 · irreversible=True → 관문 있음)</div>
+    <div class="lane" id="laneA">
+      <div class="tok hide" id="tokA">💬</div>
+      <div class="st" id="a1"><div class="no">1</div><div class="nm">발화</div><div class="ds">"내일 예약<br>취소해 주세요"</div></div>
+      <div class="st" id="a2"><div class="no">2</div><div class="nm">슬롯 질문</div><div class="ds">ASK_SLOT<br>(예약번호)</div></div>
+      <div class="st" id="a3"><div class="no">3</div><div class="nm">슬롯 채움</div><div class="ds">"1234요"</div></div>
+      <div class="st gate" id="a4"><div class="no">4</div><div class="nm">🚧 확인 관문</div><div class="ds" id="gateDs">CONFIRM<br>"취소해 드릴까요?"</div></div>
+      <div class="st" id="a5"><div class="no">5</div><div class="nm">실행</div><div class="ds">EXECUTE<br>취소 처리</div></div>
+    </div>
+    <div class="lanehead">🅱 트랙 — <b>inquiry</b> (위험하지 않은 의도 · irreversible=False → 관문 없음)</div>
+    <div class="lane" id="laneB" style="max-width:62%">
+      <div class="tok hide" id="tokB">💬</div>
+      <div class="st" id="b1"><div class="no">1</div><div class="nm">발화</div><div class="ds">"진료 시간이<br>어떻게 되나요"</div></div>
+      <div class="st" id="b2"><div class="no">2</div><div class="nm">의도 판정</div><div class="ds">intent=inquiry</div></div>
+      <div class="st none" id="b3"><div class="no">3</div><div class="nm">안내</div><div class="ds">ANSWER<br>관문 없이 통과</div></div>
+    </div>
+    <div class="banner" id="banner"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>💬 대화 창</h2>
+      <div class="chat" id="chat"></div>
+    </div>
+    <div class="card">
+      <h2>⚙️ 엔진 로그 (노트북 셀 4-1과 같은 출력)</h2>
+      <div class="elog" id="elog"></div>
+      <div class="scale">
+        <div class="t">⚖️ 왜 관문인가 — 두 비용의 저울</div>
+        <div class="beamwrap"><div class="beam" id="beam">
+          <div class="pan light"><div class="w">🪶</div><div class="l"><b>확인 턴 1번</b><br>대화 한 턴 · 몇 초</div></div>
+          <div class="pan heavy"><div class="w">🪨</div><div class="l"><b>잘못된 취소 1번</b><br>신뢰 상실 · 복구 불가</div></div>
+        </div></div>
+        <div class="m">비용이 이렇게 기울어져 있을 때는 싼 쪽 보험(확인 턴)을 드는 것이 맞습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧬 같은 원칙의 세 얼굴 — "되돌릴 수 없는 실행 앞에는 사람의 승인"</h2>
+    <div class="lineage">
+      <span class="badge">3주차 · <b>음성 복제 동의 게이트</b></span>
+      <span class="badge">과정 공통 · <b>utt_003 회선 정지 확인 절차</b></span>
+      <span class="badge">7-3 · <b>cancel_reservation 확인 관문</b></span>
+    </div>
+    <div class="lin-note">셋 다 모양은 다르지만 조항은 하나입니다. 그리고 이 조항을 프롬프트(부탁)가 아니라
+    코드(강제)로 새긴 이유 — 부탁은 어겨도 조용히 지나가지만, PolicyViolation은 어기는 순간 시끄럽게
+    터집니다. 조용한 실패보다 시끄러운 실패가 낫습니다.</div>
+  </div>
+
+  <div class="card quiz" id="quiz">
+    <h2>🎯 판정 연습 <span style="color:var(--sub);font-weight:400;font-size:12px">(정상 재생과 위험 실험을 모두 보면 열립니다)</span></h2>
+    <div class="q">
+      <div class="qq">Q1. inquiry(단순 문의)에는 왜 확인 관문이 없을까요?</div>
+      <div class="chips" data-q="1">
+        <button class="chip" data-ok="0">구현할 시간이 없어서</button>
+        <button class="chip" data-ok="1">잘못 답해도 되돌릴 수 있어서 — 비용의 비대칭이 없기 때문</button>
+        <button class="chip" data-ok="0">손님이 확인 질문을 싫어해서</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q2. 확인을 프롬프트로 부탁하지 않고 PolicyViolation 코드로 강제한 이유는?</div>
+      <div class="chips" data-q="2">
+        <button class="chip" data-ok="1">어기는 순간 시끄럽게 터지게 하려고 — 조용한 실패를 막는다</button>
+        <button class="chip" data-ok="0">응답 속도가 빨라져서</button>
+        <button class="chip" data-ok="0">예외 처리 연습을 위해서</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q3. 실행 중 PolicyViolation이 터졌습니다. 올바른 대처는?</div>
+      <div class="chips" data-q="3">
+        <button class="chip" data-ok="0">try/except로 감싸서 예외를 숨긴다</button>
+        <button class="chip" data-ok="0">계획에서 irreversible을 False로 바꾼다</button>
+        <button class="chip" data-ok="1">확인 턴을 거쳐 confirmed=True로 다시 실행한다</button>
+      </div><div class="fb"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var speed = 1, timer = null, playing = false, gateOff = false;
+var played = {normal:false, hazard:false};
+
+function chat(kind, text){
+  var d = document.createElement("div");
+  d.className = "msg " + kind;
+  d.textContent = text;
+  $("chat").appendChild(d);
+  $("chat").scrollTop = $("chat").scrollHeight;
+}
+function elog(msg, cls){
+  var d = document.createElement("div");
+  d.className = cls || "";
+  d.textContent = msg;
+  $("elog").appendChild(d);
+  $("elog").scrollTop = $("elog").scrollHeight;
+}
+function move(lane, tok, id){
+  var box = $(id);
+  $(tok).classList.remove("hide");
+  $(tok).style.left = (box.offsetLeft + box.offsetWidth/2 - 13) + "px";
+  var ids = (lane === "A") ? ["a1","a2","a3","a4","a5"] : ["b1","b2","b3"];
+  ids.forEach(function(s){ $(s).classList.toggle("active", s === id); });
+}
+function clearMarks(){
+  ["a1","a2","a3","a4","a5","b1","b2","b3"].forEach(function(s){
+    $(s).classList.remove("active","boom","ok");
+  });
+}
+function resetAll(keepQuiz){
+  clearTimeout(timer); playing = false; gateOff = false;
+  clearMarks();
+  $("a4").classList.remove("off");
+  $("gateDs").innerHTML = 'CONFIRM<br>"취소해 드릴까요?"';
+  $("tokA").classList.add("hide"); $("tokB").classList.add("hide");
+  $("chat").innerHTML = ""; $("elog").innerHTML = "";
+  $("banner").className = "banner";
+  $("beam").classList.remove("tilt");
+  $("hazard").classList.remove("danger-on");
+  $("play").disabled = false; $("hazard").disabled = false;
+  if(!keepQuiz){
+    played = {normal:false, hazard:false};
+    $("quiz").classList.remove("on");
+    var chips = document.querySelectorAll(".chip");
+    for(var i=0;i<chips.length;i++){ chips[i].classList.remove("ok","no"); }
+    var fbs = document.querySelectorAll(".fb");
+    for(var j=0;j<fbs.length;j++){ fbs[j].textContent = ""; }
+  }
+}
+function run(steps, i, done){
+  if(i >= steps.length){ if(done){ done(); } return; }
+  steps[i]();
+  timer = setTimeout(function(){ run(steps, i+1, done); }, 1250 / speed);
+}
+function maybeOpenQuiz(){
+  if(played.normal && played.hazard){ $("quiz").classList.add("on"); }
+  else{
+    var msg = played.normal ? "이제 ⚠️ 위험 실험으로 관문을 꺼 보세요."
+                            : "이제 ▶ 재생으로 정상 흐름도 확인해 보세요.";
+    chat("sys", msg);
+  }
+}
+
+/* ── 정상 재생: 🅰 취소(관문 통과) → 🅱 문의(관문 없음) ── */
+function normalSteps(){
+  return [
+    function(){ move("A","tokA","a1");
+      chat("user","내일 예약 취소해 주세요");
+      elog('classify_intent → "cancel_reservation" (되돌릴 수 없는 의도)', "s"); },
+    function(){ move("A","tokA","a2");
+      elog("next_action(cancel_reservation, {}) → ('ASK_SLOT', '예약번호')", "");
+      chat("agent","예약 번호를 알려 주시겠어요?"); },
+    function(){ move("A","tokA","a3");
+      chat("user","1234요");
+      elog("슬롯 완성: {'예약번호': '1234'}", "s"); },
+    function(){ move("A","tokA","a4");
+      elog("next_action(..., {'예약번호':'1234'}) → ('CONFIRM', ...)", "a");
+      chat("agent","🚧 예약 1234를 취소해 드릴까요? 취소하면 되돌릴 수 없습니다."); },
+    function(){ chat("user","네, 취소해 주세요");
+      elog("사람의 승인 확보 → confirmed=True", "a"); },
+    function(){ move("A","tokA","a5"); $("a5").classList.add("ok");
+      elog("execute(..., confirmed=True) → reply: cancel_reservation 처리 완료", "g");
+      elog("jsonschema.validate(출력) → 파생 스키마 검증 통과 ✅", "g");
+      chat("agent","취소가 완료되었습니다. 좋은 하루 보내세요."); },
+    function(){ chat("sys","— 🅱 트랙: 위험하지 않은 의도는? —");
+      move("B","tokB","b1");
+      chat("user","진료 시간이 어떻게 되나요"); },
+    function(){ move("B","tokB","b2");
+      elog('classify_intent → "inquiry" (irreversible=False)', "s"); },
+    function(){ move("B","tokB","b3"); $("b3").classList.add("ok");
+      elog("next_action(inquiry, {}) → ('ANSWER', '안내를 시작합니다') — 관문 없이 통과", "g");
+      chat("agent","평일 9시부터 18시까지 진료합니다.");
+      var b = $("banner");
+      b.className = "banner grn show";
+      b.innerHTML = "✅ <b>관문은 위험한 문 앞에만 세웁니다.</b> 취소(되돌릴 수 없음)에는 확인 턴이 강제되고, "
+        + "단순 문의(되돌릴 수 있음)는 그대로 통과합니다 — 이 구분이 있기에 확인 관문은 과잉 친절이 아니라 "
+        + "계약서 성공 기준 3번(\"되돌릴 수 없는 실행 전 확인 100 %\")의 이행입니다."; },
+  ];
+}
+
+/* ── 위험 실험: 관문 끄고 취소 실행 ── */
+function hazardSteps(){
+  return [
+    function(){ gateOff = true;
+      $("a4").classList.add("off");
+      $("gateDs").innerHTML = "관문 제거됨<br>(확인 없이 실행)";
+      chat("sys","⚠️ 위험 실험 — 확인 관문을 껐습니다");
+      elog("실험: 확인 턴 없이 execute를 바로 호출해 봅니다", "r"); },
+    function(){ move("A","tokA","a1");
+      chat("user","내일 예약 취소해 주세요"); },
+    function(){ move("A","tokA","a3");
+      chat("user","1234요");
+      elog("슬롯 완성: {'예약번호': '1234'} — 확인을 건너뛰고 곧장 실행으로", "s"); },
+    function(){ move("A","tokA","a5"); $("a5").classList.add("boom");
+      elog("execute(cancel_reservation, {'예약번호':'1234'}, confirmed=False)", "r");
+      elog("💥 PolicyViolation: 확인 턴 없이 되돌릴 수 없는 실행: cancel_reservation", "r");
+      $("beam").classList.add("tilt");
+      chat("sys","💥 실행 정지 — PolicyViolation");
+      var b = $("banner");
+      b.className = "banner red show";
+      b.innerHTML = "🔴 <b>시끄럽게 터지는 것이 이 설계의 성공입니다.</b> 만약 \"확인해 주세요\"라고 프롬프트로 "
+        + "부탁만 해 두었다면, 모델이 어긴 날 취소는 조용히 실행되고 손님의 예약은 사라졌을 것입니다. "
+        + "코드로 강제된 관문은 어기는 순간 예외로 터져서, 문제를 시연 날이 아니라 지금 보게 해 줍니다."; },
+    function(){ elog("복구: 관문을 되살리고 확인 턴을 거치면 정상 실행됩니다", "s");
+      $("a4").classList.remove("off");
+      $("gateDs").innerHTML = 'CONFIRM<br>"취소해 드릴까요?"';
+      gateOff = false;
+      $("hazard").classList.remove("danger-on"); },
+  ];
+}
+
+$("play").addEventListener("click", function(){
+  if(playing){ return; }
+  resetAll(true); playing = true;
+  $("play").disabled = true; $("hazard").disabled = true;
+  run(normalSteps(), 0, function(){
+    played.normal = true; playing = false;
+    $("play").disabled = false; $("hazard").disabled = false;
+    maybeOpenQuiz();
+  });
+});
+$("hazard").addEventListener("click", function(){
+  if(playing){ return; }
+  resetAll(true); playing = true;
+  this.classList.add("danger-on");
+  $("play").disabled = true; $("hazard").disabled = true;
+  run(hazardSteps(), 0, function(){
+    played.hazard = true; playing = false;
+    $("play").disabled = false; $("hazard").disabled = false;
+    maybeOpenQuiz();
+  });
+});
+$("reset").addEventListener("click", function(){ resetAll(false); });
+var spdbs = document.querySelectorAll(".spdb");
+for(var i=0;i<spdbs.length;i++){
+  spdbs[i].addEventListener("click", function(){ speed = Number(this.getAttribute("data-s")); });
+}
+
+/* 퀴즈 칩 */
+var FB = {
+  "1": ["정답입니다. 문의는 잘못 답해도 다시 답하면 됩니다. 되돌릴 수 있는 일에는 보험이 필요 없습니다 — 그래서 관문은 취소 같은 비대칭 비용의 문 앞에만 세웁니다.",
+        "다시 생각해 보세요. 관문의 기준은 편의가 아니라 '되돌릴 수 있는가'입니다. inquiry는 되돌릴 수 있어서 관문이 없는 것입니다."],
+  "2": ["정답입니다. 부탁(프롬프트)은 어겨도 조용히 지나가지만, 코드의 관문은 어기는 순간 예외로 터집니다 — 조용한 실패보다 시끄러운 실패가 낫습니다.",
+        "다시 생각해 보세요. 핵심은 속도나 연습이 아니라, 위반을 '조용히 지나가지 못하게' 만드는 데 있습니다."],
+  "3": ["정답입니다. 예외는 '순서를 지키라'는 신호입니다. 확인 턴에서 사람의 승인을 받은 뒤 confirmed=True로 실행하는 것이 설계된 길입니다.",
+        "다시 생각해 보세요. 예외를 숨기거나 계획의 안전장치를 끄는 것은 관문을 부수는 일입니다 — 신호를 따르는 쪽이 정답입니다."]
+};
+var chipEls = document.querySelectorAll(".chips");
+for(var c=0;c<chipEls.length;c++){
+  chipEls[c].addEventListener("click", function(e){
+    var btn = e.target.closest(".chip");
+    if(!btn){ return; }
+    var q = this.getAttribute("data-q");
+    var ok = btn.getAttribute("data-ok") === "1";
+    var all = this.querySelectorAll(".chip");
+    for(var k=0;k<all.length;k++){ all[k].classList.remove("ok","no"); }
+    btn.classList.add(ok ? "ok" : "no");
+    this.parentNode.querySelector(".fb").textContent = ok ? FB[q][0] : FB[q][1];
+  });
+}
+</script>
+</body>
+</html>

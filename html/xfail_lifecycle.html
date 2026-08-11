@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-2 §5 — xfail → XPASS 수명주기: 설계란 실패하는 테스트를 먼저 쓰는 것</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --xf:#C4A03F; --guard:#9A8BC4;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .stage{width:100%;max-width:940px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:#232E40}
+
+  .board{display:grid;grid-template-columns:1fr 292px;gap:16px}
+  @media (max-width:720px){.board{grid-template-columns:1fr}}
+
+  /* ── 테스트 신호등 ─────────────────────── */
+  .suite{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .grp{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--faint);
+    margin:10px 0 8px}
+  .grp:first-child{margin-top:0}
+  .trow{display:grid;grid-template-columns:26px 1fr auto 84px;gap:10px;align-items:center;
+    padding:8px 6px;border-bottom:1px solid var(--line);transition:background .3s}
+  .trow.focus{background:color-mix(in srgb, var(--guard) 8%, transparent)}
+  .trow.hazard{background:repeating-linear-gradient(-45deg,
+    transparent 0 9px, color-mix(in srgb, var(--fail) 9%, transparent) 9px 18px)}
+  .lamp{position:relative;width:18px;height:18px;border-radius:50%;background:var(--line);
+    transition:background .4s, box-shadow .4s;justify-self:center}
+  .lamp.pass{background:var(--pass);box-shadow:0 0 10px color-mix(in srgb, var(--pass) 60%, transparent)}
+  .lamp.fail{background:var(--fail);box-shadow:0 0 10px color-mix(in srgb, var(--fail) 60%, transparent)}
+  .lamp.xf{background:var(--fail);box-shadow:0 0 0 3px var(--panel2), 0 0 0 5px var(--xf)}
+  .lamp.xp{background:var(--pass);box-shadow:0 0 0 3px var(--panel2), 0 0 0 5px var(--xf);
+    animation:xpulse 1.1s ease-in-out infinite}
+  .lamp.sfail{background:var(--fail);box-shadow:0 0 0 3px var(--panel2), 0 0 0 5px var(--xf)}
+  @keyframes xpulse{50%{box-shadow:0 0 0 3px var(--panel2), 0 0 0 5px var(--xf),
+    0 0 16px color-mix(in srgb, var(--pass) 80%, transparent)}}
+  .tname{font-family:var(--mono);font-size:12.5px;color:var(--muted);transition:color .3s}
+  .tname .ko{display:block;font-family:var(--sans);font-size:11px;color:var(--faint)}
+  .trow.lit .tname{color:var(--text)}
+  .marker{font-family:var(--mono);font-size:10.5px;color:var(--xf);border:1px solid var(--xf);
+    border-radius:5px;padding:2px 7px;white-space:nowrap;opacity:0;transform:translateX(14px);
+    transition:opacity .45s, transform .45s, color .3s, border-color .3s}
+  .marker.show{opacity:1;transform:none}
+  .marker.danger{color:var(--fail);border-color:var(--fail)}
+  .stat{font-family:var(--mono);font-size:11.5px;text-align:right;color:var(--faint);transition:color .3s}
+  .stat.pass{color:var(--pass)} .stat.fail{color:var(--fail)}
+  .stat.xf{color:var(--xf)} .stat.xp{color:var(--pass)}
+
+  /* ── 판정 패널 ─────────────────────────── */
+  .side{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;
+    display:flex;flex-direction:column;gap:14px}
+  .sumLine{font-family:var(--mono);font-size:12.5px;color:var(--muted);min-height:18px}
+  .exit{display:flex;align-items:baseline;gap:12px}
+  .exit .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--faint)}
+  .exit .v{font-family:var(--mono);font-size:42px;font-weight:700;line-height:1;
+    transition:color .3s}
+  .exit .v.ok{color:var(--pass)} .exit .v.bad{color:var(--fail)}
+  .toggle{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .sw{width:40px;height:22px;border-radius:999px;background:var(--line);position:relative;
+    transition:background .25s;flex:0 0 auto}
+  .sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;
+    background:var(--muted);transition:left .25s, background .25s}
+  .sw.on{background:color-mix(in srgb, var(--guard) 55%, transparent)}
+  .sw.on::after{left:21px;background:var(--text)}
+  .note{font-size:12px;line-height:1.55;color:var(--muted);min-height:74px}
+  .note b{color:var(--text)}
+  .note.warn{color:var(--fail)} .note.warn b{color:var(--fail)}
+  .note.good{color:var(--pass)} .note.good b{color:var(--pass)}
+  .verdict{margin-top:auto;min-height:56px;display:flex;align-items:center;justify-content:center}
+  .stamp{font-size:16.5px;font-weight:800;letter-spacing:.03em;padding:9px 18px;border-radius:10px;
+    border:2.5px solid;transform:rotate(-3deg) scale(1.6);opacity:0;white-space:nowrap;
+    transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .25s}
+  .stamp.show{opacity:1;transform:rotate(-3deg) scale(1)}
+  .stamp.pass{color:var(--pass);border-color:var(--pass);background:rgba(88,183,126,.08)}
+  .stamp.fail{color:var(--fail);border-color:var(--fail);background:rgba(228,88,90,.08)}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--faint)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dotL{width:11px;height:11px;border-radius:50%;display:inline-block}
+
+  footer{margin-top:12px;font-size:11.5px;color:var(--faint)}
+  footer code{font-family:var(--mono)}
+  @media (prefers-reduced-motion: reduce){
+    .lamp,.marker,.stamp,.trow{transition:none}
+    .lamp.xp{animation:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-2 · §5 · 설계 = 실패하는 테스트를 먼저 쓰는 것</div>
+      <h1>xfail → XPASS 수명주기 <span class="q">— 초록 + 예고된 빨강 = 설계 완료</span></h1>
+    </div>
+    <div class="controls">
+      <button id="btnLife" class="primary">▶ 수명주기 재생</button>
+      <button id="btnTrap" disabled>함정: raises= 생략 (V1)</button>
+      <button id="btnR">초기화</button>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="suite">
+      <div class="grp">설계 정합 테스트 — 파생이 어긋나면 여기가 먼저 빨개진다</div>
+      <div id="designRows"></div>
+      <div class="grp">수락 테스트 — 스텁(NotImplementedError) 상태, 7-3 구현 대상</div>
+      <div id="acceptRows"></div>
+      <div class="legend">
+        <span><i class="dotL" style="background:var(--pass)"></i>PASSED</span>
+        <span><i class="dotL" style="background:var(--fail)"></i>FAILED</span>
+        <span><i class="dotL" style="background:var(--fail);box-shadow:0 0 0 2px var(--panel2),0 0 0 3.5px var(--xf)"></i>XFAIL(예고된 빨강)</span>
+        <span><i class="dotL" style="background:var(--pass);box-shadow:0 0 0 2px var(--panel2),0 0 0 3.5px var(--xf)"></i>XPASS(마커를 떼라)</span>
+      </div>
+    </div>
+
+    <div class="side">
+      <div>
+        <div class="grp" style="margin:0 0 6px">pytest 요약</div>
+        <div class="sumLine" id="sumLine">— 재생을 눌러 시작하세요</div>
+      </div>
+      <div class="exit">
+        <div><div class="k">EXIT CODE</div><div class="v" id="exitV">·</div></div>
+      </div>
+      <div class="toggle">
+        <div class="sw" id="strictSw" role="switch" aria-checked="false" tabindex="0"></div>
+        strict_xfail = <span id="strictLabel">false</span> <span style="color:var(--faint)">(V2)</span>
+      </div>
+      <div class="note" id="note">스텁은 전부 NotImplementedError를 던집니다 — 수락 테스트는 당연히 빨갛습니다. 이 빨강을 어떻게 다루는지가 오늘의 이야기입니다.</div>
+      <div class="verdict"><div class="stamp" id="stamp"></div></div>
+    </div>
+  </div>
+
+  <footer>V1: <code>xfail(..., raises=None, strict=strict_xfail)</code> — pytest 9.1.1 <code>_pytest/skipping.py:79</code> · V2: <code>strict</code> 기본값 False → XPASS는 실패가 아니라 표식. 재생이 끝나면 <b>strict 토글과 함정 버튼</b>을 눌러 보세요.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var DESIGN = [
+    {id:"d1", name:"test_schema_from_charter",  ko:"스키마 = 계약서 파생 정합"},
+    {id:"d2", name:"test_plan_covers_intents",  ko:"대화 계획이 의도 전부 커버"},
+    {id:"d3", name:"test_scenarios_match",      ko:"수락 시나리오 15건 정합"},
+    {id:"d4", name:"test_artifacts_exist",      ko:"파생 산출물 존재"}
+  ];
+  var ACCEPT = [
+    {id:"asr", name:"test_asr_roundtrip",   ko:"ASR 어댑터 라운드트립"},
+    {id:"llm", name:"test_llm_intent_json", ko:"LLM 의도 JSON + 스키마 게이트"},
+    {id:"tts", name:"test_tts_contract",    ko:"TTS 16kHz 계약"}
+  ];
+  var STAT_TXT = {pass:"PASSED", fail:"FAILED", xf:"XFAIL", xp:"XPASS", off:"—"};
+
+  var $=function(id){return document.getElementById(id);};
+  var rows={};
+  function buildRow(t, holder){
+    var d=document.createElement("div"); d.className="trow";
+    d.innerHTML='<div class="lamp"></div>'
+      +'<div class="tname">'+t.name+'<span class="ko">'+t.ko+'</span></div>'
+      +'<span class="marker"></span>'
+      +'<div class="stat">—</div>';
+    holder.appendChild(d);
+    rows[t.id]={el:d, lamp:d.querySelector(".lamp"), marker:d.querySelector(".marker"),
+                stat:d.querySelector(".stat"), status:"off", markerOn:false};
+  }
+  DESIGN.forEach(function(t){ buildRow(t, $("designRows")); });
+  ACCEPT.forEach(function(t){ buildRow(t, $("acceptRows")); });
+
+  var strictOn=false, playing=false, runId=0, lifeDone=false;
+  var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var btnLife=$("btnLife"), btnTrap=$("btnTrap"), btnR=$("btnR");
+  var strictSw=$("strictSw");
+
+  function sleep(ms){
+    return new Promise(function(res){
+      if (reduced){ res(); return; }
+      setTimeout(res, ms);
+    });
+  }
+  function setStatus(id, st){
+    var r=rows[id]; r.status=st;
+    r.lamp.className="lamp "+(st==="off"?"":st);
+    r.stat.className="stat "+(st==="off"?"":st);
+    r.stat.textContent=STAT_TXT[st]||"—";
+    r.el.classList.toggle("lit", st!=="off");
+  }
+  function setMarker(id, on, text, danger){
+    var r=rows[id]; r.markerOn=on;
+    r.marker.textContent=text||"@xfail(raises=NotImplementedError)";
+    r.marker.classList.toggle("danger", !!danger);
+    r.marker.classList.toggle("show", on);
+  }
+  function counts(){
+    var c={pass:0, fail:0, xf:0, xp:0};
+    Object.keys(rows).forEach(function(id){
+      var s=rows[id].status; if (c[s]!==undefined) c[s]++;
+    });
+    return c;
+  }
+  function refreshSummary(){
+    var c=counts();
+    var parts=[];
+    if (c.pass) parts.push(c.pass+" passed");
+    if (c.fail) parts.push(c.fail+" failed");
+    if (c.xf) parts.push(c.xf+" xfailed");
+    if (c.xp) parts.push(c.xp+" xpassed");
+    $("sumLine").textContent=(parts.join(", ")||"수집 0건")+" in 0.4s";
+    // 종료 코드: 일반 실패가 있거나, strict에서 XPASS가 있으면 1
+    var bad=c.fail>0 || (strictOn && c.xp>0);
+    var v=$("exitV");
+    v.textContent=bad?"1":"0";
+    v.className="v "+(bad?"bad":"ok");
+    return !bad;
+  }
+  function setNote(html, cls){
+    var n=$("note"); n.innerHTML=html; n.className="note"+(cls?" "+cls:"");
+  }
+  function setStamp(ok, text){
+    var s=$("stamp"); s.className="stamp"; void s.offsetHeight;
+    if (text===null){ s.textContent=""; return; }
+    s.textContent=text;
+    s.classList.add(ok?"pass":"fail");
+    requestAnimationFrame(function(){ s.classList.add("show"); });
+  }
+  function focusRow(id, on){
+    Object.keys(rows).forEach(function(k){ rows[k].el.classList.remove("focus"); });
+    if (id && on!==false) rows[id].el.classList.add("focus");
+  }
+
+  // ── 장면 1~4: 수명주기 자동 재생 ─────────────────────────────
+  async function playLife(){
+    if (playing) return;
+    reset();
+    playing=true; btnLife.disabled=true; btnTrap.disabled=true;
+    var myRun=runId;
+
+    // S1: 설계 직후 — 초록 4 + 빨강 3, 종료 코드 1
+    setNote("장면 1 — 설계 정합 테스트는 초록, 수락 테스트는 스텁이라 빨강. <b>종료 코드 1</b>: 이대로면 CI가 계속 웁니다.");
+    for (var i=0;i<DESIGN.length;i++){
+      if (myRun!==runId) return;
+      setStatus(DESIGN[i].id, "pass"); refreshSummary(); await sleep(320);
+    }
+    await sleep(300);
+    for (var j=0;j<ACCEPT.length;j++){
+      if (myRun!==runId) return;
+      setStatus(ACCEPT[j].id, "fail"); refreshSummary(); await sleep(380);
+    }
+    await sleep(1600);
+    if (myRun!==runId) return;
+
+    // S2: xfail 마커 부착 — 예고된 빨강, 종료 코드 0 (시그니처)
+    setNote("장면 2 — 빨강을 고치는 대신 <b>예고</b>합니다: \"이 테스트는 이 이유로 실패할 것이다\"를 마커로 선언.");
+    for (var k=0;k<ACCEPT.length;k++){
+      if (myRun!==runId) return;
+      focusRow(ACCEPT[k].id);
+      setMarker(ACCEPT[k].id, true);
+      await sleep(420);
+      setStatus(ACCEPT[k].id, "xf"); refreshSummary();
+      await sleep(380);
+    }
+    focusRow(null);
+    await sleep(500);
+    refreshSummary();
+    setStamp(true, "✅ 초록 + 예고된 빨강 3 — 설계 완료");
+    setNote("빨간 등 3개가 그대로 남아 있는데 <b>종료 코드는 0</b>이 됐습니다. 실패가 사라진 게 아니라 실패가 <b>계약</b>이 된 것입니다 — 7-3의 목표가 저절로 정해졌습니다: 이 3개를 지우는 것.", "good");
+    await sleep(2600);
+    if (myRun!==runId) return;
+
+    // S3: 7-3 구현 — TTS XPASS
+    setStamp(true, null); $("stamp").className="stamp";
+    setNote("장면 3 — 7-3에서 TTS 어댑터를 구현했습니다. 스위트를 다시 돌리면…");
+    focusRow("tts");
+    await sleep(1000);
+    setStatus("tts", "xp"); refreshSummary();
+    setNote("<b>XPASS</b> — \"실패한다고 예고했는데 통과했다\". 기본(strict=False)에서 이것은 실패가 아니라 <b>표식</b>입니다: 축하이자 '이제 마커를 떼라'는 지시. 종료 코드는 여전히 0.", "good");
+    await sleep(2600);
+    if (myRun!==runId) return;
+
+    // S4: 마커 제거 — 순수 초록
+    setNote("장면 4 — 마커를 떼면 순수한 초록이 됩니다. 남은 xfail 2개가 곧 남은 작업량입니다 — 일정표 M2의 판정 기준: <b>xfail 0</b>.");
+    setMarker("tts", false);
+    await sleep(500);
+    setStatus("tts", "pass"); refreshSummary();
+    focusRow(null);
+    await sleep(900);
+    setStamp(true, "5 passed, 2 xfailed — 진행 중");
+
+    playing=false; lifeDone=true;
+    btnLife.disabled=false; btnTrap.disabled=false;
+    setNote("수명주기 끝. 이제 아래 두 가지를 실험해 보세요 — <b>strict 토글</b>(V2)과 <b>함정 버튼</b>(V1).", null);
+  }
+
+  // ── 함정: raises= 생략 (V1) ──────────────────────────────────
+  async function playTrap(){
+    if (playing || !lifeDone) return;
+    playing=true; btnLife.disabled=true; btnTrap.disabled=true;
+    var myRun=runId;
+
+    setStamp(true, null); $("stamp").className="stamp";
+    focusRow("llm");
+    setNote("7-3에서 LLM 어댑터 구현 중 — 그런데 <b>KeyError 버그</b>가 들어갔습니다. 스텁의 NotImplementedError가 아니라 <b>다른 예외</b>로 실패합니다.");
+    await sleep(2100);
+    if (myRun!==runId) return;
+
+    // (a) raises= 지정: 다른 예외 → 일반 FAILED (버그 검출)
+    setStatus("llm", "fail"); refreshSummary();
+    setStamp(false, "❌ FAILED — 버그가 잡혔습니다");
+    setNote("(a) <code>raises=NotImplementedError</code>를 <b>지정</b>한 지금: 예고와 다른 이유의 실패는 xfail로 인정되지 않고 <b>일반 빨강</b>이 됩니다. 종료 코드 1 — CI가 웁니다. 웁니다만, <b>울어야 할 때 우는 것</b>입니다.", null);
+    await sleep(3200);
+    if (myRun!==runId) return;
+
+    // (b) raises= 생략: 같은 버그가 xfail로 위장
+    setStamp(true, null); $("stamp").className="stamp";
+    setMarker("llm", true, "@xfail  ← raises= 생략", true);
+    setNote("(b) 같은 버그, 이번엔 마커에서 <b>raises=를 생략</b>하면…");
+    await sleep(1600);
+    if (myRun!==runId) return;
+    setStatus("llm", "xf"); refreshSummary();
+    rows["llm"].el.classList.add("hazard");
+    setStamp(true, "✅? 종료 코드 0 — 그러나");
+    setNote("같은 KeyError가 <b>'예고된 실패'로 삼켜졌습니다.</b> 요약도 종료 코드도 평온합니다 — 진짜 버그가 예고 뒤에 숨었습니다. 예고는 구체적일수록 안전합니다. (퀴즈 2)", "warn");
+    await sleep(3400);
+    if (myRun!==runId) return;
+
+    // 복원
+    rows["llm"].el.classList.remove("hazard");
+    setMarker("llm", true, "@xfail(raises=NotImplementedError)", false);
+    setStatus("llm", "xf"); refreshSummary();
+    focusRow(null);
+    setStamp(true, null); $("stamp").className="stamp";
+    setNote("복원 완료 — 팀 규약: <b>xfail에는 반드시 raises=를 적는다.</b> 버그는 KeyError째로 고쳐서 커밋했다고 칩시다.", null);
+    playing=false; btnLife.disabled=false; btnTrap.disabled=false;
+  }
+
+  // ── strict 토글 (V2) — 재생 후 상호작용 ─────────────────────
+  async function toggleStrict(){
+    if (playing) return;
+    strictOn=!strictOn;
+    strictSw.classList.toggle("on", strictOn);
+    strictSw.setAttribute("aria-checked", String(strictOn));
+    $("strictLabel").textContent=String(strictOn);
+    if (!lifeDone){ refreshSummary(); return; }
+    playing=true; btnLife.disabled=true; btnTrap.disabled=true;
+    var myRun=runId;
+
+    if (strictOn){
+      // 시나리오: asr 구현을 끝냈지만 마커 정리를 잊음 → XPASS 발생
+      setStamp(true, null); $("stamp").className="stamp";
+      focusRow("asr");
+      setNote("strict_xfail=<b>true</b>. 시나리오: 7-3에서 ASR 구현을 끝냈는데 <b>마커 떼는 걸 잊었습니다</b>…");
+      await sleep(1800);
+      if (myRun!==runId){ playing=false; return; }
+      setStatus("asr", "xp");
+      var ok=refreshSummary();
+      await sleep(900);
+      setStamp(false, "❌ XPASS(strict) — 종료 코드 1");
+      setNote("strict에서 XPASS는 <b>실패로 승격</b>됩니다 — CI가 빨개져서 마커 정리를 <b>강제</b>합니다. 잊음이 구조적으로 불가능해졌습니다. (V2: skipping.py 40–46행)", "warn");
+    } else {
+      var okNow=refreshSummary();
+      if (rows["asr"].status==="xp"){
+        setStamp(true, "✅ 종료 코드 0 — XPASS는 표식");
+        setNote("strict_xfail=<b>false</b>(기본값)로 되돌리면 같은 XPASS가 다시 <b>표식</b>이 됩니다 — 종료 코드 0. 같은 스위트, 규약만 바꿨는데 판정이 바뀝니다. 어느 쪽을 팀 규약으로 삼을지가 오늘 워크숍의 결정 사항입니다.", "good");
+      } else {
+        setNote("strict_xfail=false — 기본값 상태입니다.", null);
+      }
+    }
+    focusRow(null);
+    playing=false; btnLife.disabled=false; btnTrap.disabled=false;
+  }
+
+  function reset(){
+    runId++;
+    playing=false; lifeDone=false;
+    strictOn=false; strictSw.classList.remove("on");
+    strictSw.setAttribute("aria-checked","false");
+    $("strictLabel").textContent="false";
+    Object.keys(rows).forEach(function(id){
+      setStatus(id, "off"); setMarker(id, false);
+      rows[id].el.classList.remove("focus","hazard");
+    });
+    $("sumLine").textContent="— 재생을 눌러 시작하세요";
+    var v=$("exitV"); v.textContent="·"; v.className="v";
+    setStamp(true, null); $("stamp").className="stamp";
+    setNote("스텁은 전부 NotImplementedError를 던집니다 — 수락 테스트는 당연히 빨갛습니다. 이 빨강을 어떻게 다루는지가 오늘의 이야기입니다.", null);
+    btnLife.disabled=false; btnTrap.disabled=true;
+  }
+
+  btnLife.addEventListener("click", playLife);
+  btnTrap.addEventListener("click", playTrap);
+  btnR.addEventListener("click", reset);
+  strictSw.addEventListener("click", toggleStrict);
+  strictSw.addEventListener("keydown", function(e){
+    if (e.key===" "||e.key==="Enter"){ e.preventDefault(); toggleStrict(); }
+  });
+})();
+</script>
+</body>
+</html>

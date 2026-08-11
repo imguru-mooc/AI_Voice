@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-3 작업 루프 컨베이어 — 네 단계 × 세 바퀴</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#243447; --line:#334155;
+    --ink:#e2e8f0; --sub:#94a3b8; --green:#34d399; --red:#f87171;
+    --amber:#fbbf24; --blue:#60a5fa; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+       display:flex;justify-content:center;padding:24px 12px}
+  .wrap{width:100%;max-width:980px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin:0 0 16px;line-height:1.6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+         border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--blue)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d4ed8;border-color:#1d4ed8}
+  button.danger-on{background:#7f1d1d;border-color:var(--red)}
+  .spd{color:var(--sub);font-size:12px}
+  /* 컨베이어 */
+  .lane{display:flex;align-items:stretch;gap:0;position:relative;margin:6px 0 2px}
+  .station{flex:1;background:var(--panel2);border:2px solid var(--line);border-radius:12px;
+           padding:10px 8px;text-align:center;position:relative;transition:border-color .25s, box-shadow .25s}
+  .station+.station{margin-left:26px}
+  .station .no{font-size:11px;color:var(--sub)}
+  .station .nm{font-size:13.5px;font-weight:700;margin-top:2px}
+  .station .ds{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.45}
+  .station.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(96,165,250,.18)}
+  .station.warn{border-color:var(--red);box-shadow:0 0 0 3px rgba(248,113,113,.20)}
+  .arrow{position:absolute;top:50%;width:26px;height:2px;background:var(--line)}
+  .arrow:after{content:"";position:absolute;right:-1px;top:-4px;border:5px solid transparent;border-left-color:var(--line)}
+  .loopback{color:var(--sub);font-size:11.5px;text-align:center;margin:8px 0 0}
+  .token{position:absolute;top:-14px;left:0;width:26px;height:26px;border-radius:50%;
+         background:var(--blue);display:flex;align-items:center;justify-content:center;
+         font-size:12px;font-weight:800;color:#0b1220;transition:left .55s ease, background .3s;z-index:3}
+  .lapbar{display:flex;gap:8px;margin:0 0 10px}
+  .lap{flex:1;border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:12.5px;
+       color:var(--sub);background:var(--panel2)}
+  .lap.now{color:var(--ink);border-color:var(--blue)}
+  .lap.done{color:var(--green);border-color:var(--green)}
+  .lap.done .st{text-decoration:line-through}
+  /* 우측/하단 패널 */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  h2{font-size:14px;margin:0 0 10px;color:var(--ink)}
+  .board{display:flex;gap:10px}
+  .stat{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+        padding:10px;text-align:center;transition:box-shadow .3s,border-color .3s}
+  .stat .v{font-size:26px;font-weight:800}
+  .stat .k{font-size:11px;color:var(--sub);margin-top:2px}
+  .stat.green .v{color:var(--green)} .stat.amber .v{color:var(--amber)}
+  .stat.gray .v{color:var(--sub)} .stat.red .v{color:var(--red)}
+  .stat.flash{box-shadow:0 0 0 3px rgba(251,191,36,.25);border-color:var(--amber)}
+  .stat.flashg{box-shadow:0 0 0 3px rgba(52,211,153,.25);border-color:var(--green)}
+  .exit{margin-top:8px;font-size:12px;color:var(--sub)}
+  .exit b.ok{color:var(--green)} .exit b.bad{color:var(--red)}
+  .todo{list-style:none;margin:0;padding:0}
+  .todo li{font-size:12.5px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;
+           margin-bottom:6px;background:var(--panel2);display:flex;gap:8px;align-items:center}
+  .todo li.done{color:var(--sub);text-decoration:line-through;border-color:#14532d}
+  .todo li.done:before{content:"✅";text-decoration:none}
+  .todo li.pend:before{content:"⬜"}
+  .marks{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .mark{font-size:11.5px;border:1px dashed var(--amber);color:var(--amber);
+        border-radius:999px;padding:4px 10px;transition:opacity .4s}
+  .mark.off{opacity:.22;text-decoration:line-through;border-color:var(--sub);color:var(--sub)}
+  .log{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:10px;
+       height:118px;overflow-y:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;line-height:1.7}
+  .log .g{color:var(--green)} .log .a{color:var(--amber)} .log .r{color:var(--red)} .log .s{color:var(--sub)}
+  /* 번다운 */
+  svg text{font-family:inherit}
+  .note{font-size:12px;color:var(--sub);line-height:1.7;margin-top:8px}
+  .banner{display:none;margin-top:10px;border:1px solid var(--red);background:rgba(248,113,113,.08);
+          color:#fecaca;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7}
+  .banner.show{display:block}
+  /* 퀴즈 */
+  .quiz{opacity:.35;pointer-events:none;transition:opacity .4s}
+  .quiz.on{opacity:1;pointer-events:auto}
+  .q{margin-bottom:12px}
+  .q .qq{font-size:13px;margin-bottom:6px}
+  .q .qq code{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:2px 6px;
+              font-size:12px;color:var(--amber)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:999px;
+        padding:6px 12px;font-size:12.5px;cursor:pointer}
+  .chip.ok{border-color:var(--green);color:var(--green)}
+  .chip.no{border-color:var(--red);color:var(--red)}
+  .fb{font-size:12px;margin-top:6px;color:var(--sub);min-height:16px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔧 7-3 작업 루프 컨베이어 — 네 단계 × 세 바퀴</h1>
+  <p class="sub">오늘 수업의 뼈대입니다. 기능 하나가 네 개의 정거장을 지나 초록이 되고, 같은 길을 세 번 돌면
+  예정된 실패 3개가 전부 사라집니다. ▶ 재생을 누른 뒤, 아래의 위험 실험 토글과 판정 연습 칩도 눌러 보세요.</p>
+
+  <div class="controls">
+    <button id="play" class="primary">▶ 재생</button>
+    <button id="reset">↺ 처음부터</button>
+    <button id="hazard">⚠️ 위험 실험: ② 건너뛰고 마커부터 떼면?</button>
+    <span class="spd">속도
+      <button data-s="1" class="spdb" style="padding:4px 8px">1×</button>
+      <button data-s="2" class="spdb" style="padding:4px 8px">2×</button>
+    </span>
+  </div>
+
+  <!-- 컨베이어 -->
+  <div class="card">
+    <div class="lapbar" id="lapbar">
+      <div class="lap" id="lap1">🔁 1바퀴 · <span class="st">기능 1 — ASR 어댑터</span></div>
+      <div class="lap" id="lap2">🔁 2바퀴 · <span class="st">기능 2 — 대화 엔진</span></div>
+      <div class="lap" id="lap3">🔁 3바퀴 · <span class="st">기능 3 — TTS 어댑터</span></div>
+    </div>
+    <div class="lane" id="lane">
+      <div class="token" id="token">F1</div>
+      <div class="station" id="st1"><div class="no">정거장 ①</div><div class="nm">기능 구현</div>
+        <div class="ds">write_engines(...)<br>스텁 → 구현</div></div>
+      <div class="station" id="st2"><div class="no">정거장 ②</div><div class="nm">테스트 실행</div>
+        <div class="ds">pytest (새 프로세스)<br>XPASS 확인</div></div>
+      <div class="station" id="st3"><div class="no">정거장 ③</div><div class="nm">마커 제거</div>
+        <div class="ds">write_tests(...)<br>-@pytest.mark.xfail</div></div>
+      <div class="station" id="st4"><div class="no">정거장 ④</div><div class="nm">전부 통과 확인</div>
+        <div class="ds">pytest 재실행<br>XPASS 0 · 초록 +1</div></div>
+    </div>
+    <div class="loopback">⤴ ④를 마치면 다음 기능을 들고 ①로 돌아갑니다 (총 3바퀴)</div>
+    <div class="banner" id="banner"></div>
+  </div>
+
+  <div class="grid">
+    <!-- 현황판 -->
+    <div class="card">
+      <h2>📟 pytest 현황판</h2>
+      <div class="board">
+        <div class="stat green" id="sPass"><div class="v" id="vPass">3</div><div class="k">passed (통과)</div></div>
+        <div class="stat amber" id="sXf"><div class="v" id="vXf">3</div><div class="k">xfailed (예정된 실패)</div></div>
+        <div class="stat gray" id="sXp"><div class="v" id="vXp">0</div><div class="k">xpassed (XPASS)</div></div>
+        <div class="stat red" id="sF"><div class="v" id="vF">0</div><div class="k">failed (실패)</div></div>
+      </div>
+      <div class="exit">종료 코드: <b id="vExit" class="ok">0</b> <span id="exitmsg" class="s"></span></div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <!-- 할 일 목록 -->
+    <div class="card">
+      <h2>📋 할 일 목록 — TODO와 마커는 1:1</h2>
+      <ul class="todo">
+        <li id="td1" class="pend">TODO(7-3) [기능 1] ASR 어댑터 — 판정: test_asr</li>
+        <li id="td2" class="pend">TODO(7-3) [기능 2] 대화 엔진 — 판정: test_dialog</li>
+        <li id="td3" class="pend">TODO(7-3) [기능 3] TTS 어댑터 — 판정: test_tts</li>
+      </ul>
+      <div class="marks">
+        <span class="mark" id="mk1">@xfail → test_asr</span>
+        <span class="mark" id="mk2">@xfail → test_dialog</span>
+        <span class="mark" id="mk3">@xfail → test_tts</span>
+      </div>
+      <div class="note">할 일(TODO) 하나마다 판정 기준(마커 달린 테스트)이 하나씩 붙어 있어서,
+      "무엇을 하면 끝나는가"에 해석의 여지가 없습니다.</div>
+    </div>
+  </div>
+
+  <!-- 번다운 -->
+  <div class="card">
+    <h2>📉 오늘 하루의 기록 — 예정된 실패 3개가 0이 되기까지</h2>
+    <svg id="burn" viewBox="0 0 900 240" width="100%" aria-label="번다운 그래프">
+      <line x1="60" y1="200" x2="880" y2="200" stroke="#334155" stroke-width="1.5"/>
+      <line x1="60" y1="30"  x2="60"  y2="200" stroke="#334155" stroke-width="1.5"/>
+      <text x="30" y="205" fill="#94a3b8" font-size="12">0</text>
+      <text x="30" y="152" fill="#94a3b8" font-size="12">1</text>
+      <text x="30" y="99"  fill="#94a3b8" font-size="12">2</text>
+      <text x="30" y="46"  fill="#94a3b8" font-size="12">3</text>
+      <g id="burnpts"></g>
+      <g id="burnlbl"></g>
+    </svg>
+    <div class="note">● 주황 선 = xfail(예정된 실패) 수 · ◆ 보라 점 = 그 실행에서 XPASS가 있었다는 표시.
+    마커를 떼기 직전마다 XPASS가 잠깐 나타났다가, 떼고 나면 사라지는 것이 보입니다.
+    노트북의 실측 수치(pytest 실행 7회) 그대로입니다.</div>
+  </div>
+
+  <!-- 퀴즈 -->
+  <div class="card quiz" id="quiz">
+    <h2>🎯 판정 연습 — 현황판만 보고 다음 할 일을 고르세요 <span style="color:var(--sub);font-weight:400;font-size:12px">(재생이 끝나면 열립니다)</span></h2>
+    <div class="q">
+      <div class="qq">Q1. <code>3 passed, 2 xfailed, 1 xpassed</code> — 지금 할 일은?</div>
+      <div class="chips" data-q="1">
+        <button class="chip" data-ok="1">XPASS가 난 테스트의 마커를 뗀다</button>
+        <button class="chip" data-ok="0">급하니 다음 기능 구현부터 한다</button>
+        <button class="chip" data-ok="0">아무것도 안 해도 된다</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q2. <code>6 passed, 0 xfailed, 0 xpassed</code> — 이 한 줄의 의미는?</div>
+      <div class="chips" data-q="2">
+        <button class="chip" data-ok="0">아직 기능 2개가 남았다</button>
+        <button class="chip" data-ok="1">마일스톤 M2 달성 — 오늘 할 일이 끝났다</button>
+        <button class="chip" data-ok="0">테스트가 부족하다는 뜻이다</button>
+      </div><div class="fb"></div>
+    </div>
+    <div class="q">
+      <div class="qq">Q3. <code>1 failed (NotImplementedError)</code> — 가장 그럴듯한 원인은?</div>
+      <div class="chips" data-q="3">
+        <button class="chip" data-ok="0">XPASS가 나온 것이므로 정상이다</button>
+        <button class="chip" data-ok="0">pytest가 고장 났다</button>
+        <button class="chip" data-ok="1">구현이 끝나기 전에 마커부터 뗐다</button>
+      </div><div class="fb"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var speed = 1, timer = null, playing = false, finished = false, hazardMode = false;
+
+/* 노트북 실측 수치: [라벨, passed, xfailed, xpassed, failed] — pytest 실행 7회 */
+var RUNS = [
+  ["입장권 확인",       3, 3, 0, 0],
+  ["기능1 구현 직후",   3, 2, 1, 0],
+  ["기능1 마커 제거",   4, 2, 0, 0],
+  ["기능2 구현 직후",   4, 1, 1, 0],
+  ["기능2 마커 제거",   5, 1, 0, 0],
+  ["기능3 구현 직후",   5, 0, 1, 0],
+  ["기능3 마커 제거",   6, 0, 0, 0]
+];
+var FEATS = ["ASR 어댑터", "대화 엔진", "TTS 어댑터"];
+
+/* ── 화면 갱신 도우미 ─────────────────────────────── */
+function setBoard(p, xf, xp, f, flash){
+  $("vPass").textContent = p; $("vXf").textContent = xf;
+  $("vXp").textContent = xp; $("vF").textContent = f;
+  var exitOk = (f === 0);
+  $("vExit").textContent = exitOk ? "0" : "1";
+  $("vExit").className = exitOk ? "ok" : "bad";
+  ["sPass","sXf","sXp","sF"].forEach(function(id){ $(id).classList.remove("flash","flashg"); });
+  if(flash === "xp"){ $("sXp").classList.add("flash"); }
+  if(flash === "ok"){ $("sPass").classList.add("flashg"); }
+  if(flash === "bad"){ $("sF").classList.add("flash"); }
+}
+function log(msg, cls){
+  var d = document.createElement("div");
+  d.className = cls || "";
+  d.textContent = msg;
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function moveToken(st){
+  var lane = $("lane"), box = $("st"+st);
+  var x = box.offsetLeft + box.offsetWidth/2 - 13;
+  $("token").style.left = x + "px";
+  [1,2,3,4].forEach(function(i){
+    $("st"+i).classList.toggle("active", i===st && !hazardMode);
+    $("st"+i).classList.remove("warn");
+  });
+  if(hazardMode && (st===3 || st===4)){ $("st"+st).classList.add("warn"); }
+}
+function setLap(n, state){
+  var el = $("lap"+n);
+  el.classList.remove("now","done");
+  if(state){ el.classList.add(state); }
+}
+
+/* ── 번다운 그리기 ────────────────────────────────── */
+var burnDrawn = 0;
+function yOf(v){ return 200 - v*53.3; }
+function xOf(i){ return 90 + i*128; }
+function drawRun(i){
+  var g = $("burnpts"), gl = $("burnlbl");
+  var r = RUNS[i], x = xOf(i), y = yOf(r[2]);
+  if(i > 0){
+    var pr = RUNS[i-1];
+    var ln = document.createElementNS("http://www.w3.org/2000/svg","line");
+    ln.setAttribute("x1", xOf(i-1)); ln.setAttribute("y1", yOf(pr[2]));
+    ln.setAttribute("x2", x); ln.setAttribute("y2", y);
+    ln.setAttribute("stroke", "#fbbf24"); ln.setAttribute("stroke-width", "2.5");
+    g.appendChild(ln);
+  }
+  var c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", "5");
+  c.setAttribute("fill", "#fbbf24");
+  g.appendChild(c);
+  if(r[3] > 0){
+    var d = document.createElementNS("http://www.w3.org/2000/svg","rect");
+    d.setAttribute("x", x-5); d.setAttribute("y", y-26); d.setAttribute("width","10");
+    d.setAttribute("height","10"); d.setAttribute("fill","#a78bfa");
+    d.setAttribute("transform","rotate(45 " + x + " " + (y-21) + ")");
+    g.appendChild(d);
+  }
+  var t = document.createElementNS("http://www.w3.org/2000/svg","text");
+  t.setAttribute("x", x); t.setAttribute("y", "222"); t.setAttribute("fill", "#94a3b8");
+  t.setAttribute("font-size", "10.5"); t.setAttribute("text-anchor", "middle");
+  t.textContent = r[0];
+  gl.appendChild(t);
+  burnDrawn = i + 1;
+}
+
+/* ── 정상 재생 시나리오 ───────────────────────────── */
+function buildSteps(){
+  var steps = [];
+  steps.push(function(){
+    log("[입장권] 3 passed, 3 xfailed — 7-2를 마쳤을 때 모습 그대로입니다", "s");
+    setBoard(3,3,0,0,null); drawRun(0);
+  });
+  for(var f=1; f<=3; f++){
+    (function(f){
+      var ri = f*2 - 1;          /* 구현 직후 실행 인덱스 */
+      steps.push(function(){     /* ① */
+        setLap(f,"now"); if(f>1){ setLap(f-1,"done"); }
+        $("token").textContent = "F"+f; moveToken(1);
+        log("〔"+f+"바퀴 · "+FEATS[f-1]+"〕 ① write_engines — 스텁을 구현으로", "");
+        $("td"+f).className = "done";
+      });
+      steps.push(function(){     /* ② */
+        moveToken(2);
+        var r = RUNS[ri];
+        setBoard(r[1],r[2],r[3],r[4],"xp"); drawRun(ri);
+        log("② pytest: "+r[1]+" passed, "+r[2]+" xfailed, 1 xpassed — XPASS 발견!", "a");
+        log("   \"실패할 거라던 테스트가 통과했다\" → 이제 마커를 떼면 됩니다", "s");
+      });
+      steps.push(function(){     /* ③ */
+        moveToken(3);
+        $("mk"+f).classList.add("off");
+        log("③ write_tests: -@pytest.mark.xfail(raises=NotImplementedError, ...)", "");
+      });
+      steps.push(function(){     /* ④ */
+        moveToken(4);
+        var r = RUNS[ri+1];
+        setBoard(r[1],r[2],r[3],r[4],"ok"); drawRun(ri+1);
+        log("④ pytest: "+r[1]+" passed, "+r[2]+" xfailed — 기능 "+f+" 정식 초록 ✅", "g");
+      });
+    })(f);
+  }
+  steps.push(function(){
+    setLap(3,"done");
+    log("〔완료〕 6 passed · xfail 0 · XPASS 0 — 마일스톤 M2 달성", "g");
+    log("오늘 끝났는지를 사람의 느낌이 아니라 종료 코드가 판정했습니다.", "s");
+    $("quiz").classList.add("on");
+    finished = true; playing = false;
+    $("play").disabled = false; $("play").textContent = "▶ 다시 재생";
+  });
+  return steps;
+}
+
+/* ── 위험 실험: ② 건너뛰기 ────────────────────────── */
+function buildHazardSteps(){
+  var steps = [];
+  steps.push(function(){
+    log("〔위험 실험〕 기능 1을 구현하지 않은 채로 진행해 봅니다", "r");
+    $("token").textContent = "F1"; moveToken(1);
+    log("① …건너뜀 (스텁 그대로)", "s");
+  });
+  steps.push(function(){
+    moveToken(3);
+    $("mk1").classList.add("off");
+    log("③ 확인 없이 마커부터 제거: -@pytest.mark.xfail(...)", "r");
+  });
+  steps.push(function(){
+    moveToken(4);
+    setBoard(3,2,0,1,"bad");
+    $("exitmsg").textContent = "— 스위트 전체가 실패로 판정됩니다";
+    log("④ pytest: 1 failed (NotImplementedError), 3 passed, 2 xfailed", "r");
+    var b = $("banner");
+    b.innerHTML = "⚠️ <b>순서가 왜 중요한가</b> — 마커는 \"이 실패는 예정된 것\"이라는 보호막입니다. "
+      + "구현이 끝났는지(②의 XPASS) 확인하지 않고 보호막부터 걷어 내면, 미구현 테스트가 그대로 "
+      + "빨강이 되어 종료 코드 1 — 팀 전체의 판정이 깨집니다. 마커 제거는 언제나 XPASS를 본 다음입니다.";
+    b.classList.add("show");
+  });
+  steps.push(function(){
+    log("복구: 마커를 되돌리고(+@pytest.mark.xfail) 정상 루프로 돌아갑니다", "s");
+    $("mk1").classList.remove("off");
+    setBoard(3,3,0,0,null);
+    $("exitmsg").textContent = "";
+    hazardMode = false;
+    $("hazard").classList.remove("danger-on");
+    playing = false; $("play").disabled = false; $("hazard").disabled = false;
+    moveToken(1);
+  });
+  return steps;
+}
+
+/* ── 실행 엔진 ────────────────────────────────────── */
+function runSteps(steps, i){
+  if(i >= steps.length){ return; }
+  steps[i]();
+  timer = setTimeout(function(){ runSteps(steps, i+1); }, 1300 / speed);
+}
+function resetAll(keepQuiz){
+  clearTimeout(timer); playing = false; finished = false; hazardMode = false;
+  setBoard(3,3,0,0,null);
+  $("exitmsg").textContent = "";
+  $("log").innerHTML = ""; $("banner").classList.remove("show");
+  [1,2,3].forEach(function(i){
+    $("td"+i).className = "pend";
+    $("mk"+i).classList.remove("off");
+    setLap(i,null);
+  });
+  $("burnpts").innerHTML = ""; $("burnlbl").innerHTML = ""; burnDrawn = 0;
+  if(!keepQuiz){
+    $("quiz").classList.remove("on");
+    var chips = document.querySelectorAll(".chip");
+    for(var i=0;i<chips.length;i++){ chips[i].classList.remove("ok","no"); }
+    var fbs = document.querySelectorAll(".fb");
+    for(var j=0;j<fbs.length;j++){ fbs[j].textContent = ""; }
+  }
+  $("play").disabled = false; $("play").textContent = "▶ 재생";
+  $("hazard").disabled = false; $("hazard").classList.remove("danger-on");
+  moveToken(1);
+}
+
+$("play").addEventListener("click", function(){
+  if(playing){ return; }
+  resetAll(true); playing = true;
+  $("play").disabled = true; $("hazard").disabled = true;
+  runSteps(buildSteps(), 0);
+});
+$("reset").addEventListener("click", function(){ resetAll(false); });
+$("hazard").addEventListener("click", function(){
+  if(playing){ return; }
+  resetAll(true);
+  playing = true; hazardMode = true;
+  this.classList.add("danger-on");
+  $("play").disabled = true; $("hazard").disabled = true;
+  setBoard(3,3,0,0,null);
+  log("[입장권] 3 passed, 3 xfailed — 정상 시작 상태", "s");
+  runSteps(buildHazardSteps(), 0);
+});
+var spdbs = document.querySelectorAll(".spdb");
+for(var i=0;i<spdbs.length;i++){
+  spdbs[i].addEventListener("click", function(){ speed = Number(this.getAttribute("data-s")); });
+}
+
+/* ── 퀴즈 칩 ─────────────────────────────────────── */
+var FB = {
+  "1": ["정답입니다. XPASS는 \"구현이 예정을 따라잡았다\"는 알림이니, 다음 일은 마커 떼기 하나뿐입니다.",
+        "다시 생각해 보세요. XPASS를 방치한 채 다음으로 넘어가면 낡은 마커가 쌓여, 나중에 진짜 문제를 덮을 수 있습니다."],
+  "2": ["정답입니다. xfail 0이 곧 7-2 일정표의 M2 판정 기준이었습니다 — 완료 판정을 코드가 내린 것입니다.",
+        "다시 보세요. 예정된 실패도, 남은 XPASS도 0이고 여섯 개가 모두 통과한 상태입니다."],
+  "3": ["정답입니다. 마커라는 보호막을 XPASS 확인 전에 걷어 내면, 미구현 테스트가 그대로 빨강이 됩니다 — 위험 실험에서 본 그 장면입니다.",
+        "다시 생각해 보세요. NotImplementedError는 스텁이 던지는 예외 — 아직 구현 전이라는 뜻입니다."]
+};
+var chipEls = document.querySelectorAll(".chips");
+for(var c=0;c<chipEls.length;c++){
+  chipEls[c].addEventListener("click", function(e){
+    var btn = e.target.closest(".chip");
+    if(!btn){ return; }
+    var q = this.getAttribute("data-q");
+    var ok = btn.getAttribute("data-ok") === "1";
+    var all = this.querySelectorAll(".chip");
+    for(var k=0;k<all.length;k++){ all[k].classList.remove("ok","no"); }
+    btn.classList.add(ok ? "ok" : "no");
+    this.parentNode.querySelector(".fb").textContent = ok ? FB[q][0] : FB[q][1];
+  });
+}
+
+/* 초기 위치 */
+window.addEventListener("load", function(){ moveToken(1); });
+window.addEventListener("resize", function(){ if(!playing){ moveToken(1); } });
+</script>
+</body>
+</html>
