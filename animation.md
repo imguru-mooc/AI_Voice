@@ -19,3 +19,9 @@
 - [확인 턴 게이트](https://imguru-mooc.github.io/AI_Voice/html/7-3_애니메이션_확인턴_게이트.html)
 - [g03과_안전망](https://imguru-mooc.github.io/AI_Voice/html/7-3_애니메이션_g03과_안전망.html)
 - [손편집의_소멸](https://imguru-mooc.github.io/AI_Voice/html/7-3_애니메이션_손편집의_소멸.html)
+
+### 파이프 라인 통합
+- [silent_contamination](https://imguru-mooc.github.io/AI_Voice/html/1.silent_contamination_animation.html)
+- [latency_budget](https://imguru-mooc.github.io/AI_Voice/html/2.latency_budget_animation.html)
+- [promotion_scale](https://imguru-mooc.github.io/AI_Voice/html/3.promotion_scale_animation.html)
+- [policy_fork](https://imguru-mooc.github.io/AI_Voice/html/4.policy_fork_animation.html)
