@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-4 §5 — 승격의 대가 저울</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#243449; --line:#334155;
+  --text:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --green:#34d399; --red:#f87171; --amber:#fbbf24; --blue:#60a5fa;
+  --purple:#c084fc; --teal:#2dd4bf;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+  min-height:100vh; padding:28px 18px 60px;
+  display:flex; flex-direction:column; align-items:center;
+}
+.wrap{width:100%; max-width:980px;}
+h1{font-size:1.35rem; font-weight:700; letter-spacing:-.01em;}
+h1 .tag{font-size:.72rem; font-weight:600; color:var(--dim); background:var(--panel);
+  border:1px solid var(--line); border-radius:6px; padding:3px 8px; vertical-align:3px; margin-left:10px;}
+.sub{color:var(--dim); font-size:.9rem; margin-top:6px; line-height:1.55;}
+.sub b{color:var(--amber); font-weight:600;}
+
+.controls{display:flex; gap:10px; margin:20px 0 14px; flex-wrap:wrap; align-items:center;}
+button{
+  background:var(--panel); color:var(--text); border:1px solid var(--line);
+  border-radius:8px; padding:9px 16px; font-size:.88rem; font-weight:600;
+  cursor:pointer; transition:background .15s,border-color .15s; font-family:inherit;
+}
+button:hover{background:var(--panel2);}
+button.primary{background:#1d4ed8; border-color:#2563eb;}
+button.primary:hover{background:#2563eb;}
+button:disabled{opacity:.4; cursor:default;}
+#llmBtn{display:none; border-color:#7c3aed; background:#2e1065;}
+#llmBtn.show{display:inline-block;}
+#llmBtn:hover{background:#4c1d95;}
+
+.grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+@media (max-width:760px){ .grid{grid-template-columns:1fr;} }
+.board{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 16px;}
+.board h2{font-size:.92rem; color:var(--dim); font-weight:700; margin-bottom:12px;}
+.board h2 .b{color:var(--text);}
+
+/* ── 분류 여정 (게이트 낙하) ── */
+.journey{position:relative;}
+.utt{
+  background:#0b1220; border:1.5px solid var(--blue); border-radius:8px;
+  padding:7px 11px; font-size:.8rem; font-weight:600; text-align:center;
+  position:relative; z-index:3; transition:transform .55s ease-in, border-color .3s, opacity .3s;
+  margin:0 auto 10px; width:max-content; max-width:100%;
+}
+.utt .uid{color:var(--blue); font-size:.66rem; font-weight:700; margin-right:6px;}
+.gates{display:flex; flex-direction:column; gap:7px;}
+.gaterow{
+  display:flex; align-items:center; gap:9px;
+  background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+  padding:7px 11px; font-size:.76rem; transition:border-color .2s, background .2s;
+}
+.gaterow .kw{font-family:"D2Coding",Consolas,monospace; color:var(--amber); font-weight:700; flex:1;}
+.gaterow .to{color:var(--faint); font-size:.7rem;}
+.gaterow .mark{width:20px; text-align:center; font-weight:700;}
+.gaterow.miss{border-color:#7f1d1d;}
+.gaterow.miss .mark{color:var(--red);}
+.gaterow.hit{border-color:var(--green); background:#0c1f16;}
+.gaterow.hit .mark{color:var(--green);}
+.gaterow.sem{border-style:dashed; border-color:#5b21b6; display:none;}
+.gaterow.sem.on{display:flex;}
+.gaterow.sem .kw{color:var(--purple);}
+.net{
+  margin-top:10px; border:2px dashed var(--amber); border-radius:10px;
+  padding:9px 11px; text-align:center; font-size:.78rem; color:var(--amber);
+  transition:border-color .25s, color .25s, background .25s;
+}
+.net.caught{background:#231a05; font-weight:700;}
+.net.bypassed{opacity:.35;}
+.outcome{
+  margin-top:10px; border-radius:9px; padding:9px 11px; font-size:.78rem; line-height:1.55;
+  display:none; border:1px solid;
+}
+.outcome.show{display:block;}
+.outcome.tri{border-color:#78350f; background:#1c1206; color:#fcd34d;}
+.outcome.ok{border-color:#14532d; background:#07150c; color:#86efac;}
+
+/* ── 저울 ── */
+.scalebox{display:flex; flex-direction:column; align-items:center; min-height:300px; justify-content:flex-start;}
+.scale{position:relative; width:100%; max-width:380px; height:230px; margin-top:8px;}
+.pillar{position:absolute; left:50%; top:34px; transform:translateX(-50%);
+  width:8px; height:150px; background:var(--line); border-radius:4px;}
+.base{position:absolute; left:50%; bottom:22px; transform:translateX(-50%);
+  width:120px; height:10px; background:var(--line); border-radius:5px;}
+.beam{
+  position:absolute; left:50%; top:34px; width:320px; height:7px; margin-left:-160px;
+  background:#475569; border-radius:4px; transform-origin:50% 50%;
+  transition:transform 1.1s cubic-bezier(.34,1.4,.5,1);
+}
+.pan{
+  position:absolute; top:7px; width:132px; display:flex; flex-direction:column; gap:5px;
+  transform-origin:50% 0;
+  transition:transform 1.1s cubic-bezier(.34,1.4,.5,1);
+}
+.pan.left{left:-8px;} .pan.right{right:-8px;}
+.pan .string{width:2px; height:26px; background:var(--faint); margin:0 auto;}
+.pan .dish{
+  border:1.5px solid var(--line); background:var(--panel2); border-radius:0 0 14px 14px;
+  min-height:34px; padding:6px 7px 8px; display:flex; flex-direction:column; gap:5px;
+}
+.pan .title{font-size:.66rem; font-weight:700; text-align:center; color:var(--faint); letter-spacing:.03em;}
+.pan.left .title{color:var(--green);} .pan.right .title{color:var(--amber);}
+.weight{
+  border-radius:6px; padding:4px 7px; font-size:.68rem; font-weight:700; text-align:center;
+  opacity:0; transform:translateY(-16px); transition:opacity .3s, transform .35s ease-in;
+}
+.weight.drop{opacity:1; transform:translateY(0);}
+.weight.gain{background:#0c1f16; border:1px solid var(--green); color:#86efac;}
+.weight.cost{background:#231a05; border:1px solid var(--amber); color:#fcd34d;}
+.neutral{
+  display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:6px;
+}
+.neutral span{
+  background:var(--panel2); border:1px solid var(--line); border-radius:999px;
+  padding:5px 11px; font-size:.7rem; color:var(--dim); opacity:0; transition:opacity .4s;
+}
+.neutral span.show{opacity:1;}
+.scalecap{margin-top:10px; font-size:.76rem; color:var(--faint); text-align:center; line-height:1.55;
+  opacity:0; transition:opacity .4s; min-height:2.4em;}
+.scalecap.show{opacity:1;}
+.scalecap b{color:var(--text);}
+
+.console{
+  margin-top:16px; background:#0b1220; border:1px solid var(--line); border-radius:10px;
+  padding:13px 15px; font-family:"D2Coding","JetBrains Mono",Consolas,monospace;
+  font-size:.8rem; line-height:1.7; min-height:96px; color:var(--dim); white-space:pre-wrap;
+}
+.console .ok{color:var(--green);} .console .bad{color:var(--red);}
+.console .warn{color:var(--amber);} .console .mut{color:var(--faint);}
+.console .pur{color:var(--purple);} .console .blu{color:var(--blue);}
+
+.verdict{margin-top:14px; border-radius:10px; padding:12px 15px; font-size:.88rem; line-height:1.6;
+  display:none; border:1px solid #334155; background:#131c2e; color:#cbd5e1;}
+.verdict.show{display:block;}
+.verdict b{font-weight:700; color:#fff;}
+
+.chips{display:none; gap:8px; margin-top:16px; flex-wrap:wrap;}
+.chips.show{display:flex;}
+.chip{
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  padding:7px 13px; font-size:.78rem; color:var(--dim); cursor:pointer; font-weight:600;
+  transition:border-color .15s,color .15s; font-family:inherit;
+}
+.chip:hover,.chip.on{border-color:var(--blue); color:var(--text);}
+.chipbody{
+  display:none; margin-top:10px; background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; padding:14px 16px; font-size:.84rem; line-height:1.7; color:var(--text);
+}
+.chipbody.show{display:block;}
+.chipbody code{
+  background:#0b1220; border:1px solid var(--line); border-radius:5px; padding:1px 6px;
+  font-family:"D2Coding",Consolas,monospace; font-size:.78rem; color:#93c5fd;
+}
+.chipbody .k{color:var(--amber); font-weight:700;}
+.chipbody table{border-collapse:collapse; width:100%; margin-top:8px;}
+.chipbody th,.chipbody td{border:1px solid var(--line); padding:6px 9px; font-size:.78rem; text-align:left;}
+.chipbody th{background:var(--panel2); color:var(--dim); font-weight:600;}
+
+.foot{margin-top:26px; color:var(--faint); font-size:.72rem; line-height:1.6;}
+@media (prefers-reduced-motion: reduce){
+  .utt,.beam,.pan,.weight{transition:none !important;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>승격의 대가 저울<span class="tag">7-4 §5 · 분류기 승격, 정답 없는 결정</span></h1>
+  <p class="sub">g03 <b>"지난번이랑 똑같이 부탁드릴게요"</b> — 키워드가 하나도 없는 문장입니다.
+  규칙 분류기의 안전망(△)과 LLM 승격(○) 사이에서, 저울은 어느 쪽으로도 스스로 기울지 않습니다.</p>
+
+  <div class="controls">
+    <button class="primary" id="playBtn">▶ 재생 — 규칙 분류기의 판정</button>
+    <button id="llmBtn">⤴ LLM 시뮬레이터로 재판정</button>
+  </div>
+
+  <div class="grid">
+    <div class="board">
+      <h2><span class="b">분류 여정</span> — g03은 어느 문에서 잡히는가</h2>
+      <div class="journey">
+        <div class="utt" id="utt"><span class="uid">g03</span>"지난번이랑 똑같이 부탁드릴게요"</div>
+        <div class="gates" id="gates">
+          <div class="gaterow" data-kw="취소"><span class="kw">"취소"</span><span class="to">→ cancel</span><span class="mark"></span></div>
+          <div class="gaterow" data-kw="변경|옮기"><span class="kw">"변경"·"옮기"</span><span class="to">→ change</span><span class="mark"></span></div>
+          <div class="gaterow" data-kw="문의|궁금"><span class="kw">"문의"·"궁금"</span><span class="to">→ inquire</span><span class="mark"></span></div>
+          <div class="gaterow" data-kw="상담원|직원|사람"><span class="kw">"상담원"·"직원"·"사람"</span><span class="to">→ handoff</span><span class="mark"></span></div>
+          <div class="gaterow" data-kw="예약|잡아"><span class="kw">"예약"·"잡아"</span><span class="to">→ reserve</span><span class="mark"></span></div>
+          <div class="gaterow sem" id="semRow"><span class="kw">SEMANTIC_HINTS: "지난번이랑 똑같이"</span><span class="to">→ reserve</span><span class="mark"></span></div>
+        </div>
+        <div class="net" id="net">🥅 안전망 — unknown → HANDOFF (모르면 사람에게)</div>
+        <div class="outcome tri" id="outTri">
+          △ 안전망 발동 — "전담 상담원을 연결해 드리겠습니다."<br>
+          <span style="color:#a16207">3분류 판정: ○ 14 / △ 1 (g03) / ✗ 0 — 실패가 아니라 약속 이행</span>
+        </div>
+        <div class="outcome ok" id="outOk">
+          ○ reserve 정합 — 날짜 슬롯이 비어 ASK_SLOT: "원하시는 날짜를 요일과 함께 말씀해 주시겠어요?"<br>
+          <span style="color:#15803d">3분류 판정: ○ 15 / △ 0 / ✗ 0 — 상담원 대신 봇이 대화를 이어갑니다</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="board scalebox">
+      <h2><span class="b">저울</span> — 얻는 것과 치르는 것</h2>
+      <div class="scale">
+        <div class="pillar"></div><div class="base"></div>
+        <div class="beam" id="beam">
+          <div class="pan left">
+            <div class="string"></div>
+            <div class="dish">
+              <div class="title">얻는 것</div>
+              <div class="weight gain" id="w1">△ 해소 — g03이 ○로</div>
+              <div class="weight gain" id="w2">골든셋 15/15 정합</div>
+            </div>
+          </div>
+          <div class="pan right">
+            <div class="string"></div>
+            <div class="dish">
+              <div class="title">치르는 것</div>
+              <div class="weight cost" id="w3">+260 ms / 턴</div>
+              <div class="weight cost" id="w4">여유 360 → 100 ms</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="neutral">
+        <span id="n1">교체 비용: 생성자 한 줄</span>
+        <span id="n2">회귀: 7-3 스위트 6 passed 그대로</span>
+      </div>
+      <p class="scalecap" id="scalecap"></p>
+    </div>
+  </div>
+
+  <div class="console" id="con">재생을 누르면 g03이 규칙 분류기의 키워드 문 5개를 차례로 지납니다.</div>
+
+  <div class="verdict" id="vd">
+    <b>저울이 스스로 기울지 않습니다 — 마지막 무게추는 팀의 우선순위입니다.</b>
+    △를 상담원에 남기는 것도 계약("모르면 사람에게")의 이행이고, +260 ms를 내고 ○로 바꾸는 것도 타당한 선택입니다.
+    결정 기한은 7-5(1차 PoC 시연) 전까지이며, <b>project_report_7_4.json</b>의 promotion 항목
+    {candidate: g03, cost_ms: 260}이 재협상 테이블에 올라간 안건입니다. 결정 없이 남겨 둔 △는 시연 당일의 돌발 상황이 됩니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">정직 표기 — 이 "LLM"의 정체</button>
+    <button class="chip" data-t="c2">△는 실패가 아니다</button>
+    <button class="chip" data-t="c3">팀 토론 프레임 (정답 없음)</button>
+  </div>
+  <div class="chipbody" id="c1">
+    재판정에 쓰인 것은 실제 LLM이 아니라 <span class="k">행동 시뮬레이터</span>입니다 —
+    키워드가 못 잡는 의미 단서를 표로 흉내 낸 것입니다:
+    <table>
+      <tr><th>SEMANTIC_HINTS</th><th>의도</th></tr>
+      <tr><td><code>"지난번이랑 똑같이"</code></td><td>reserve</td></tr>
+      <tr><td><code>"지난번처럼"</code></td><td>reserve</td></tr>
+      <tr><td><code>"같은 걸로"</code></td><td>reserve</td></tr>
+    </table>
+    <p style="margin-top:9px;">이 표가 재현하는 것은 "승격하면 <span class="k">무엇이 달라지는가</span>"라는 행동뿐입니다.
+    실제 LLM(5주차 <code>build_prompt</code> + INTENT_SCHEMA 검증)으로의 교체도 같은 인터페이스이며,
+    지연 프로파일(nlu_llm 300 ms)은 저울의 오른쪽 접시가 실제로 무거워지는 이유를 함께 흉내 냅니다.</p>
+  </div>
+  <div class="chipbody" id="c2">
+    3분류 규약(7-3 셀 6)에서 △는 ✗와 다릅니다:
+    <table>
+      <tr><th>기호</th><th>뜻</th><th>수락 여부</th></tr>
+      <tr><td>○</td><td>기대 행동과 정합</td><td>수락</td></tr>
+      <tr><td><span class="k">△</span></td><td>안전망 발동 — unknown을 사람에게</td><td><span class="k">수락 (계약 이행)</span></td></tr>
+      <tr><td>✗</td><td>잘못된 행동</td><td>수락 불가</td></tr>
+    </table>
+    <p style="margin-top:9px;">계약서 성공 기준 1번은 "골든셋 15건 판정에서 <span class="k">실패(✗) 0건</span>"이지 "△ 0건"이 아닙니다.
+    다만 △가 늘어나면 이해율이 떨어지고 있다는 경보이고, 상담원 연결 1건에는 인건비가 붙습니다 —
+    그래서 △는 버그 목록이 아니라 <span class="k">재협상 안건 목록</span>에 오릅니다.</p>
+  </div>
+  <div class="chipbody" id="c3">
+    강사 스크립트의 팀 승격 결정 시간에 쓰는 질문 세 가지입니다 — 채점 대상은 결론이 아니라 근거입니다:
+    <p style="margin-top:8px;">① 우리 도메인에서 g03류 문장(맥락 의존 발화)은 얼마나 자주 오는가 — △ 1/15은 표본일 뿐,
+    실제 트래픽에서의 비율을 무엇으로 추정할 것인가?</p>
+    <p style="margin-top:6px;">② 여유 100 ms를 어떻게 보는가 — [REAL] 실측에서 네트워크·모델 로드가 흔들릴 때
+    p95가 예산을 넘으면 어떤 폴백(규칙 강등? handoff?)으로 물러설 것인가?</p>
+    <p style="margin-top:6px;">③ 상담원 연결 1건의 비용과 오분류 1건의 비용 중 무엇이 더 비싼가 —
+    취소(cancel) 같은 되돌릴 수 없는 의도에서도 같은 답인가?</p>
+  </div>
+
+  <p class="foot">7-4 「파이프라인 통합」 노트북 §5(승격 후보·행동 시뮬레이터·승격 후 회귀) 실행 결과 기준.
+  g03 원문·HANDOFF/ASK_SLOT 응답문·SEMANTIC_HINTS 3항목·판정 수(○14/△1 → ○15/△0)·비용(+260 ms)·여유(360→100 ms)는
+  노트북 셀 5a·5b·5c 및 project_report_7_4.json과 일치합니다. 단일 HTML · 외부 의존성 없음 · 오프라인 동작.</p>
+</div>
+
+<script>
+"use strict";
+(function(){
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var G03 = "지난번이랑 똑같이 부탁드릴게요";
+  var HANDOFF_SAY = "전담 상담원을 연결해 드리겠습니다.";
+  var ASK_SAY = "원하시는 날짜를 요일과 함께 말씀해 주시겠어요?";
+  var HINTS = ["지난번이랑 똑같이", "지난번처럼", "같은 걸로"];
+  var COST = 260, MARGIN_RULE = 360, MARGIN_LLM = 100;
+
+  // 데이터 정합 자가 점검: 규칙 키워드가 g03에 정말 없는지 / 힌트가 정말 있는지
+  var RULE_KWS = ["취소","변경","옮기","문의","궁금","상담원","직원","사람","예약","잡아"];
+  console.assert(RULE_KWS.every(function(k){ return G03.indexOf(k) === -1; }), "g03에 규칙 키워드 없음");
+  console.assert(G03.indexOf(HINTS[0]) !== -1, "g03에 첫 힌트 포함");
+  console.assert(1500 - (620+300+480) === MARGIN_LLM && 1500 - (620+40+480) === MARGIN_RULE, "여유 산수");
+
+  var playBtn = document.getElementById("playBtn");
+  var llmBtn = document.getElementById("llmBtn");
+  var con = document.getElementById("con");
+  var utt = document.getElementById("utt");
+  var rows = document.querySelectorAll(".gaterow:not(.sem)");
+  var semRow = document.getElementById("semRow");
+  var net = document.getElementById("net");
+  var outTri = document.getElementById("outTri");
+  var outOk = document.getElementById("outOk");
+  var beam = document.getElementById("beam");
+  var pans = document.querySelectorAll(".pan");
+  var scalecap = document.getElementById("scalecap");
+  var vd = document.getElementById("vd");
+  var chips = document.getElementById("chips");
+  var playing = false;
+
+  function log(html){ con.innerHTML += html + "\n"; }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduced ? 30 : ms); }); }
+  function resetJourney(llmMode){
+    Array.prototype.forEach.call(rows, function(r){ r.className = "gaterow"; r.querySelector(".mark").textContent = ""; });
+    semRow.className = "gaterow sem" + (llmMode ? " on" : "");
+    semRow.querySelector(".mark").textContent = "";
+    net.className = "net";
+    outTri.classList.remove("show");
+    outOk.classList.remove("show");
+    utt.style.transform = "none"; utt.style.opacity = "1";
+  }
+
+  function passGates(){
+    var p = Promise.resolve();
+    Array.prototype.forEach.call(rows, function(r){
+      p = p.then(function(){
+        r.classList.add("miss");
+        r.querySelector(".mark").textContent = "✕";
+        log('<span class="mut">  문 [' + r.querySelector(".kw").textContent + '] … </span><span class="bad">불일치</span>');
+        return wait(430);
+      });
+    });
+    return p;
+  }
+
+  function playRule(){
+    playing = true; playBtn.disabled = true; llmBtn.disabled = true;
+    con.innerHTML = ""; vd.classList.remove("show");
+    resetJourney(false);
+    log('<span class="blu">▶ 규칙 분류기</span> classify_intent("' + G03 + '")');
+    passGates().then(function(){
+      net.classList.add("caught");
+      utt.style.opacity = "0.35";
+      log('<span class="warn">🥅 안전망</span> intent=unknown → 행동 HANDOFF — "' + HANDOFF_SAY + '"');
+      log('<span class="warn">△ 안전망 발동(허용)</span> 3분류: ○ 14 / △ 1 (g03) / ✗ 0');
+      log('<span class="mut">   4-2(7-2 기대표)에서 예고된 그 한계 — 실패가 아니라 "모르면 사람에게"의 이행입니다.</span>');
+      outTri.classList.add("show");
+      playing = false;
+      playBtn.disabled = false; playBtn.textContent = "↻ 규칙 판정 다시 보기";
+      llmBtn.disabled = false; llmBtn.classList.add("show");
+    });
+  }
+
+  function dropWeights(){
+    var order = ["w1","w3","w2","w4"];   // 좌·우 번갈아
+    var tilts = [-5, 1.5, -3.5, 0];      // 마지막에 수평 근처로
+    var p = Promise.resolve();
+    order.forEach(function(id, i){
+      p = p.then(function(){
+        document.getElementById(id).classList.add("drop");
+        var a = tilts[i];
+        beam.style.transform = "rotate(" + a + "deg)";
+        Array.prototype.forEach.call(pans, function(pan){ pan.style.transform = "rotate(" + (-a) + "deg)"; });
+        return wait(750);
+      });
+    });
+    return p.then(function(){
+      // 미세 진동 후 수평 정착 — "기울지 않는다"
+      var seq = [1.2, -1.2, 0.5, 0];
+      var q = Promise.resolve();
+      seq.forEach(function(a){
+        q = q.then(function(){
+          beam.style.transform = "rotate(" + a + "deg)";
+          Array.prototype.forEach.call(pans, function(pan){ pan.style.transform = "rotate(" + (-a) + "deg)"; });
+          return wait(reduced ? 30 : 420);
+        });
+      });
+      return q;
+    }).then(function(){
+      document.getElementById("n1").classList.add("show");
+      document.getElementById("n2").classList.add("show");
+      scalecap.innerHTML = "아래 두 배지는 저울에 무게를 더하지 않습니다 — 교체가 한 줄이고 회귀가 초록이어야<br><b>비로소 이 저울질이 성립</b>한다는 전제 조건입니다.";
+      scalecap.classList.add("show");
+    });
+  }
+
+  function playLlm(){
+    playing = true; llmBtn.disabled = true; playBtn.disabled = true;
+    resetJourney(true);
+    log('');
+    log('<span class="pur">⤴ LLM 시뮬레이터 재판정</span> LlmDialogEngine.classify_intent("' + G03 + '") <span class="mut"># 인터페이스는 규칙 엔진 그대로</span>');
+    passGates().then(function(){
+      semRow.classList.add("hit");
+      semRow.querySelector(".mark").textContent = "✓";
+      net.classList.add("bypassed");
+      log('<span class="pur">◆ SEMANTIC_HINTS</span> "' + HINTS[0] + '" 일치 → intent=reserve');
+      return wait(650);
+    }).then(function(){
+      utt.style.opacity = "0.35";
+      log('<span class="ok">○ 정합</span> 날짜 슬롯 비어 있음 → 행동 ASK_SLOT — "' + ASK_SAY + '"');
+      log('<span class="ok">3분류: ○ 15 / △ 0 / ✗ 0</span> <span class="mut">— 승격 후 회귀: 7-3 스위트 6 passed 그대로 (셀 5c)</span>');
+      outOk.classList.add("show");
+      return wait(500);
+    }).then(function(){
+      log('<span class="warn">⚖ 저울</span> 얻는 것(△ 해소)과 치르는 것(+' + COST + ' ms, 여유 ' + MARGIN_RULE + '→' + MARGIN_LLM + ' ms)을 올립니다…');
+      return dropWeights();
+    }).then(function(){
+      vd.classList.add("show");
+      chips.classList.add("show");
+      playing = false;
+      llmBtn.disabled = false; llmBtn.textContent = "↻ 재판정 다시 보기";
+      playBtn.disabled = false;
+    });
+  }
+
+  playBtn.addEventListener("click", function(){ if(!playing) playRule(); });
+  llmBtn.addEventListener("click", function(){ if(!playing) playLlm(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var body = document.getElementById(ch.getAttribute("data-t"));
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

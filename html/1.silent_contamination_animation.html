@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-4 §2 — 조용한 오염 전파</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#243449; --line:#334155;
+  --text:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --green:#34d399; --red:#f87171; --amber:#fbbf24; --blue:#60a5fa;
+  --purple:#c084fc; --hazard:#f97316;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+  min-height:100vh; padding:28px 18px 60px;
+  display:flex; flex-direction:column; align-items:center;
+}
+.wrap{width:100%; max-width:980px;}
+h1{font-size:1.35rem; font-weight:700; letter-spacing:-.01em;}
+h1 .tag{font-size:.72rem; font-weight:600; color:var(--dim); background:var(--panel);
+  border:1px solid var(--line); border-radius:6px; padding:3px 8px; vertical-align:3px; margin-left:10px;}
+.sub{color:var(--dim); font-size:.9rem; margin-top:6px; line-height:1.55;}
+.sub b{color:var(--amber); font-weight:600;}
+
+.controls{display:flex; gap:10px; margin:20px 0 14px; flex-wrap:wrap; align-items:center;}
+button{
+  background:var(--panel); color:var(--text); border:1px solid var(--line);
+  border-radius:8px; padding:9px 16px; font-size:.88rem; font-weight:600;
+  cursor:pointer; transition:background .15s,border-color .15s;
+  font-family:inherit;
+}
+button:hover{background:var(--panel2);}
+button.primary{background:#1d4ed8; border-color:#2563eb;}
+button.primary:hover{background:#2563eb;}
+button:disabled{opacity:.4; cursor:default;}
+.mode{display:none; gap:0; border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+.mode.show{display:inline-flex;}
+.mode button{border:none; border-radius:0; padding:9px 14px;}
+.mode button.on{background:#334155; color:#fff;}
+.mode button:not(.on){color:var(--dim);}
+
+/* pipeline board */
+.board{
+  background:var(--panel); border:1px solid var(--line); border-radius:14px;
+  padding:22px 18px 18px; position:relative;
+}
+.lane{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; position:relative;}
+.station{
+  background:var(--panel2); border:1.5px solid var(--line); border-radius:10px;
+  padding:12px 10px 14px; text-align:center; position:relative; min-height:118px;
+  transition:border-color .25s, box-shadow .25s, opacity .3s;
+}
+.station .icon{font-size:1.35rem;}
+.station .name{font-weight:700; font-size:.92rem; margin-top:4px;}
+.station .role{color:var(--faint); font-size:.72rem; margin-top:3px; line-height:1.4;}
+.station .light{
+  width:11px; height:11px; border-radius:50%; background:#475569;
+  position:absolute; top:9px; right:9px; transition:background .2s, box-shadow .2s;
+}
+.station.pass{border-color:var(--green);}
+.station.pass .light{background:var(--green); box-shadow:0 0 9px var(--green);}
+.station.boom{border-color:var(--red); animation:shake .45s;}
+.station.boom .light{background:var(--red); box-shadow:0 0 11px var(--red);}
+.station.skipped{opacity:.32;}
+@keyframes shake{
+  0%,100%{transform:translateX(0);} 20%{transform:translateX(-5px);}
+  40%{transform:translateX(5px);} 60%{transform:translateX(-3px);} 80%{transform:translateX(3px);}
+}
+
+/* boundary gate between NLU and TTS */
+.gate{
+  position:absolute; top:-6px; bottom:-6px; left:calc(50% - 2px); width:4px;
+  border-radius:3px; background:repeating-linear-gradient(180deg,#475569 0 8px,transparent 8px 14px);
+  display:none;
+}
+.gate.armed{display:block; background:repeating-linear-gradient(180deg,var(--amber) 0 8px,#7c5a09 8px 14px);}
+.gate.blocked{background:var(--red); box-shadow:0 0 12px var(--red);}
+.gatelabel{
+  position:absolute; top:-26px; left:50%; transform:translateX(-50%);
+  font-size:.68rem; color:var(--amber); white-space:nowrap; display:none; font-weight:700;
+}
+.gate.armed + .gatelabel{display:block;}
+
+/* traveling packet */
+.packet{
+  position:absolute; top:50%; left:0;
+  transform:translate(-50%,-50%);
+  background:#0b1220; border:1.5px solid var(--blue); color:var(--text);
+  border-radius:8px; padding:6px 10px; font-size:.74rem; font-weight:600;
+  white-space:nowrap; opacity:0; transition:left .8s ease-in-out, opacity .3s, border-color .3s;
+  z-index:5; max-width:230px; overflow:hidden; text-overflow:ellipsis;
+}
+.packet .kind{display:block; font-size:.62rem; font-weight:700; letter-spacing:.04em;}
+.packet.str{border-color:var(--green);} .packet.str .kind{color:var(--green);}
+.packet.dict{border-color:var(--purple);} .packet.dict .kind{color:var(--purple);}
+.packet.toxic{
+  border-color:var(--hazard);
+  background:repeating-linear-gradient(45deg,#0b1220 0 9px,#2a1608 9px 16px);
+}
+.packet.toxic .kind{color:var(--hazard);}
+@media (prefers-reduced-motion: reduce){
+  .packet{transition:opacity .1s;}
+  .station.boom{animation:none;}
+}
+
+/* caption / console */
+.console{
+  margin-top:16px; background:#0b1220; border:1px solid var(--line); border-radius:10px;
+  padding:13px 15px; font-family:"D2Coding","JetBrains Mono",Consolas,monospace;
+  font-size:.8rem; line-height:1.7; min-height:112px; color:var(--dim); white-space:pre-wrap;
+}
+.console .ok{color:var(--green);} .console .bad{color:var(--red);}
+.console .warn{color:var(--amber);} .console .mut{color:var(--faint);}
+.console .pur{color:var(--purple);}
+
+.verdict{
+  margin-top:14px; border-radius:10px; padding:12px 15px; font-size:.88rem; line-height:1.6;
+  display:none; border:1px solid;
+}
+.verdict.show{display:block;}
+.verdict.v0{border-color:#7c2d12; background:#1c1007; color:#fdba74;}
+.verdict.gate{border-color:#14532d; background:#07150c; color:#86efac;}
+.verdict b{font-weight:700;}
+
+/* chips */
+.chips{display:none; gap:8px; margin-top:16px; flex-wrap:wrap;}
+.chips.show{display:flex;}
+.chip{
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  padding:7px 13px; font-size:.78rem; color:var(--dim); cursor:pointer; font-weight:600;
+  transition:border-color .15s,color .15s; font-family:inherit;
+}
+.chip:hover,.chip.on{border-color:var(--blue); color:var(--text);}
+.chipbody{
+  display:none; margin-top:10px; background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; padding:14px 16px; font-size:.84rem; line-height:1.7; color:var(--text);
+}
+.chipbody.show{display:block;}
+.chipbody code{
+  background:#0b1220; border:1px solid var(--line); border-radius:5px; padding:1px 6px;
+  font-family:"D2Coding",Consolas,monospace; font-size:.78rem; color:#93c5fd;
+}
+.chipbody .k{color:var(--amber); font-weight:700;}
+.chipbody table{border-collapse:collapse; width:100%; margin-top:8px;}
+.chipbody th,.chipbody td{border:1px solid var(--line); padding:6px 9px; font-size:.78rem; text-align:left;}
+.chipbody th{background:var(--panel2); color:var(--dim); font-weight:600;}
+
+.foot{margin-top:26px; color:var(--faint); font-size:.72rem; line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>조용한 오염 전파<span class="tag">7-4 §2 · v0 손 배선</span></h1>
+  <p class="sub">g02 <b>"모레 잡아 둔 진료 예약을 취소해 주세요"</b>가 파이프라인을 지납니다.
+  배선 실수 하나가 <b>무너지지 않고</b> 두 단계를 조용히 통과한 뒤, 엉뚱한 곳에서 터집니다.</p>
+
+  <div class="controls">
+    <button class="primary" id="playBtn">▶ 재생</button>
+    <div class="mode" id="modeSel">
+      <button id="mV0" class="on">v0 손 배선</button>
+      <button id="mGate">say 게이트 (7-4)</button>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="lane" id="lane">
+      <div class="station" id="stASR">
+        <div class="light"></div><div class="icon">🎙️</div>
+        <div class="name">ASR</div>
+        <div class="role">음성 → 글자<br>(대역: 전사 표)</div>
+      </div>
+      <div class="station" id="stNLU">
+        <div class="light"></div><div class="icon">🧭</div>
+        <div class="name">NLU</div>
+        <div class="role">의도·행동 판단<br>딕셔너리 반환</div>
+      </div>
+      <div class="station" id="stTTS">
+        <div class="light"></div><div class="icon">🔊</div>
+        <div class="name">TTS</div>
+        <div class="role">글자 → 음성<br>(대역: 사인파)</div>
+      </div>
+      <div class="station" id="stLOG">
+        <div class="light"></div><div class="icon">🗄️</div>
+        <div class="name">로그 저장부</div>
+        <div class="role">rec["text"].strip()<br>상담 기록 저장</div>
+      </div>
+      <div class="gate" id="gate"></div>
+      <div class="gatelabel">say 게이트 — isinstance(say, str)</div>
+      <div class="packet" id="packet"><span class="kind"></span><span id="pkBody"></span></div>
+    </div>
+    <div class="console" id="con">재생을 누르면 g02 한 건이 파이프라인을 통과합니다.</div>
+    <div class="verdict v0" id="vdV0">
+      <b>무너지지 않는 것이 더 나쁩니다.</b> 원인(딕셔너리 배선)은 NLU→TTS 사이에 있었지만,
+      TTS 대역은 len(딕셔너리)=4로 태연히 "성공"했고, 폭발은 <b>두 단계 뒤</b> 로그 저장부에서 났습니다.
+      증상 위치만 보고 디버깅하면 로그 저장부를 고치게 됩니다 — 범인은 거기 없습니다.
+    </div>
+    <div class="verdict gate" id="vdGate">
+      <b>같은 오염, 다른 결말.</b> 7-4 오케스트레이터의 say 게이트가 NLU→TTS 경계에서
+      <b>발생 지점 즉시</b> ContractError를 던집니다. TTS와 로그 저장부는 아예 실행되지 않고,
+      트레이스에는 진짜 원점이 남습니다. "크게, 원점에서 실패하라"가 코드가 된 모습입니다.
+    </div>
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">len(딕셔너리)=4의 정체</button>
+    <button class="chip" data-t="c2">원인–증상 거리</button>
+    <button class="chip" data-t="c3">게이트는 몇 줄인가</button>
+  </div>
+  <div class="chipbody" id="c1">
+    NLU가 반환한 딕셔너리의 키는 <code>intent</code>, <code>action</code>, <code>slots</code>, <code>say</code> — 4개입니다.
+    사인파 대역의 길이 공식 <code>dur = min(max(0.18 × len(text), 0.4), 6.0)</code>에 딕셔너리가 들어가면
+    <code>len(dict)</code>는 <span class="k">키 개수 4</span>를 돌려주므로 0.18 × 4 = <span class="k">0.72초</span>짜리
+    소리가 멀쩡히 만들어집니다. 파이썬의 관대함(len이 여러 타입에 동작)이 오염을 "성공"으로 둔갑시킨 것입니다.
+  </div>
+  <div class="chipbody" id="c2">
+    <table>
+      <tr><th></th><th>위치</th><th>보이는 것</th></tr>
+      <tr><td><span class="k">원인</span></td><td>NLU → TTS 배선 (<code>tts.synth(result)</code>)</td><td>아무 오류 없음 — 초록불</td></tr>
+      <tr><td>오염 통과 1</td><td>TTS 합성</td><td>0.72초 사인파 "성공"</td></tr>
+      <tr><td>오염 통과 2</td><td>레코드 전달 (rec["text"]가 dict)</td><td>아무 오류 없음</td></tr>
+      <tr><td><span class="k">증상</span></td><td>로그 저장부 <code>rec["text"].strip()</code></td><td>AttributeError 💥</td></tr>
+    </table>
+    <p style="margin-top:9px;">스택트레이스는 로그 저장부를 가리키지만, 고칠 곳은 두 단계 앞입니다.
+    이 거리가 스파게티 통합 디버깅이 오래 걸리는 이유입니다.</p>
+  </div>
+  <div class="chipbody" id="c3">
+    오케스트레이터의 NLU→TTS 경계에 들어간 검사는 이것뿐입니다:
+    <p style="margin:8px 0;"><code>if not isinstance(res.get("say"), str):</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;raise ContractError("NLU 출력 say는 str이어야 합니다: " + type(...).__name__)</code></p>
+    두 줄. v0에서 두 단계 뒤에 터지던 그 오염을 발생 지점에서 잡습니다.
+    노트북에서는 이 게이트가 15건 완주와 25 passed 통합 테스트를 그대로 통과하는 것까지 확인합니다.
+  </div>
+
+  <p class="foot">7-4 「파이프라인 통합」 노트북 §2(v0 조용한 오염)·§3(오케스트레이터 say 게이트) 실행 결과 기준.
+  모든 수치(키 4개 · 0.72초 · AttributeError · ContractError 문구)는 노트북 셀 출력과 일치합니다.
+  단일 HTML · 외부 의존성 없음 · 오프라인 동작.</p>
+</div>
+
+<script>
+"use strict";
+(function(){
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playBtn = document.getElementById("playBtn");
+  var modeSel = document.getElementById("modeSel");
+  var mV0 = document.getElementById("mV0");
+  var mGate = document.getElementById("mGate");
+  var lane = document.getElementById("lane");
+  var packet = document.getElementById("packet");
+  var pkKind = packet.querySelector(".kind");
+  var pkBody = document.getElementById("pkBody");
+  var con = document.getElementById("con");
+  var gate = document.getElementById("gate");
+  var chips = document.getElementById("chips");
+  var vdV0 = document.getElementById("vdV0");
+  var vdGate = document.getElementById("vdGate");
+  var st = {
+    ASR: document.getElementById("stASR"),
+    NLU: document.getElementById("stNLU"),
+    TTS: document.getElementById("stTTS"),
+    LOG: document.getElementById("stLOG")
+  };
+  var mode = "v0";
+  var playing = false;
+  var playedOnce = false;
+
+  var G02 = "모레 잡아 둔 진료 예약을 취소해 주세요";
+  var SAY = "예약을 취소하면 되돌릴 수 없습니다. 취소를 진행할까요?";
+  var DICT_KEYS = 4;
+  var DUR_S = Math.min(Math.max(0.18 * DICT_KEYS, 0.4), 6.0); // 0.72
+
+  function centerOf(el){
+    var lr = lane.getBoundingClientRect();
+    var r = el.getBoundingClientRect();
+    return (r.left + r.width/2 - lr.left) / lr.width * 100;
+  }
+  function movePacket(el){ packet.style.left = centerOf(el) + "%"; }
+  function setPacket(kind, kindLabel, body){
+    packet.className = "packet " + kind;
+    pkKind.textContent = kindLabel;
+    pkBody.textContent = body;
+  }
+  function resetBoard(){
+    Object.keys(st).forEach(function(k){ st[k].className = "station"; });
+    packet.style.opacity = "0";
+    gate.className = "gate" + (mode === "gate" ? " armed" : "");
+    con.innerHTML = "";
+    vdV0.classList.remove("show");
+    vdGate.classList.remove("show");
+  }
+  function log(html){ con.innerHTML += html + "\n"; }
+  function wait(ms){
+    return new Promise(function(res){ setTimeout(res, reduced ? 40 : ms); });
+  }
+
+  function runSteps(){
+    playing = true;
+    playBtn.disabled = true;
+    resetBoard();
+    var p = Promise.resolve();
+
+    // ── 공통: ASR
+    p = p.then(function(){
+      setPacket("", "입력 오디오", "🎙 g02 · 16 kHz float32");
+      movePacket(st.ASR);
+      packet.style.opacity = "1";
+      return wait(900);
+    }).then(function(){
+      st.ASR.classList.add("pass");
+      setPacket("str", "str", "\u201c" + G02 + "\u201d");
+      log('<span class="ok">✔ ASR</span> 전사 → <span class="ok">str</span> "' + G02 + '"');
+      return wait(1000);
+    // ── 공통: NLU
+    }).then(function(){
+      movePacket(st.NLU);
+      return wait(1000);
+    }).then(function(){
+      st.NLU.classList.add("pass");
+      setPacket("dict", "dict · 키 " + DICT_KEYS + "개", "{intent: cancel, action: CONFIRM, slots, say}");
+      log('<span class="ok">✔ NLU</span> 반환 → <span class="pur">dict</span> {intent:"cancel", action:"CONFIRM", slots:{…}, say:"' + SAY.slice(0,14) + '…"}');
+      return wait(1100);
+    });
+
+    if (mode === "v0"){
+      // ── v0: 배선 실수 → TTS 조용한 성공 → 로그 저장부 폭발
+      p = p.then(function(){
+        log('<span class="warn">⚠ 배선</span> tts.synth(<span class="pur">result</span>)  <span class="mut"># 실수: result["say"]가 아니라 딕셔너리 전체</span>');
+        packet.classList.add("toxic");
+        pkKind.textContent = "dict — 오염 유입";
+        movePacket(st.TTS);
+        return wait(1100);
+      }).then(function(){
+        st.TTS.classList.add("pass"); // 초록불이 켜지는 것이 이 데모의 핵심
+        setPacket("toxic", "오염된 레코드", 'rec{ text: dict, audio: ' + DUR_S.toFixed(2) + 's 사인파 }');
+        log('<span class="ok">✔ TTS</span> len(dict)=' + DICT_KEYS + ' → ' + DUR_S.toFixed(2) + '초 사인파 합성 <span class="mut">— 조용히 "성공", rec["text"]에 dict가 실림</span>');
+        return wait(1400);
+      }).then(function(){
+        movePacket(st.LOG);
+        return wait(1000);
+      }).then(function(){
+        st.LOG.classList.add("boom");
+        packet.style.opacity = "0";
+        log('<span class="bad">✘ 로그 저장부</span> rec["text"].strip()');
+        log('<span class="bad">AttributeError: \'dict\' object has no attribute \'strip\'</span>');
+        log('<span class="mut">   원인은 배선(두 단계 앞), 증상은 여기 — 스택트레이스가 범인을 가리키지 않습니다.</span>');
+        vdV0.classList.add("show");
+      });
+    } else {
+      // ── gate: 경계에서 즉시 차단
+      p = p.then(function(){
+        log('<span class="warn">⚠ 같은 오염</span> say 자리에 <span class="pur">dict</span>가 실린 채 NLU→TTS 경계로 접근');
+        packet.classList.add("toxic");
+        pkKind.textContent = "dict — 오염 유입";
+        packet.style.left = "48%"; // 경계(게이트) 앞에서 정지
+        return wait(1100);
+      }).then(function(){
+        gate.classList.add("blocked");
+        st.NLU.classList.remove("pass");
+        st.NLU.classList.add("boom");
+        st.TTS.classList.add("skipped");
+        st.LOG.classList.add("skipped");
+        packet.style.opacity = "0";
+        log('<span class="bad">✘ say 게이트</span> isinstance(res.get("say"), str) → False');
+        log('<span class="bad">ContractError: NLU 출력 say는 str이어야 합니다: dict</span>');
+        log('<span class="mut">   TTS·로그 저장부는 실행되지 않음 — 오염이 경계를 넘지 못했습니다.</span>');
+        log('<span class="mut">   (운영 정책 handoff라면 여기서 상담원 연결로 강등되고 FALLBACK 흔적이 남습니다)</span>');
+        vdGate.classList.add("show");
+      });
+    }
+
+    p.then(function(){
+      playing = false;
+      playedOnce = true;
+      playBtn.disabled = false;
+      playBtn.textContent = "↻ 다시 재생";
+      modeSel.classList.add("show");
+      chips.classList.add("show");
+    });
+  }
+
+  playBtn.addEventListener("click", function(){ if(!playing) runSteps(); });
+  mV0.addEventListener("click", function(){
+    if(playing) return;
+    mode = "v0"; mV0.classList.add("on"); mGate.classList.remove("on"); runSteps();
+  });
+  mGate.addEventListener("click", function(){
+    if(playing) return;
+    mode = "gate"; mGate.classList.add("on"); mV0.classList.remove("on"); runSteps();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var id = ch.getAttribute("data-t");
+      var body = document.getElementById(id);
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+
+  // 데이터 정합 자가 점검 (콘솔용)
+  console.assert(DICT_KEYS === 4, "dict key count");
+  console.assert(Math.abs(DUR_S - 0.72) < 1e-9, "sine duration 0.72s");
+})();
+</script>
+</body>
+</html>

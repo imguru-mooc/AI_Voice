@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-4 §3 — 같은 위반, 두 갈래: fail_fast vs handoff</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#243449; --line:#334155;
+  --text:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --green:#34d399; --red:#f87171; --amber:#fbbf24; --blue:#60a5fa;
+  --purple:#c084fc; --teal:#2dd4bf;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+  min-height:100vh; padding:28px 18px 60px;
+  display:flex; flex-direction:column; align-items:center;
+}
+.wrap{width:100%; max-width:980px;}
+h1{font-size:1.35rem; font-weight:700; letter-spacing:-.01em;}
+h1 .tag{font-size:.72rem; font-weight:600; color:var(--dim); background:var(--panel);
+  border:1px solid var(--line); border-radius:6px; padding:3px 8px; vertical-align:3px; margin-left:10px;}
+.sub{color:var(--dim); font-size:.9rem; margin-top:6px; line-height:1.55;}
+.sub b{color:var(--amber); font-weight:600;}
+.sub code{background:#0b1220; border:1px solid var(--line); border-radius:5px; padding:1px 6px;
+  font-family:"D2Coding",Consolas,monospace; font-size:.78rem; color:#93c5fd;}
+
+.controls{display:flex; gap:10px; margin:20px 0 14px; flex-wrap:wrap; align-items:center;}
+button{
+  background:var(--panel); color:var(--text); border:1px solid var(--line);
+  border-radius:8px; padding:9px 16px; font-size:.88rem; font-weight:600;
+  cursor:pointer; transition:background .15s,border-color .15s; font-family:inherit;
+}
+button:hover{background:var(--panel2);}
+button.primary{background:#1d4ed8; border-color:#2563eb;}
+button.primary:hover{background:#2563eb;}
+button:disabled{opacity:.4; cursor:default;}
+#opsBtn{display:none; border-color:#b45309; background:#3b2604;}
+#opsBtn.show{display:inline-block;}
+#opsBtn:hover{background:#573a06;}
+
+.laneboard{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 16px; margin-bottom:14px;}
+.lanehead{display:flex; align-items:baseline; gap:10px; margin-bottom:12px;}
+.lanehead .who{font-size:.92rem; font-weight:700;}
+.lanehead .pol{font-family:"D2Coding",Consolas,monospace; font-size:.74rem; padding:3px 9px;
+  border-radius:6px; border:1px solid;}
+.pol.ff{color:var(--red); border-color:#7f1d1d; background:#1b0a0a;}
+.pol.ho{color:var(--amber); border-color:#78350f; background:#1c1206;}
+.lanehead .scene{margin-left:auto; font-size:.72rem; color:var(--faint);}
+
+.lane{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; position:relative;}
+.station{
+  background:var(--panel2); border:1.5px solid var(--line); border-radius:10px;
+  padding:11px 8px 12px; text-align:center; position:relative; min-height:96px;
+  transition:border-color .25s, opacity .3s;
+}
+.station .icon{font-size:1.2rem;}
+.station .name{font-weight:700; font-size:.86rem; margin-top:3px;}
+.station .role{color:var(--faint); font-size:.68rem; margin-top:2px; line-height:1.4;}
+.station .light{width:10px; height:10px; border-radius:50%; background:#475569;
+  position:absolute; top:8px; right:8px; transition:background .2s, box-shadow .2s;}
+.station.pass{border-color:var(--green);}
+.station.pass .light{background:var(--green); box-shadow:0 0 8px var(--green);}
+.station.boom{border-color:var(--red); animation:shake .45s;}
+.station.boom .light{background:var(--red); box-shadow:0 0 10px var(--red);}
+.station.catch{border-color:var(--amber);}
+.station.catch .light{background:var(--amber); box-shadow:0 0 10px var(--amber);}
+.station.skipped{opacity:.32;}
+@keyframes shake{
+  0%,100%{transform:translateX(0);} 20%{transform:translateX(-5px);}
+  40%{transform:translateX(5px);} 60%{transform:translateX(-3px);} 80%{transform:translateX(3px);}
+}
+.packet{
+  position:absolute; top:50%; left:0; transform:translate(-50%,-50%);
+  background:#0b1220; border:1.5px solid var(--red); color:var(--text);
+  border-radius:8px; padding:5px 9px; font-size:.7rem; font-weight:700;
+  white-space:nowrap; opacity:0; transition:left .7s ease-in-out, opacity .3s;
+  z-index:5;
+}
+.packet .kind{display:block; font-size:.6rem; color:var(--red); letter-spacing:.04em;}
+.fallbackarc{
+  position:absolute; top:-14px; left:calc(12.5% + 20px); right:calc(37.5% + 20px);
+  height:22px; border:2px dashed var(--amber); border-bottom:none;
+  border-radius:14px 14px 0 0; opacity:0; transition:opacity .35s;
+}
+.fallbackarc::after{
+  content:"FALLBACK — NLU 건너뜀"; position:absolute; top:-17px; left:50%; transform:translateX(-50%);
+  color:var(--amber); font-size:.64rem; font-weight:700; white-space:nowrap;
+}
+.fallbackarc.show{opacity:1;}
+
+/* 결말 패널: 개발자 터미널 / 고객 수화기 */
+.ending{
+  margin-top:12px; border-radius:10px; padding:11px 13px; font-size:.78rem; line-height:1.65;
+  display:none; border:1px solid;
+}
+.ending.show{display:block;}
+.ending.term{
+  border-color:#7f1d1d; background:#160909;
+  font-family:"D2Coding","JetBrains Mono",Consolas,monospace; color:#fca5a5;
+}
+.ending.term .tb{color:var(--red); font-weight:700;}
+.ending.term .mut{color:#9f6f6f;}
+.ending.phone{border-color:#78350f; background:#1c1206; color:#fcd34d;}
+.ending.phone .say{
+  display:block; background:#0b1220; border:1px solid var(--line); border-radius:8px;
+  padding:8px 11px; margin-top:7px; color:var(--text); font-size:.8rem;
+}
+.trace{
+  margin-top:10px; display:none; gap:6px; flex-wrap:wrap; align-items:center;
+  font-family:"D2Coding",Consolas,monospace; font-size:.7rem;
+}
+.trace.show{display:flex;}
+.trace .lbl{color:var(--faint);}
+.trace span.t{
+  border:1px solid var(--line); border-radius:6px; padding:3px 8px; background:#0b1220;
+}
+.trace .t.bad{color:var(--red); border-color:#7f1d1d;}
+.trace .t.fb{color:var(--amber); border-color:#78350f; font-weight:700;}
+.trace .t.ok{color:var(--teal);}
+
+.console{
+  margin-top:4px; background:#0b1220; border:1px solid var(--line); border-radius:10px;
+  padding:13px 15px; font-family:"D2Coding","JetBrains Mono",Consolas,monospace;
+  font-size:.8rem; line-height:1.7; min-height:88px; color:var(--dim); white-space:pre-wrap;
+}
+.console .ok{color:var(--green);} .console .bad{color:var(--red);}
+.console .warn{color:var(--amber);} .console .mut{color:var(--faint);} .console .blu{color:var(--blue);}
+
+.verdict{margin-top:14px; border-radius:10px; padding:12px 15px; font-size:.88rem; line-height:1.6;
+  display:none; border:1px solid #334155; background:#131c2e; color:#cbd5e1;}
+.verdict.show{display:block;}
+.verdict b{font-weight:700; color:#fff;}
+
+.chips{display:none; gap:8px; margin-top:16px; flex-wrap:wrap;}
+.chips.show{display:flex;}
+.chip{
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  padding:7px 13px; font-size:.78rem; color:var(--dim); cursor:pointer; font-weight:600;
+  transition:border-color .15s,color .15s; font-family:inherit;
+}
+.chip:hover,.chip.on{border-color:var(--blue); color:var(--text);}
+.chipbody{
+  display:none; margin-top:10px; background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; padding:14px 16px; font-size:.84rem; line-height:1.7; color:var(--text);
+}
+.chipbody.show{display:block;}
+.chipbody code{
+  background:#0b1220; border:1px solid var(--line); border-radius:5px; padding:1px 6px;
+  font-family:"D2Coding",Consolas,monospace; font-size:.78rem; color:#93c5fd;
+}
+.chipbody .k{color:var(--amber); font-weight:700;}
+.chipbody pre{
+  background:#0b1220; border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+  font-family:"D2Coding",Consolas,monospace; font-size:.74rem; line-height:1.6; overflow-x:auto;
+  margin-top:8px; color:var(--text);
+}
+.chipbody table{border-collapse:collapse; width:100%; margin-top:8px;}
+.chipbody th,.chipbody td{border:1px solid var(--line); padding:6px 9px; font-size:.78rem; text-align:left;}
+.chipbody th{background:var(--panel2); color:var(--dim); font-weight:600;}
+
+.foot{margin-top:26px; color:var(--faint); font-size:.72rem; line-height:1.6;}
+@media (prefers-reduced-motion: reduce){
+  .packet{transition:opacity .1s;} .station.boom{animation:none;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>같은 위반, 두 갈래 결말<span class="tag">7-4 §3-3·3-4 · policy 분기</span></h1>
+  <p class="sub">8 kHz 오디오(전화망 코덱 그대로)가 들어와 ASR 입구에서 <b>같은</b>
+  <code>ContractError: ASR 입력 sr 위반: 8000 != 16000</code>이 납니다.
+  개발 중과 손님 앞 — 파이프라인은 이 예외를 다르게 끝내야 합니다.</p>
+
+  <div class="controls">
+    <button class="primary" id="devBtn">▶ 재생 — 개발 중 (policy="fail_fast")</button>
+    <button id="opsBtn">☎ 손님 앞 (policy="handoff")</button>
+  </div>
+
+  <div class="laneboard">
+    <div class="lanehead">
+      <span class="who">🛠 개발 중</span>
+      <span class="pol ff">policy="fail_fast"</span>
+      <span class="scene">보는 사람: 개발자 — 크게, 원점에서, 즉시</span>
+    </div>
+    <div class="lane" id="laneDev">
+      <div class="station" data-l="dev-asr"><div class="light"></div><div class="icon">🎙️</div>
+        <div class="name">ASR</div><div class="role">입구 계약: 16 kHz<br>float32 · 1차원</div></div>
+      <div class="station" data-l="dev-nlu"><div class="light"></div><div class="icon">🧭</div>
+        <div class="name">NLU</div><div class="role">의도·행동 판단</div></div>
+      <div class="station" data-l="dev-tts"><div class="light"></div><div class="icon">🔊</div>
+        <div class="name">TTS</div><div class="role">응답 합성</div></div>
+      <div class="station" data-l="dev-out"><div class="light"></div><div class="icon">📤</div>
+        <div class="name">응답</div><div class="role">레코드 반환</div></div>
+      <div class="packet" id="pkDev"><span class="kind">입력 오디오</span>8 kHz — 계약 위반</div>
+    </div>
+    <div class="ending term" id="endDev">
+<span class="tb">Traceback (most recent call last):</span>
+  File "project_pipeline.py", in run → _stage("asr", …)
+<span class="tb">ContractError: ASR 입력 sr 위반: 8000 != 16000</span>
+<span class="mut"># 파이프라인 정지. 스택트레이스가 원점(ASR 입구)을 정확히 가리킵니다.</span>
+<span class="mut"># 고통스러울수록 좋습니다 — 지금 이 소리는 개발자만 듣습니다.</span></div>
+  </div>
+
+  <div class="laneboard">
+    <div class="lanehead">
+      <span class="who">☎ 손님 앞</span>
+      <span class="pol ho">policy="handoff"</span>
+      <span class="scene">보는(듣는) 사람: 고객 — 끊기지 않게, 흔적은 남게</span>
+    </div>
+    <div class="lane" id="laneOps">
+      <div class="fallbackarc" id="arc"></div>
+      <div class="station" data-l="ops-asr"><div class="light"></div><div class="icon">🎙️</div>
+        <div class="name">ASR</div><div class="role">입구 계약: 16 kHz<br>float32 · 1차원</div></div>
+      <div class="station" data-l="ops-nlu"><div class="light"></div><div class="icon">🧭</div>
+        <div class="name">NLU</div><div class="role">의도·행동 판단</div></div>
+      <div class="station" data-l="ops-tts"><div class="light"></div><div class="icon">🔊</div>
+        <div class="name">TTS</div><div class="role">폴백 문장 합성</div></div>
+      <div class="station" data-l="ops-out"><div class="light"></div><div class="icon">🧑‍💼</div>
+        <div class="name">상담원 연결</div><div class="role">action=HANDOFF</div></div>
+      <div class="packet" id="pkOps"><span class="kind">입력 오디오</span>8 kHz — 계약 위반</div>
+    </div>
+    <div class="ending phone" id="endOps">
+      고객의 수화기에는 침묵 대신 이 문장이 나갑니다:
+      <span class="say">🔊 "연결 상태가 좋지 않아 상담원을 연결해 드리겠습니다."</span>
+    </div>
+    <div class="trace" id="traceOps">
+      <span class="lbl">traces:</span>
+      <span class="t bad">("ASR", ✕ ContractError)</span>
+      <span class="t fb">("FALLBACK", 0.0)</span>
+      <span class="t ok">("TTS", 폴백 합성)</span>
+      <span class="lbl">— 장애는 침묵이 아니라 기록</span>
+    </div>
+  </div>
+
+  <div class="console" id="con">재생을 누르면 8 kHz 위반 오디오가 fail_fast 파이프라인에 들어갑니다.</div>
+
+  <div class="verdict" id="vd">
+    <b>정책은 예외를 없애지 않습니다 — 예외의 관객을 바꿉니다.</b>
+    fail_fast는 개발자에게 크게 들리도록, handoff는 고객에게 들리지 않도록. 어느 쪽이든
+    위반 자체는 같은 게이트가 같은 지점에서 잡았고(경계의 일), 무엇을 할지는 정책의 일입니다.
+    handoff의 FALLBACK 흔적은 운영에서 "오늘 폴백이 몇 건이었는가"를 세는 근거가 됩니다 —
+    조용히 넘어간 장애는 셀 수 없습니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">갈림길의 실제 코드</button>
+    <button class="chip" data-t="c2">FALLBACK 흔적의 쓸모</button>
+    <button class="chip" data-t="c3">두 정책 모두 테스트로 고정</button>
+  </div>
+  <div class="chipbody" id="c1">
+    오케스트레이터 <code>run()</code>의 except 블록 하나가 갈림길 전부입니다:
+    <pre>except ContractError:
+    if self.policy == "fail_fast":
+        raise                      # 개발: 그대로 위로 — 크게, 원점에서
+    # 운영: 무너지는 대신 상담원 연결로 강등 — 장애가 침묵이 되지 않게 흔적을 남깁니다
+    res = {"intent": "unknown", "action": "HANDOFF", "slots": {},
+           "say": "연결 상태가 좋지 않아 상담원을 연결해 드리겠습니다."}
+    rec = self.tts.synth(res["say"])
+    traces.append(("FALLBACK", 0.0))</pre>
+    <p style="margin-top:8px;">주의할 점: handoff는 <span class="k">ContractError만</span> 받습니다.
+    다른 예외(코드 버그)는 여기서도 그대로 터집니다 — 폴백은 "예상한 장애"의 통로이지,
+    모든 오류를 삼키는 담요가 아닙니다. 7-3의 bare xfail vs raises= 실험과 같은 원리입니다.</p>
+  </div>
+  <div class="chipbody" id="c2">
+    <table>
+      <tr><th>장애 처리</th><th>고객 경험</th><th>운영이 아는 것</th></tr>
+      <tr><td>아무 것도 안 함 (v0)</td><td>침묵 또는 이상한 소리</td><td>모름 — 항의 전화로 처음 인지</td></tr>
+      <tr><td>조용히 삼킴 (bare except)</td><td>그럴듯한 오동작</td><td>모름 — 지표가 오히려 깨끗해 보임</td></tr>
+      <tr><td><span class="k">handoff + FALLBACK 흔적</span></td><td>사과 문장 + 상담원</td><td><span class="k">폴백 건수·시각·원인 집계 가능</span></td></tr>
+    </table>
+    <p style="margin-top:9px;">FALLBACK이 트레이스에 남으므로 운영 대시보드는 "왕복 p95"와 나란히
+    "폴백률"을 볼 수 있습니다. 폴백률이 튀는 날이 곧 재협상 테이블에 새 안건이 올라가는 날입니다.</p>
+  </div>
+  <div class="chipbody" id="c3">
+    §7의 통합 테스트에는 이 갈림길의 <span class="k">양쪽 끝이 각각 한 개씩</span> 고정되어 있습니다:
+    <pre>def test_contract_violation_fail_fast():
+    with pytest.raises(PE.ContractError):
+        make_pipe().run(AUDIO, 8000, "g01")          # 반드시 터져야 초록
+
+def test_contract_violation_handoff():
+    r = make_pipe(policy="handoff").run(AUDIO, 8000, "g01")
+    assert r["nlu"]["action"] == "HANDOFF"           # 반드시 안 터져야 초록
+    assert any(s == "FALLBACK" for s, _ in r["traces"])</pre>
+    <p style="margin-top:8px;">같은 위반 입력(8000 Hz)에 대해 한 테스트는 "터짐"을, 다른 테스트는 "안 터짐 + 흔적"을
+    요구합니다. 둘 다 25 passed에 포함되므로, 나중에 누가 except 블록을 고치면
+    어느 쪽 약속이 깨졌는지 즉시 빨간불이 켜집니다 — 정책도 회귀 테스트의 보호를 받습니다.</p>
+  </div>
+
+  <p class="foot">7-4 「파이프라인 통합」 노트북 §3-3(위반 포착)·§3-4(정책 분기)·§7(test_contract_violation_* 2종) 실행 결과 기준.
+  위반 문구·폴백 문장·FALLBACK 트레이스·테스트 코드는 노트북 셀 출력 및 test_pipeline.py 원문과 일치합니다.
+  단일 HTML · 외부 의존성 없음 · 오프라인 동작.</p>
+</div>
+
+<script>
+"use strict";
+(function(){
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var ERR = "ContractError: ASR 입력 sr 위반: 8000 != 16000";
+  var SAY = "연결 상태가 좋지 않아 상담원을 연결해 드리겠습니다.";
+
+  var devBtn = document.getElementById("devBtn");
+  var opsBtn = document.getElementById("opsBtn");
+  var con = document.getElementById("con");
+  var vd = document.getElementById("vd");
+  var chips = document.getElementById("chips");
+  var arc = document.getElementById("arc");
+  var playing = false;
+
+  function S(sel){ return document.querySelector('[data-l="' + sel + '"]'); }
+  function log(html){ con.innerHTML += html + "\n"; }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduced ? 30 : ms); }); }
+  function centerOf(laneId, el){
+    var lr = document.getElementById(laneId).getBoundingClientRect();
+    var r = el.getBoundingClientRect();
+    return (r.left + r.width/2 - lr.left) / lr.width * 100;
+  }
+
+  function playDev(){
+    playing = true; devBtn.disabled = true; opsBtn.disabled = true;
+    con.innerHTML = ""; vd.classList.remove("show");
+    ["dev-asr","dev-nlu","dev-tts","dev-out"].forEach(function(k){ S(k).className = "station"; });
+    document.getElementById("endDev").classList.remove("show");
+    var pk = document.getElementById("pkDev");
+    pk.style.opacity = "0";
+    log('<span class="blu">▶ pipe.run(audio_8k, 8000, "g02")</span>  <span class="mut"># policy="fail_fast" (기본값)</span>');
+    wait(300).then(function(){
+      pk.style.left = centerOf("laneDev", S("dev-asr")) + "%";
+      pk.style.opacity = "1";
+      return wait(800);
+    }).then(function(){
+      S("dev-asr").classList.add("boom");
+      pk.style.opacity = "0";
+      ["dev-nlu","dev-tts","dev-out"].forEach(function(k){ S(k).classList.add("skipped"); });
+      log('<span class="bad">💥 ' + ERR + '</span>');
+      log('<span class="bad">   raise</span> <span class="mut">— 그대로 위로. NLU·TTS·응답은 실행되지 않습니다.</span>');
+      document.getElementById("endDev").classList.add("show");
+      log('<span class="ok">✔ 개발 중의 정답</span> <span class="mut">크게, 원점에서, 즉시 — v0의 "두 단계 뒤 폭발"과 정반대의 미덕입니다.</span>');
+      playing = false;
+      devBtn.disabled = false; devBtn.textContent = "↻ fail_fast 다시 보기";
+      opsBtn.disabled = false; opsBtn.classList.add("show");
+    });
+  }
+
+  function playOps(){
+    playing = true; opsBtn.disabled = true; devBtn.disabled = true;
+    ["ops-asr","ops-nlu","ops-tts","ops-out"].forEach(function(k){ S(k).className = "station"; });
+    arc.classList.remove("show");
+    document.getElementById("endOps").classList.remove("show");
+    document.getElementById("traceOps").classList.remove("show");
+    var pk = document.getElementById("pkOps");
+    pk.style.opacity = "0";
+    log('');
+    log('<span class="blu">☎ pipe_ops.run(audio_8k, 8000, "g02")</span>  <span class="mut"># policy="handoff" — 같은 입력, 같은 게이트</span>');
+    wait(300).then(function(){
+      pk.style.left = centerOf("laneOps", S("ops-asr")) + "%";
+      pk.style.opacity = "1";
+      return wait(800);
+    }).then(function(){
+      S("ops-asr").classList.add("catch");
+      log('<span class="warn">⚡ ' + ERR + '</span> <span class="mut">— 위반 포착 지점은 fail_fast와 완전히 동일합니다.</span>');
+      log('<span class="warn">   except ContractError:</span> <span class="mut">무너지는 대신 상담원 연결로 강등합니다.</span>');
+      return wait(700);
+    }).then(function(){
+      S("ops-nlu").classList.add("skipped");
+      arc.classList.add("show");
+      pk.style.left = centerOf("laneOps", S("ops-tts")) + "%";
+      return wait(900);
+    }).then(function(){
+      S("ops-tts").classList.add("pass");
+      log('<span class="ok">✔ TTS</span> 폴백 문장 합성 — "' + SAY + '"');
+      pk.style.left = centerOf("laneOps", S("ops-out")) + "%";
+      return wait(900);
+    }).then(function(){
+      S("ops-out").classList.add("pass");
+      pk.style.opacity = "0";
+      log('<span class="ok">✔ 응답</span> action=HANDOFF · traces에 <span class="warn">("FALLBACK", 0.0)</span> 기록');
+      document.getElementById("endOps").classList.add("show");
+      document.getElementById("traceOps").classList.add("show");
+      log('<span class="ok">✔ 손님 앞의 정답</span> <span class="mut">장애는 침묵이 아니라 기록 — 고객은 끊기지 않았고, 운영은 셀 수 있습니다.</span>');
+      vd.classList.add("show");
+      chips.classList.add("show");
+      playing = false;
+      opsBtn.disabled = false; opsBtn.textContent = "↻ handoff 다시 보기";
+      devBtn.disabled = false;
+    });
+  }
+
+  devBtn.addEventListener("click", function(){ if(!playing) playDev(); });
+  opsBtn.addEventListener("click", function(){ if(!playing) playOps(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var body = document.getElementById(ch.getAttribute("data-t"));
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+
+  console.assert(ERR.indexOf("8000 != 16000") !== -1, "위반 문구");
+  console.assert(SAY.length > 0, "폴백 문장");
+})();
+</script>
+</body>
+</html>

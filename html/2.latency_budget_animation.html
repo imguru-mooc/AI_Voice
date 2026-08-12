@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7-4 §4 — 왕복 지연 예산 심판대</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#243449; --line:#334155;
+  --text:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --green:#34d399; --red:#f87171; --amber:#fbbf24; --blue:#60a5fa;
+  --purple:#c084fc; --teal:#2dd4bf;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+  min-height:100vh; padding:28px 18px 60px;
+  display:flex; flex-direction:column; align-items:center;
+}
+.wrap{width:100%; max-width:980px;}
+h1{font-size:1.35rem; font-weight:700; letter-spacing:-.01em;}
+h1 .tag{font-size:.72rem; font-weight:600; color:var(--dim); background:var(--panel);
+  border:1px solid var(--line); border-radius:6px; padding:3px 8px; vertical-align:3px; margin-left:10px;}
+.sub{color:var(--dim); font-size:.9rem; margin-top:6px; line-height:1.55;}
+.sub b{color:var(--amber); font-weight:600;}
+
+.controls{display:flex; gap:10px; margin:20px 0 14px; flex-wrap:wrap; align-items:center;}
+button{
+  background:var(--panel); color:var(--text); border:1px solid var(--line);
+  border-radius:8px; padding:9px 16px; font-size:.88rem; font-weight:600;
+  cursor:pointer; transition:background .15s,border-color .15s; font-family:inherit;
+}
+button:hover{background:var(--panel2);}
+button.primary{background:#1d4ed8; border-color:#2563eb;}
+button.primary:hover{background:#2563eb;}
+button:disabled{opacity:.4; cursor:default;}
+#promoteBtn{display:none; border-color:#7c3aed; background:#2e1065;}
+#promoteBtn.show{display:inline-block;}
+#promoteBtn:hover{background:#4c1d95;}
+
+.board{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px 20px 18px;}
+
+/* chart */
+.chart{position:relative; padding:6px 0 30px;}
+.budgetline{
+  position:absolute; top:-4px; bottom:24px; width:2px; background:var(--red);
+  left:calc(var(--budget-pct) * 1%);
+}
+.budgetline::after{
+  content:"예산 1500 ms"; position:absolute; top:-4px; left:7px;
+  color:var(--red); font-size:.72rem; font-weight:700; white-space:nowrap;
+}
+.row{display:flex; align-items:center; gap:12px; margin:18px 0;}
+.rowlabel{width:112px; flex-shrink:0; text-align:right; font-size:.85rem; font-weight:700; line-height:1.35;}
+.rowlabel small{display:block; font-weight:500; color:var(--faint); font-size:.68rem;}
+.track{
+  position:relative; flex:1; height:38px; background:#0b1220;
+  border:1px solid var(--line); border-radius:8px; overflow:visible;
+}
+.bar{position:absolute; top:0; bottom:0; left:0; display:flex; border-radius:8px 0 0 8px; overflow:hidden; width:0;}
+.seg{height:100%; width:0; flex-shrink:0; position:relative;
+  display:flex; align-items:center; justify-content:center;
+  font-size:.68rem; font-weight:700; color:#0b1220; white-space:nowrap; overflow:hidden;}
+.seg.asr{background:var(--blue);}
+.seg.nlu{background:var(--amber);}
+.seg.nlu.llm{background:var(--purple);}
+.seg.tts{background:var(--teal);}
+.total{
+  position:absolute; top:50%; transform:translateY(-50%); left:0;
+  font-family:"D2Coding",Consolas,monospace; font-size:.82rem; font-weight:700;
+  color:var(--text); margin-left:10px; white-space:nowrap; opacity:0; transition:opacity .3s;
+}
+.total.show{opacity:1;}
+.total .marg{color:var(--green); font-weight:600; font-size:.72rem;}
+.total .marg.tight{color:var(--amber);}
+
+/* p95 ticks + marker */
+.ticks{position:absolute; left:0; right:0; bottom:-13px; height:12px;}
+.tick{position:absolute; bottom:0; width:2px; height:9px; background:var(--faint); opacity:0; transition:opacity .2s;}
+.p95mark{
+  position:absolute; top:-7px; bottom:-15px; width:2px; background:var(--green);
+  opacity:0; transition:opacity .4s;
+}
+.p95mark::after{
+  content:attr(data-label); position:absolute; bottom:-20px; left:50%; transform:translateX(-50%);
+  color:var(--green); font-size:.7rem; font-weight:700; white-space:nowrap;
+}
+
+.axis{display:flex; justify-content:space-between; margin:26px 0 0 124px; color:var(--faint); font-size:.68rem;}
+
+.legend{display:flex; gap:16px; margin:8px 0 0 124px; font-size:.74rem; color:var(--dim); flex-wrap:wrap;}
+.legend span::before{content:""; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px;}
+.legend .l-asr::before{background:var(--blue);} .legend .l-nlu::before{background:var(--amber);}
+.legend .l-llm::before{background:var(--purple);} .legend .l-tts::before{background:var(--teal);}
+
+.console{
+  margin-top:18px; background:#0b1220; border:1px solid var(--line); border-radius:10px;
+  padding:13px 15px; font-family:"D2Coding","JetBrains Mono",Consolas,monospace;
+  font-size:.8rem; line-height:1.7; min-height:96px; color:var(--dim); white-space:pre-wrap;
+}
+.console .ok{color:var(--green);} .console .warn{color:var(--amber);}
+.console .mut{color:var(--faint);} .console .pur{color:var(--purple);} .console .blu{color:var(--blue);}
+
+.verdict{margin-top:14px; border-radius:10px; padding:12px 15px; font-size:.88rem; line-height:1.6; display:none; border:1px solid;}
+.verdict.show{display:block;}
+.verdict.rule{border-color:#14532d; background:#07150c; color:#86efac;}
+.verdict.llm{border-color:#5b21b6; background:#150a26; color:#d8b4fe;}
+.verdict b{font-weight:700;}
+
+.chips{display:none; gap:8px; margin-top:16px; flex-wrap:wrap;}
+.chips.show{display:flex;}
+.chip{
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  padding:7px 13px; font-size:.78rem; color:var(--dim); cursor:pointer; font-weight:600;
+  transition:border-color .15s,color .15s; font-family:inherit;
+}
+.chip:hover,.chip.on{border-color:var(--blue); color:var(--text);}
+.chipbody{
+  display:none; margin-top:10px; background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; padding:14px 16px; font-size:.84rem; line-height:1.7; color:var(--text);
+}
+.chipbody.show{display:block;}
+.chipbody code{
+  background:#0b1220; border:1px solid var(--line); border-radius:5px; padding:1px 6px;
+  font-family:"D2Coding",Consolas,monospace; font-size:.78rem; color:#93c5fd;
+}
+.chipbody .k{color:var(--amber); font-weight:700;}
+.chipbody table{border-collapse:collapse; width:100%; margin-top:8px;}
+.chipbody th,.chipbody td{border:1px solid var(--line); padding:6px 9px; font-size:.78rem; text-align:left;}
+.chipbody th{background:var(--panel2); color:var(--dim); font-weight:600;}
+
+.foot{margin-top:26px; color:var(--faint); font-size:.72rem; line-height:1.6;}
+@media (prefers-reduced-motion: reduce){
+  .seg,.bar{transition:none !important;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>왕복 지연 예산 심판대<span class="tag">7-4 §4 · 15건 완주와 재협상</span></h1>
+  <p class="sub">한 턴의 왕복(ASR → NLU → TTS)이 <b>실제 속도</b>로 예산선 1500 ms를 향해 쌓입니다.
+  막대가 차는 시간이 곧 고객이 침묵 속에서 기다리는 시간입니다.</p>
+
+  <div class="controls">
+    <button class="primary" id="playBtn">▶ 재생 (실제 속도)</button>
+    <button id="promoteBtn">⤴ 분류기 LLM 승격 — 대가를 확인</button>
+  </div>
+
+  <div class="board">
+    <div class="chart" id="chart" style="--budget-pct:0">
+      <div class="budgetline"></div>
+
+      <div class="row">
+        <div class="rowlabel">규칙 분류기<small>nlu-rule · 40 ms</small></div>
+        <div class="track" id="trackRule">
+          <div class="bar" id="barRule">
+            <div class="seg asr" data-ms="620">ASR 620</div>
+            <div class="seg nlu" data-ms="40"></div>
+            <div class="seg tts" data-ms="480">TTS 480</div>
+          </div>
+          <div class="total" id="totRule"></div>
+          <div class="ticks" id="ticksRule"></div>
+          <div class="p95mark" id="p95Rule" data-label=""></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="rowlabel">LLM 분류기<small>nlu-llm · 300 ms</small></div>
+        <div class="track" id="trackLlm">
+          <div class="bar" id="barLlm">
+            <div class="seg asr" data-ms="620">ASR 620</div>
+            <div class="seg nlu llm" data-ms="300">NLU 300</div>
+            <div class="seg tts" data-ms="480">TTS 480</div>
+          </div>
+          <div class="total" id="totLlm"></div>
+        </div>
+      </div>
+
+      <div class="axis" id="axis"></div>
+      <div class="legend">
+        <span class="l-asr">ASR (faster-whisper 대역)</span>
+        <span class="l-nlu">NLU · 규칙</span>
+        <span class="l-llm">NLU · LLM</span>
+        <span class="l-tts">TTS (사인파 대역)</span>
+      </div>
+    </div>
+
+    <div class="console" id="con">재생을 누르면 규칙 분류기 구성의 왕복 한 턴이 실제 속도로 쌓입니다.</div>
+
+    <div class="verdict rule" id="vdRule">
+      <b>규칙 분류기: 1140 ms — 예산 내, 여유 360 ms.</b> 15건 완주의 p95도 예산 아래에 찍혔습니다.
+      단, 이 구성은 g03을 안전망(△)으로 흘려보냅니다. 여유 360 ms는 "△를 해소할 권리"를 살 수 있는 지갑입니다.
+    </div>
+    <div class="verdict llm" id="vdLlm">
+      <b>LLM 승격: 1400 ms — 여전히 예산 내, 그러나 여유는 100 ms.</b> 승격의 값은 +260 ms이고,
+      그 대가로 g03의 △가 ○로 바뀝니다(15/15 정합). 네트워크 흔들림 한 번이면 100 ms는 사라질 수 있는 여유입니다 —
+      승격할지, △를 상담원에 남길지는 재협상 테이블에서 <b>팀이 결정</b>합니다. 정답은 없습니다.
+    </div>
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">이 숫자들은 어디서 왔나</button>
+    <button class="chip" data-t="c2">왜 평균이 아니라 p95인가</button>
+    <button class="chip" data-t="c3">재협상 테이블</button>
+  </div>
+  <div class="chipbody" id="c1">
+    정직하게 밝혀 둡니다 — 막대의 길이(ASR 620 / 규칙 NLU 40 / LLM NLU 300 / TTS 480 ms)는
+    7-1 게이트 2에서 조사한 수치를 <code>time.sleep</code>으로 <span class="k">주입한 대역</span>입니다.
+    반면 <span class="k">측정 절차는 진짜</span>입니다: 각 단계를 <code>perf_counter</code>로 실제 감싸 재기 때문에,
+    [REAL] 절에서 실물 엔진(faster-whisper·gTTS)으로 바꾸면 같은 절차가 그대로 실측값을 냅니다.
+    숫자는 대역, 저울은 진짜 — 7-4의 정직 표기 원칙입니다.
+  </div>
+  <div class="chipbody" id="c2">
+    콜센터에서 평균이 좋다는 말은 "대부분은 괜찮았다"는 뜻일 뿐, 최악에 가까운 손님의 경험을 말해 주지 않습니다.
+    <span class="k">p95</span>는 100번의 통화 중 <span class="k">95번째로 느린 턴</span>이 예산 안에 있는지를 묻습니다 —
+    계약서의 성공 기준도 "왕복 지연 p95가 예산 1500 ms 이내"로 적혀 있습니다.
+    막대 아래 작은 눈금 15개가 완주 15건의 개별 기록이고, 초록 마커가 그 p95입니다.
+    sleep 주입값 위에 실행 환경의 미세한 오버헤드가 얹히므로 p95의 소수점은 <span class="k">환경 의존</span>입니다
+    (리허설에서는 약 1143 ms). 채점 대상은 숫자가 아니라 "p95를 기록으로 남겼는가"입니다.
+  </div>
+  <div class="chipbody" id="c3">
+    <table>
+      <tr><th>구성</th><th>왕복</th><th>여유</th><th>골든셋 판정</th></tr>
+      <tr><td>규칙 분류기</td><td>1140 ms</td><td>360 ms</td><td>○ 14 / △ 1 (g03)</td></tr>
+      <tr><td>LLM 분류기</td><td>1400 ms</td><td><span class="k">100 ms</span></td><td>○ 15 / △ 0</td></tr>
+    </table>
+    <p style="margin-top:9px;">승격의 값 = <span class="k">+260 ms</span>. 교체 비용은 생성자 한 줄
+    (<code>ProjectPipeline(asr, nlu_llm, tts, …)</code>) — 6-1에서 약속한 "재협상이 의미 있으려면 교체가 한 줄"의 실현입니다.
+    결정 기한은 7-5(1차 PoC 시연) 전까지이며, <code>project_report_7_4.json</code>의 promotion 항목이 그 안건입니다.</p>
+  </div>
+
+  <p class="foot">7-4 「파이프라인 통합」 노트북 §4(심판대·재협상 그래프) 실행 결과 기준.
+  구간 수치(620·40·300·480 ms)와 합계(1140·1400 ms), 예산(1500 ms), 승격 비용(+260 ms)은
+  노트북의 PROFILES["gate2"] 및 renegotiation_7_4.png 검증 assert와 일치합니다. p95 소수점은 환경 의존.
+  단일 HTML · 외부 의존성 없음 · 오프라인 동작.</p>
+</div>
+
+<script>
+"use strict";
+(function(){
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var BUDGET = 1500, AXIS_MAX = 1600;
+  var ASR = 620, NLU_RULE = 40, NLU_LLM = 300, TTS = 480;
+  var RULE_TOTAL = ASR + NLU_RULE + TTS;   // 1140
+  var LLM_TOTAL  = ASR + NLU_LLM + TTS;    // 1400
+  var COST = LLM_TOTAL - RULE_TOTAL;       // 260
+  console.assert(RULE_TOTAL === 1140 && LLM_TOTAL === 1400 && COST === 260, "일정 산수");
+  console.assert(RULE_TOTAL <= BUDGET && LLM_TOTAL <= BUDGET, "예산 내");
+
+  function pct(ms){ return ms / AXIS_MAX * 100; }
+  document.getElementById("chart").style.setProperty("--budget-pct", pct(BUDGET));
+
+  // axis labels 0..1600 step 400
+  var axis = document.getElementById("axis");
+  [0,400,800,1200,1600].forEach(function(v){
+    var s = document.createElement("span"); s.textContent = v; axis.appendChild(s);
+  });
+
+  var playBtn = document.getElementById("playBtn");
+  var promoteBtn = document.getElementById("promoteBtn");
+  var con = document.getElementById("con");
+  var chips = document.getElementById("chips");
+  var vdRule = document.getElementById("vdRule");
+  var vdLlm = document.getElementById("vdLlm");
+  var playing = false;
+
+  function log(html){ con.innerHTML += html + "\n"; }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduced ? 30 : ms); }); }
+
+  // 실제 속도: 1 ms 지연 = 1 ms 애니메이션 (reduced motion이면 즉시)
+  function fillBar(barId, segsMs, totId, total){
+    var bar = document.getElementById(barId);
+    var segs = bar.querySelectorAll(".seg");
+    bar.style.width = "100%";
+    var p = Promise.resolve();
+    segsMs.forEach(function(ms, i){
+      p = p.then(function(){
+        var el = segs[i];
+        el.style.transition = reduced ? "none" : "width " + ms + "ms linear";
+        el.style.width = pct(ms) + "%";
+        return wait(ms + 60);
+      });
+    });
+    return p.then(function(){
+      var tot = document.getElementById(totId);
+      var margin = BUDGET - total;
+      tot.style.left = pct(total) + "%";
+      tot.innerHTML = total + " ms <span class='marg" + (margin < 200 ? " tight" : "") + "'>여유 " + margin + "</span>";
+      tot.classList.add("show");
+    });
+  }
+
+  // 15건 완주 눈금 + p95 (sleep 주입값 + 소량의 결정적 지터로 실측의 성격만 흉내)
+  function runFifteen(){
+    var ticksHost = document.getElementById("ticksRule");
+    var runs = [];
+    for (var i = 0; i < 15; i++){
+      // 결정적 의사 지터 0~6 ms — "환경 오버헤드가 위에 얹힌다"는 성질만 재현
+      var jitter = ((i * 37 + 11) % 13) / 2; // 0.0 ~ 6.0
+      runs.push(RULE_TOTAL + jitter);
+    }
+    // numpy.percentile(linear)와 같은 보간
+    var sorted = runs.slice().sort(function(a,b){ return a-b; });
+    var idx = 0.95 * (sorted.length - 1);
+    var lo = Math.floor(idx), hi = Math.ceil(idx);
+    var p95 = sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+
+    var p = Promise.resolve();
+    runs.forEach(function(v, i){
+      p = p.then(function(){
+        var t = document.createElement("div");
+        t.className = "tick";
+        t.style.left = pct(v) + "%";
+        ticksHost.appendChild(t);
+        requestAnimationFrame(function(){ t.style.opacity = "0.85"; });
+        if (i % 5 === 4) log('<span class="mut">  … ' + (i+1) + '건 완주</span>');
+        return wait(90);
+      });
+    });
+    return p.then(function(){
+      var mark = document.getElementById("p95Rule");
+      mark.style.left = pct(p95) + "%";
+      mark.setAttribute("data-label", "p95 ≈ " + Math.round(p95) + " ms");
+      mark.style.opacity = "1";
+      log('<span class="ok">✔ 15건 완주</span> 왕복 p95 ≈ ' + Math.round(p95) + ' ms <span class="mut">(소수점은 환경 의존 — 채점 대상은 "기록했는가")</span>');
+      log('<span class="mut">  → project_report_7_4.json 의 latency.p95_ms_rule_profile 로 저장됩니다 (M3 판정 2/2)</span>');
+    });
+  }
+
+  function playRule(){
+    playing = true; playBtn.disabled = true;
+    con.innerHTML = "";
+    vdRule.classList.remove("show"); vdLlm.classList.remove("show");
+    log('<span class="blu">▶ 규칙 분류기 구성</span> — 한 턴이 실제 속도로 쌓입니다. 막대가 차는 동안이 곧 고객의 침묵입니다.');
+    fillBar("barRule", [ASR, NLU_RULE, TTS], "totRule", RULE_TOTAL)
+      .then(function(){
+        log('<span class="ok">✔ 왕복 1140 ms ≤ 예산 1500 ms</span> — 여유 360 ms');
+        return wait(400);
+      })
+      .then(runFifteen)
+      .then(function(){
+        vdRule.classList.add("show");
+        playing = false;
+        playBtn.disabled = false;
+        playBtn.textContent = "↻ 다시 재생";
+        promoteBtn.classList.add("show");
+        chips.classList.add("show");
+      });
+  }
+
+  function playLlm(){
+    playing = true; promoteBtn.disabled = true; playBtn.disabled = true;
+    vdLlm.classList.remove("show");
+    log('');
+    log('<span class="pur">⤴ 분류기 LLM 승격</span> — NLU 구간만 40 → 300 ms. 교체 비용은 생성자 한 줄입니다.');
+    fillBar("barLlm", [ASR, NLU_LLM, TTS], "totLlm", LLM_TOTAL)
+      .then(function(){
+        log('<span class="warn">✔ 왕복 1400 ms ≤ 예산 1500 ms</span> — 승격의 값 +' + COST + ' ms, 남는 여유 ' + (BUDGET - LLM_TOTAL) + ' ms');
+        log('<span class="mut">  얻는 것: g03 "지난번이랑 똑같이 부탁드릴게요" △ → ○ (골든셋 15/15 정합)</span>');
+        vdLlm.classList.add("show");
+        playing = false;
+        promoteBtn.disabled = false;
+        promoteBtn.textContent = "↻ 승격 다시 보기";
+        playBtn.disabled = false;
+      });
+  }
+
+  playBtn.addEventListener("click", function(){ if(!playing) playRule(); });
+  promoteBtn.addEventListener("click", function(){ if(!playing) playLlm(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var body = document.getElementById(ch.getAttribute("data-t"));
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
