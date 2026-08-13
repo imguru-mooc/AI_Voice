@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결정 한 글자, 대본 전체 — 시연 대본은 파생물이다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --rule:#4C8DAE; --llm:#C48A3F; --pass:#58B77E; --fail:#E4585A;
+    --warn:#D9A441; --blue:#6FA8DC;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:960px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  #handBtn{display:none}
+  #handBtn.show{display:inline-block}
+  #handBtn.on{border-color:var(--fail);color:var(--fail)}
+
+  /* ── 본판: 결정 카드 | 파이프 | 대본 ── */
+  .grid{display:grid;grid-template-columns:230px 120px 1fr;gap:0;margin-bottom:14px}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr} .pipecol{display:none} }
+
+  .decision{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;
+    display:flex;flex-direction:column;gap:10px;align-self:start;
+  }
+  .decision h2, .script h2{
+    font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--faint);
+    text-transform:uppercase;margin-bottom:2px;
+  }
+  .dcode{font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--muted)}
+  .dcode .k{color:var(--text)}
+  .bigletter{
+    align-self:center;width:84px;height:84px;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:44px;font-weight:700;
+    background:var(--panel2);border:2px solid var(--rule);color:var(--rule);
+    transition:transform .45s,border-color .45s,color .45s;
+  }
+  .bigletter.flip{transform:rotateX(360deg)}
+  .bigletter.llm{border-color:var(--llm);color:var(--llm)}
+  .legend{font-size:11.5px;color:var(--faint);line-height:1.7;text-align:center}
+  .legend b{color:var(--muted);font-weight:600}
+  .counter{
+    margin-top:2px;border-top:1px dashed var(--line);padding-top:10px;
+    font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.9;text-align:center;
+  }
+  .counter b{color:var(--warn);font-size:15px}
+
+  .pipecol{position:relative;display:flex;align-items:center;justify-content:center;align-self:stretch}
+  .pipe{
+    font-family:var(--mono);font-size:10.5px;color:var(--faint);text-align:center;line-height:1.6;
+    padding:8px 6px;border:1px dashed var(--line);border-radius:8px;background:var(--panel2);
+    transition:border-color .3s,color .3s;
+  }
+  .pipe.hot{border-color:var(--blue);color:var(--blue)}
+  .pipecol::before,.pipecol::after{
+    content:"";position:absolute;top:50%;height:2px;width:14px;background:var(--line);
+  }
+  .pipecol::before{left:0} .pipecol::after{right:0}
+
+  .script{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    display:flex;flex-direction:column;gap:10px;position:relative;
+  }
+  .badge{
+    position:absolute;top:14px;right:16px;font-family:var(--mono);font-size:10px;
+    color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:3px 9px;
+  }
+  .sec{border-left:3px solid var(--line);padding:6px 12px;opacity:.25;transition:opacity .4s}
+  .sec.on{opacity:1}
+  .sec h3{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:3px}
+  .sec p{font-size:12.5px;line-height:1.75;color:var(--text)}
+  .sec p .num{font-family:var(--mono);color:var(--blue)}
+  .sec p .rw{transition:background .3s}
+  .sec p .rw.hl{background:rgba(196,138,63,.28);border-radius:3px}
+  .sec.stale{border-left-color:var(--fail)}
+  .sec.stale p{color:var(--faint)}
+  .sec .stalechip{
+    display:none;font-family:var(--mono);font-size:9.5px;color:var(--fail);
+    border:1px solid var(--fail);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px;
+  }
+  .sec.stale .stalechip{display:inline-block}
+
+  .console{
+    background:#0C1118;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.9;
+    min-height:130px;margin-bottom:14px;
+  }
+  .console .tea{color:var(--blue)} .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)} .console .ok{color:var(--pass)} .console .wr{color:var(--warn)}
+
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--llm);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--llm)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody table{border-collapse:collapse;margin:10px 0;width:100%}
+  .chipbody th,.chipbody td{border:1px solid var(--line);padding:7px 10px;font-size:12.5px;text-align:left}
+  .chipbody th{color:var(--muted);font-weight:600;background:var(--panel2)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+
+  @media (prefers-reduced-motion: reduce){
+    .bigletter,.sec,.sec p .rw,.pipe{transition:none}
+    .bigletter.flip{transform:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-5 · 1차 PoC 시연 — 2→3장</div>
+      <h1>결정 한 글자, 대본 전체 <span class="q">— 시연 대본은 파생물입니다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ 재생</button>
+      <button id="handBtn">✍ 손 편집 시나리오</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="decision">
+      <h2>결정 기록 — decisions_7_5.json</h2>
+      <div class="dcode">"scenario": <span class="k">"golden_3건"</span><br>"run_mode": <span class="k">"MOCK"</span><br>"dialog_engine": <span class="k">▼</span></div>
+      <div class="bigletter" id="letter">R</div>
+      <div class="legend"><b>R</b> = 규칙 분류기 유지 · <b>L</b> = LLM 승격<br>(7-4 워크숍의 팀 결정)</div>
+      <div class="counter" id="counter">바뀐 글자 <b>0</b> · 다시 쓰인 줄 <b>0</b></div>
+    </div>
+
+    <div class="pipecol">
+      <div class="pipe" id="pipe">build_demo_script()<br>근거: project_report_7_4.json</div>
+    </div>
+
+    <div class="script">
+      <h2>시연 대본 — demo_script_7_5.md</h2>
+      <span class="badge">파생물 · 손 편집 금지</span>
+      <div class="sec" id="s1"><h3>① 오프닝 멘트<span class="stalechip">낡음</span></h3>
+        <p>"골든셋 15건을 완주한 시스템을 3건으로 시연합니다. 마지막 점검은 test_pipeline.py — <span class="num">25 passed, exit 0</span>."</p></div>
+      <div class="sec" id="s2"><h3>② 숫자 슬라이드<span class="stalechip">낡음</span></h3>
+        <p>파이프라인 합계 <span class="num rw" id="rTotal">1140 ms</span> · 예산 <span class="num">1500 ms</span> · 여유 <span class="num rw" id="rSlack">360 ms</span></p></div>
+      <div class="sec" id="s3"><h3>③ 시연 순서 — g03 장면<span class="stalechip">낡음</span></h3>
+        <p>"지난번이랑 똑같이 부탁드릴게요" → <span class="rw" id="rG03">△ 안전망 — 상담원 연결 안내</span></p></div>
+      <div class="sec" id="s4"><h3>④ 리스크·폴백 대응<span class="stalechip">낡음</span></h3>
+        <p><span class="rw" id="rRisk">규칙 분류기: 지연 흔들림 없음 — 드릴은 TTS 장애만 준비</span></p></div>
+      <div class="sec" id="s5"><h3>⑤ 예상 질문 — "왜 이 구성인가"<span class="stalechip">낡음</span></h3>
+        <p><span class="rw" id="rQna">"△ 1건을 상담원에게 남기는 것이 계약서의 약속 이행입니다 — 여유 360 ms는 실물 지연 흡수용으로 남겼습니다."</span></p></div>
+    </div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>대본을 고치지 않았습니다 — 결정을 고쳤습니다.</b>
+    사람이 바꾼 것은 결정 기록의 한 글자, 대본의 일곱 줄을 다시 쓴 것은 코드입니다.
+    7-2에서 설계 문서에 세운 원칙("정본은 하나, 파생은 코드로")이 시연 전날 밤, 대본에 도착했습니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">① 무엇이 정본인가</button>
+    <button class="chip" data-t="c2">② 한 글자의 파급 목록</button>
+    <button class="chip" data-t="c3">③ 숫자의 출처</button>
+  </div>
+  <div class="chipbody" id="c1">
+    이 화면에서 정본은 두 개뿐입니다 — <b>결정 기록</b>(decisions_7_5.json)과
+    <b>측정 기록</b>(project_report_7_4.json). 대본은 그 둘의 파생물이라 손으로 고칠 자격이 없습니다.
+    7-2에서 손 사본 스키마가 조용히 낡아 팀이 며칠을 헤맸던 사고와 같은 구조입니다 —
+    그때의 해법("사본을 만들 수 있는 유일한 주체를 함수 하나로 좁힌다")이
+    여기서는 <code>build_demo_script()</code> 하나입니다.
+    <p class="note">✍ 손 편집 시나리오 버튼이 그 반대편 — 대본을 직접 고쳤을 때 어떤 자기모순이
+    시연장에서 터지는지 — 를 보여줍니다.</p>
+  </div>
+  <div class="chipbody" id="c2">
+    R → L 한 글자가 다시 쓴 일곱 줄:
+    <table>
+      <tr><th>대본 위치</th><th>R (규칙)</th><th>L (LLM 승격)</th></tr>
+      <tr><td>② 합계</td><td>1140 ms</td><td>1400 ms (+260)</td></tr>
+      <tr><td>② 여유</td><td>360 ms</td><td>100 ms</td></tr>
+      <tr><td>③ g03 장면</td><td>△ 안전망 → 상담원 연결</td><td>ASK_SLOT — 주문번호를 여쭤봄</td></tr>
+      <tr><td>④ 리스크</td><td>TTS 장애 드릴만</td><td>+ LLM 지연 흔들림 드릴 추가</td></tr>
+      <tr><td>⑤ Q&amp;A 답변</td><td>"△은 약속 이행"</td><td>"△ 해소를 +260 ms에 샀습니다"</td></tr>
+      <tr><td>⑤ 근거 수치</td><td>여유 360 ms</td><td>여유 100 ms</td></tr>
+      <tr><td>체크리스트(암시)</td><td>—</td><td>LLM 키·쿼터 사전 확인 추가</td></tr>
+    </table>
+    <p class="note">한 결정이 몇 군데에 스며 있는지 사람은 다 기억하지 못합니다 — 그래서 세는 일은
+    코드에 맡깁니다. 이 표 자체가 "손 편집이 왜 반드시 몇 곳을 빠뜨리는가"의 증명입니다.</p>
+  </div>
+  <div class="chipbody" id="c3">
+    대본의 모든 수치는 <code>project_report_7_4.json</code>에서 읽어 옵니다 —
+    7-4 마무리에서 한 말 그대로입니다: <b>"숫자를 슬라이드에 옮겨 적는 순간부터 낡습니다."</b>
+    1140/1400 ms는 대역 프로파일 합계이고 실측 p95는 세션마다 다르므로,
+    시연 전날 리허설 완주 후 재생성한 대본이 최종본입니다 — 재생성 자체가
+    7-2 역산 일정의 그 "아무도 뺏을 수 없는 리허설 예약석"에 앉아서 하는 일입니다.
+    <p class="note">수치가 환경 의존이라는 표기까지 대본에 따라 들어갑니다 —
+    정직 표기도 파생물의 일부입니다.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // 정본 수치 (7-4 승계): 규칙 1140 / LLM 1400 / 예산 1500 → 여유 360 / 100
+  var TOTAL_R = 1140, TOTAL_L = 1400, BUDGET = 1500;
+  var SLACK_R = BUDGET - TOTAL_R, SLACK_L = BUDGET - TOTAL_L;
+  var REWRITTEN = 7;
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function el(id){ return document.getElementById(id); }
+  function wait(ms){ return new Promise(function(res){ setTimeout(res, reduced ? Math.min(ms,200) : ms); }); }
+  var logBox = el("log");
+  function log(html){
+    var d = document.createElement("div"); d.innerHTML = html;
+    logBox.appendChild(d); logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  var playBtn = el("playBtn"), handBtn = el("handBtn");
+  var vd = el("vd"), chips = el("chips"), letter = el("letter"), pipe = el("pipe");
+  var counter = el("counter");
+  var playing = false, handOn = false;
+
+  var SECS = ["s1","s2","s3","s4","s5"];
+  var RWS = ["rTotal","rSlack","rG03","rRisk","rQna"];
+
+  function setCounter(ch, lines){
+    counter.innerHTML = '바뀐 글자 <b>' + ch + '</b> · 다시 쓰인 줄 <b>' + lines + '</b>';
+  }
+
+  function setRuleText(){
+    el("rTotal").textContent = TOTAL_R + " ms";
+    el("rSlack").textContent = SLACK_R + " ms";
+    el("rG03").textContent = "△ 안전망 — 상담원 연결 안내";
+    el("rRisk").textContent = "규칙 분류기: 지연 흔들림 없음 — 드릴은 TTS 장애만 준비";
+    el("rQna").textContent = '"△ 1건을 상담원에게 남기는 것이 계약서의 약속 이행입니다 — 여유 ' + SLACK_R + ' ms는 실물 지연 흡수용으로 남겼습니다."';
+  }
+  function setLlmText(){
+    el("rTotal").textContent = TOTAL_L + " ms";
+    el("rSlack").textContent = SLACK_L + " ms";
+    el("rG03").textContent = "ASK_SLOT — 주문번호를 여쭤봅니다";
+    el("rRisk").textContent = "LLM 승격: 지연 흔들림 드릴 추가 — TTS 장애 드릴과 병행";
+    el("rQna").textContent = '"△ 해소를 +260 ms에 샀습니다 — 남은 여유 ' + SLACK_L + ' ms가 승격의 값입니다."';
+  }
+
+  function reset(){
+    logBox.innerHTML = "";
+    vd.classList.remove("show"); chips.classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("on"); });
+    SECS.forEach(function(id){ el(id).classList.remove("on","stale"); });
+    RWS.forEach(function(id){ el(id).classList.remove("hl"); });
+    letter.textContent = "R"; letter.classList.remove("llm","flip");
+    pipe.classList.remove("hot");
+    handBtn.classList.remove("on","show"); handOn = false;
+    setRuleText(); setCounter(0, 0);
+  }
+
+  function play(){
+    playing = true; playBtn.disabled = true; handBtn.disabled = true;
+    reset();
+    log('<span class="tea">2장 — 결정 기록 확정</span> dialog_engine = "R" <span class="mut"># 7-4 팀 결정: 규칙 유지</span>');
+    wait(800).then(function(){
+      pipe.classList.add("hot");
+      log('<span class="tea">3장 — build_demo_script()</span> <span class="mut"># 결정 + project_report_7_4.json → 대본 파생</span>');
+      return wait(600);
+    }).then(function(){
+      return SECS.reduce(function(chain, id, i){
+        return chain.then(function(){
+          el(id).classList.add("on");
+          return wait(420);
+        });
+      }, Promise.resolve());
+    }).then(function(){
+      pipe.classList.remove("hot");
+      log('<span class="ok">✔ 대본 5개 절 생성</span> 합계 ' + TOTAL_R + ' ms · 여유 ' + SLACK_R + ' ms — 전 수치 report 근거.');
+      return wait(1200);
+    }).then(function(){
+      log('<span class="wr">결정 변경</span> 시연 전날 팀 재투표 — LLM 승격 <span class="mut">가결</span>. 사람이 하는 일은 이것뿐:');
+      return wait(700);
+    }).then(function(){
+      letter.classList.add("flip","llm");
+      letter.textContent = "L";
+      setCounter(1, 0);
+      log('<span class="wr">"R" → "L"</span> <span class="mut"># 결정 기록의 한 글자</span>');
+      return wait(900);
+    }).then(function(){
+      pipe.classList.add("hot");
+      log('<span class="tea">재생성</span> build_demo_script() 재실행 — 대본은 고치는 것이 아니라 다시 만드는 것.');
+      return wait(700);
+    }).then(function(){
+      setLlmText();
+      RWS.forEach(function(id){ el(id).classList.add("hl"); });
+      setCounter(1, REWRITTEN);
+      return wait(600);
+    }).then(function(){
+      pipe.classList.remove("hot");
+      log('<span class="ok">✔ 일곱 줄 재작성</span> 합계 ' + TOTAL_L + ' ms · 여유 ' + SLACK_L + ' ms · g03 → ASK_SLOT · 리스크 절 갱신 · Q&amp;A 답변 교체.');
+      log('<span class="mut">   빠뜨린 곳: 0 — 세는 일은 사람이 아니라 코드가 했습니다.</span>');
+      vd.classList.add("show"); chips.classList.add("show");
+      playing = false;
+      playBtn.disabled = false; playBtn.textContent = "↻ 다시 재생";
+      handBtn.disabled = false; handBtn.classList.add("show");
+    });
+  }
+
+  function toggleHand(){
+    handOn = !handOn;
+    handBtn.classList.toggle("on", handOn);
+    if (handOn){
+      // 손 편집: ② 숫자만 고치고 나머지는 낡은 채로
+      el("rTotal").textContent = TOTAL_L + " ms";
+      el("rSlack").textContent = SLACK_L + " ms";
+      el("rG03").textContent = "△ 안전망 — 상담원 연결 안내";
+      el("rRisk").textContent = "규칙 분류기: 지연 흔들림 없음 — 드릴은 TTS 장애만 준비";
+      el("rQna").textContent = '"△ 1건을 상담원에게 남기는 것이 계약서의 약속 이행입니다 — 여유 ' + SLACK_R + ' ms는 실물 지연 흡수용으로 남겼습니다."';
+      ["s3","s4","s5"].forEach(function(id){ el(id).classList.add("stale"); });
+      RWS.forEach(function(id){ el(id).classList.remove("hl"); });
+      log('<span class="bad">✍ 손 편집 시나리오</span> ② 숫자 슬라이드만 ' + TOTAL_L + ' ms로 직접 수정 — ③④⑤는 그대로 낡아 갑니다. 소리는 나지 않습니다.');
+      log('<span class="bad">   시연장 Q&amp;A:</span> "슬라이드는 ' + TOTAL_L + '인데, 방금 여유가 ' + SLACK_R + ' ms라고 하셨는데요?" <span class="mut"># 자기모순은 청중이 먼저 찾습니다</span>');
+    } else {
+      SECS.forEach(function(id){ el(id).classList.remove("stale"); });
+      setLlmText();
+      RWS.forEach(function(id){ el(id).classList.add("hl"); });
+      log('<span class="ok">↻ 재생성 복귀</span> 손 편집을 버리고 build_demo_script() — 일곱 줄이 다시 한 몸이 됩니다.');
+    }
+  }
+
+  playBtn.addEventListener("click", function(){ if(!playing) play(); });
+  handBtn.addEventListener("click", function(){ if(!playing) toggleHand(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var body = document.getElementById(ch.getAttribute("data-t"));
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+
+  // 데이터 정합 자가 점검 (7-4 정본 승계)
+  console.assert(TOTAL_L - TOTAL_R === 260, "승격의 값 +260 ms");
+  console.assert(SLACK_R === 360 && SLACK_L === 100, "여유 360/100 ms");
+  console.assert(BUDGET === 1500, "예산 1500 ms");
+
+  reset();
+})();
+</script>
+</body>
+</html>

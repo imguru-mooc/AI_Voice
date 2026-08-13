@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M4의 두 층 — OK를 버는 방법이 층마다 다르다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --mach:#4C8DAE; --human:#C48A3F;
+    --pass:#58B77E; --fail:#E4585A; --warn:#D9A441; --blue:#6FA8DC;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:920px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  #handBtn{display:none}
+  #handBtn.show{display:inline-block}
+
+  /* ── M4 카드 ── */
+  .m4{
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin-bottom:14px;
+  }
+  .m4head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .m4head .t{font-size:15px;font-weight:700}
+  .m4head .t small{font-family:var(--mono);font-size:10px;color:var(--faint);font-weight:400;margin-left:8px}
+  .score{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .score b{color:var(--pass)} .score i{font-style:normal;color:var(--warn)}
+
+  .layer{border-radius:10px;padding:12px 14px;margin-bottom:10px}
+  .layer.mach{border:1.5px solid var(--mach);background:rgba(76,141,174,.05)}
+  .layer.hum{border:1.5px dashed var(--human);background:rgba(196,138,63,.05)}
+  .layer h2{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+    margin-bottom:9px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;
+  }
+  .layer.mach h2{color:var(--mach)} .layer.hum h2{color:var(--human)}
+  .layer h2 .sub{letter-spacing:0;color:var(--faint);text-transform:none;font-size:10.5px}
+
+  .item{
+    display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:start;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;margin-bottom:7px;opacity:.45;transition:opacity .3s,border-color .3s;
+  }
+  .item:last-child{margin-bottom:0}
+  .item.on{opacity:1}
+  .item.ok{border-color:var(--pass)}
+  .item.pend{border-color:var(--warn)}
+  .item.deny{border-color:var(--fail)}
+  .st{
+    font-family:var(--mono);font-size:11px;font-weight:700;border-radius:6px;
+    padding:4px 0;text-align:center;border:1px solid var(--line);color:var(--faint);
+  }
+  .item.ok .st{border-color:var(--pass);color:var(--pass)}
+  .item.pend .st{border-color:var(--warn);color:var(--warn)}
+  .item.deny .st{border-color:var(--fail);color:var(--fail)}
+  .lbl{font-size:13px;font-weight:600;line-height:1.5}
+  .ev{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.7;margin-top:2px}
+  .ev .g{color:var(--pass)} .ev .w{color:var(--warn)} .ev .r{color:var(--fail)} .ev .b{color:var(--blue)}
+  .proc{
+    display:inline-block;font-family:var(--mono);font-size:9.5px;color:var(--human);
+    border:1px dashed var(--human);border-radius:999px;padding:1px 8px;margin-top:4px;
+  }
+
+  .console{
+    background:#0C1118;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.9;
+    min-height:130px;margin-bottom:14px;
+  }
+  .console .tea{color:var(--blue)} .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)} .console .ok{color:var(--pass)} .console .wr{color:var(--warn)}
+
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--human);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--human)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody table{border-collapse:collapse;margin:10px 0;width:100%}
+  .chipbody th,.chipbody td{border:1px solid var(--line);padding:7px 10px;font-size:12.5px;text-align:left}
+  .chipbody th{color:var(--muted);font-weight:600;background:var(--panel2)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+
+  @media (prefers-reduced-motion: reduce){
+    .item{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-5 · 1차 PoC 시연 — 6장</div>
+      <h1>M4의 두 층 <span class="q">— OK를 버는 방법이 층마다 다릅니다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ M4 판정</button>
+      <button id="handBtn">✍ 손 체크 시도</button>
+    </div>
+  </header>
+
+  <div class="m4">
+    <div class="m4head">
+      <span class="t">M4 — 시연 준비 완료 <small>7-2 역산 일정의 마지막 다이아몬드</small></span>
+      <span class="score" id="score">OK <b>0</b>/3 · PENDING <i>0</i>/3</span>
+    </div>
+
+    <div class="layer mach">
+      <h2>기계 층 — 판정 주체: 코드 <span class="sub">체크박스 없음 · 재실행만이 갱신</span></h2>
+      <div class="item" id="i1">
+        <span class="st" id="s1">—</span>
+        <span><span class="lbl">① 회귀 스위트 재판정</span>
+        <span class="ev" id="e1">subprocess pytest — 대기</span></span>
+      </div>
+      <div class="item" id="i2">
+        <span class="st" id="s2">—</span>
+        <span><span class="lbl">② 성능 기록 존재</span>
+        <span class="ev" id="e2">demo_report_7_5.json — 대기</span></span>
+      </div>
+      <div class="item" id="i3">
+        <span class="st" id="s3">—</span>
+        <span><span class="lbl">③ 대본 파생 정합</span>
+        <span class="ev" id="e3">build_demo_script() 재파생 대조 — 대기</span></span>
+      </div>
+    </div>
+
+    <div class="layer hum">
+      <h2>사람 층 — 판정 주체: 이름 있는 사람 <span class="sub">기본값 PENDING · 절차 없이는 OK 불가</span></h2>
+      <div class="item" id="i4">
+        <span class="st" id="s4">—</span>
+        <span><span class="lbl">④ 시연장 현장 점검</span>
+        <span class="ev" id="e4">스피커·마이크·네트워크 — 코드가 닿을 수 없는 곳</span>
+        <span class="proc">절차: 당일 30분 전, 골든셋 1건 현장 완주</span></span>
+      </div>
+      <div class="item" id="i5">
+        <span class="st" id="s5">—</span>
+        <span><span class="lbl">⑤ 발표자 드릴 대응</span>
+        <span class="ev" id="e5">첫 3초의 반응 — 5장의 사람 층</span>
+        <span class="proc">절차: 드릴 3종 무예고 발사에서 대응 멘트 확인</span></span>
+      </div>
+      <div class="item" id="i6">
+        <span class="st" id="s6">—</span>
+        <span><span class="lbl">⑥ 질문 대비 리허설</span>
+        <span class="ev" id="e6">"왜 이 구성인가" — 답은 사람의 입에서 나감</span>
+        <span class="proc">절차: 대본 ⑤절 Q&amp;A를 근거 수치로 소리 내어 답변</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>기계 층의 OK는 코드가 벌고, 사람 층의 OK는 절차가 법니다.</b>
+    자동 OK 3개는 사람 손이 닿을 수 없어서 믿을 수 있고, PENDING 3개는 미완이 아니라 정직입니다 —
+    기계가 판정할 수 없는 것을 초록으로 위장하지 않는 것. M4가 두 층인 이유는
+    거짓 초록이 두 방향에서 오기 때문입니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">① 왜 층을 나누나</button>
+    <button class="chip" data-t="c2">② PENDING의 정직</button>
+    <button class="chip" data-t="c3">③ OK의 문법</button>
+  </div>
+  <div class="chipbody" id="c1">
+    거짓 초록은 두 방향에서 옵니다. 기계가 판정할 수 있는 것을 <b>사람이 체크</b>하면 —
+    체크한 그 순간만 참이고, 다음 커밋부터 조용히 낡습니다 (7-2 손 사본의 배신과 같은 시간 구조).
+    반대로 사람만 아는 것을 <b>기계 OK로 위장</b>하면 — 25 passed가 초록이어도 시연장 스피커가
+    죽어 있을 수 있습니다 (7-3 골든셋 15/15가 현실 오분류를 가리던 것과 같은 구조).
+    층을 나누는 것은 취향이 아니라, 두 오염의 통로를 각각 막는 구조입니다.
+    <p class="note">그래서 기계 층에는 체크박스가 아예 없습니다 — 상태는 재실행의 결과이지
+    사람의 의사가 아닙니다.</p>
+  </div>
+  <div class="chipbody" id="c2">
+    이 과정이 [MOCK]에 정직 라벨을 붙여 온 것과 같은 문법입니다 —
+    "대역이라고 적힌 대역은 안전하다"가 여기서는 <b>"미검증이라고 적힌 미검증은 안전하다"</b>가 됩니다.
+    위험한 것은 PENDING이 아니라 근거 없는 OK입니다. 그리고 맨몸 PENDING과
+    절차 붙은 PENDING은 다릅니다:
+    <table>
+      <tr><th>맨몸 PENDING</th><th>절차 붙은 PENDING</th></tr>
+      <tr><td>"나중에 확인" — 언제, 누가, 무엇으로가 없음</td><td>시각·주체·판정 방법이 항목에 내장 — 실행만 남음</td></tr>
+    </table>
+    <p class="note">M4의 사람 항목 3개가 전부 절차를 달고 있는 이유 — PENDING을 남기되,
+    OK로 가는 길을 잃지 않게 하는 것.</p>
+  </div>
+  <div class="chipbody" id="c3">
+    <table>
+      <tr><th>층</th><th>OK의 증거</th><th>갱신 방법</th><th>계보</th></tr>
+      <tr><td>기계</td><td>exit 0 · 파일 존재 · 재파생 일치</td><td>재실행 (자동)</td><td>M3 판정 · SSOT 재생성</td></tr>
+      <tr><td>사람</td><td>선택 · 근거 · 주체 삼중 기록</td><td>절차 수행 후 기록 (수동)</td><td>승격 결정 게이트의 삼중 요구</td></tr>
+    </table>
+    사람 층의 OK 문법이 2장의 승격 결정 게이트와 같다는 것이 6장의 마무리입니다 —
+    g03 안건을 닫을 때 선택·근거·주체를 요구했듯, ④번을 닫을 때도
+    <code>주체="발표자" · 근거="현장 완주 14:30" · 선택=OK</code>를 요구합니다.
+    사람의 판단을 막는 게 아니라, <b>판단에 서명을 남기게</b> 하는 것입니다.
+    <p class="note">✍ 손 체크 시도 버튼이 이 문법의 실연입니다 — 두 번 거부되고,
+    한 번 성립합니다.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function el(id){ return document.getElementById(id); }
+  function wait(ms){ return new Promise(function(res){ setTimeout(res, reduced ? Math.min(ms,200) : ms); }); }
+  var logBox = el("log");
+  function log(html){
+    var d = document.createElement("div"); d.innerHTML = html;
+    logBox.appendChild(d); logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  var playBtn = el("playBtn"), handBtn = el("handBtn");
+  var vd = el("vd"), chips = el("chips");
+  var playing = false, handStep = 0;
+  var okCount = 0, pendCount = 0;
+
+  function setScore(){
+    el("score").innerHTML = 'OK <b>' + okCount + '</b>/3 · PENDING <i>' + pendCount + '</i>/3';
+  }
+  function setItem(n, cls, st, ev){
+    var it = el("i"+n);
+    it.className = "item on " + cls;
+    el("s"+n).textContent = st;
+    if (ev !== undefined) el("e"+n).innerHTML = ev;
+  }
+
+  function reset(){
+    logBox.innerHTML = "";
+    vd.classList.remove("show"); chips.classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("on"); });
+    for (var n = 1; n <= 6; n++){
+      el("i"+n).className = "item";
+      el("s"+n).textContent = "—";
+    }
+    el("e1").textContent = "subprocess pytest — 대기";
+    el("e2").textContent = "demo_report_7_5.json — 대기";
+    el("e3").textContent = "build_demo_script() 재파생 대조 — 대기";
+    el("e4").innerHTML = "스피커·마이크·네트워크 — 코드가 닿을 수 없는 곳";
+    handBtn.classList.remove("show"); handBtn.textContent = "✍ 손 체크 시도"; handStep = 0;
+    okCount = 0; pendCount = 0; setScore();
+  }
+
+  function play(){
+    playing = true; playBtn.disabled = true; handBtn.disabled = true;
+    reset();
+    log('<span class="tea">M4 판정 시작</span> 7-2 역산 일정의 마지막 다이아몬드 — 시연 준비 완료인가.');
+    wait(700).then(function(){
+      setItem(1, "", "…", 'subprocess pytest 실행 중');
+      log('<span class="mut">① python -m pytest test_pipeline.py  # 서브프로세스 — 커널 오염 없이</span>');
+      return wait(1100);
+    }).then(function(){
+      setItem(1, "ok", "OK", '<span class="g">25 passed · exit 0</span> — M3 조건 오늘 다시 참');
+      okCount += 1; setScore();
+      return wait(700);
+    }).then(function(){
+      setItem(2, "", "…", '파일 검사 중');
+      return wait(800);
+    }).then(function(){
+      setItem(2, "ok", "OK", '<span class="g">demo_report_7_5.json 존재 · p95 기록 확인</span> — 대본 수치의 근거 파일');
+      okCount += 1; setScore();
+      return wait(700);
+    }).then(function(){
+      setItem(3, "", "…", '결정 기록에서 재파생 → 현재 대본과 대조 중');
+      return wait(900);
+    }).then(function(){
+      setItem(3, "ok", "OK", '<span class="g">재파생본 == 현재 대본</span> — 손 편집 흔적 없음 (3장 규칙)');
+      okCount += 1; setScore();
+      log('<span class="ok">기계 층 3/3 OK</span> — 사람 손이 닿을 수 없는 초록입니다. 체크한 사람이 없으니 낡을 체크도 없습니다.');
+      return wait(1000);
+    }).then(function(){
+      setItem(4, "pend", "PENDING"); pendCount += 1; setScore();
+      return wait(450);
+    }).then(function(){
+      setItem(5, "pend", "PENDING"); pendCount += 1; setScore();
+      return wait(450);
+    }).then(function(){
+      setItem(6, "pend", "PENDING"); pendCount += 1; setScore();
+      log('<span class="wr">사람 층 3/3 PENDING</span> — 코드는 시연장 스피커를 듣지 못하고, 발표자의 첫 3초를 대신 살 수 없습니다.');
+      log('<span class="mut">   PENDING은 미완이 아니라 정직 — 단, 세 항목 모두 절차가 붙어 있어 OK로 가는 길이 명시돼 있습니다.</span>');
+      vd.classList.add("show"); chips.classList.add("show");
+      playing = false;
+      playBtn.disabled = false; playBtn.textContent = "↻ 다시 판정";
+      handBtn.disabled = false; handBtn.classList.add("show");
+    });
+  }
+
+  function handCheck(){
+    if (handStep === 0){
+      // 시도 1: 기계 항목 손 체크 → 거부
+      setItem(1, "deny", "거부", '<span class="r">✋ 기계 항목은 손으로 체크할 수 없습니다</span> — 갱신은 재실행으로만');
+      log('<span class="bad">✍ 시도 1</span> ①번을 손으로 OK — <span class="bad">거부</span>. 사람의 확신은 증거가 아닙니다.');
+      handStep = 1; handBtn.textContent = "✍ 다음 시도";
+      setTimeout(function(){
+        setItem(1, "ok", "OK", '<span class="g">25 passed · exit 0</span> — M3 조건 오늘 다시 참');
+      }, reduced ? 300 : 1600);
+    } else if (handStep === 1){
+      // 시도 2: 사람 항목 근거 없이 OK → 거부
+      setItem(4, "deny", "거부", '<span class="r">✋ 주체·근거 없이 OK 불가</span> — 삼중 기록(선택·근거·주체)이 필요합니다');
+      log('<span class="bad">✍ 시도 2</span> ④번을 기록 없이 OK — <span class="bad">거부</span>. 승격 결정 게이트와 같은 문법입니다.');
+      handStep = 2; handBtn.textContent = "✍ 절차대로";
+      setTimeout(function(){
+        setItem(4, "pend", "PENDING", '스피커·마이크·네트워크 — 코드가 닿을 수 없는 곳');
+      }, reduced ? 300 : 1600);
+    } else if (handStep === 2){
+      // 시도 3: 절차 수행 + 삼중 기록 → 성립
+      setItem(4, "ok", "OK", '<span class="b">주체="발표자" · 근거="현장 완주 14:30, 골든셋 1건 재생 확인" · 선택=OK</span>');
+      pendCount -= 1; okCount += 1;
+      el("score").innerHTML = 'OK <b>4</b>/6 · PENDING <i>' + pendCount + '</i>/3';
+      log('<span class="ok">✍ 시도 3</span> 절차 수행 → 삼중 기록 → <span class="ok">OK 성립</span>. 사람의 판단을 막는 게 아니라, 판단에 서명을 남기게 합니다.');
+      log('<span class="mut">   나머지 두 PENDING은 각자의 절차 시각을 기다립니다 — 그때까지 호박색이 정직한 색입니다.</span>');
+      handStep = 3; handBtn.disabled = true;
+    }
+  }
+
+  playBtn.addEventListener("click", function(){ if(!playing) play(); });
+  handBtn.addEventListener("click", function(){ if(!playing) handCheck(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var body = document.getElementById(ch.getAttribute("data-t"));
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+
+  // 데이터 정합 자가 점검 (정본 승계)
+  var srcOk = document.body.innerHTML;
+  console.assert(srcOk.indexOf("25 passed") !== -1, "M3 판정 문구");
+  console.assert(srcOk.indexOf("demo_report_7_5.json") !== -1, "성능 기록 파일명");
+  console.assert(srcOk.indexOf("선택") !== -1 && srcOk.indexOf("근거") !== -1 && srcOk.indexOf("주체") !== -1, "삼중 요구");
+
+  reset();
+})();
+</script>
+</body>
+</html>

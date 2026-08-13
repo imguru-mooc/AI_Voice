@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>드릴 3 — 폴백 사각지대: 검증이 가장 덜 된 길이 가장 나쁜 밤에 열린다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --asr:#4C8DAE; --nlu:#8A7BB8; --tts:#7A9E6E; --runner:#C48A3F;
+    --pass:#58B77E; --fail:#E4585A; --warn:#D9A441; --blue:#6FA8DC;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:920px}
+
+  /* ── 헤더 ─────────────────────────────── */
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s,background .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  #bpBtn{display:none}
+  #bpBtn.show{display:inline-block}
+  #bpBtn.on{border-color:var(--blue);color:var(--blue)}
+
+  /* ── 파이프라인 보드 ───────────────────── */
+  .board{
+    position:relative;background:var(--panel2);border:1px solid var(--line);
+    border-radius:12px;height:320px;overflow:hidden;margin-bottom:14px;
+  }
+  .lanelbl{
+    position:absolute;left:14px;font-family:var(--mono);font-size:10px;
+    letter-spacing:.18em;color:var(--faint);text-transform:uppercase;
+  }
+  .node{
+    position:absolute;width:96px;height:56px;border-radius:10px;
+    background:var(--panel);border:1.5px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-size:13px;font-weight:600;transition:border-color .3s,box-shadow .3s,background .3s;
+  }
+  .node small{font-family:var(--mono);font-size:9px;color:var(--faint);font-weight:400}
+  .node.down{border-color:var(--fail);color:var(--fail);background:rgba(228,88,90,.08)}
+  .node.hit{border-color:var(--fail);box-shadow:0 0 0 3px rgba(228,88,90,.25)}
+  .node.pass{border-color:var(--pass);box-shadow:0 0 0 3px rgba(88,183,126,.18)}
+  .gate{
+    position:absolute;width:26px;height:26px;border-radius:50%;
+    background:var(--panel);border:1.5px solid var(--pass);color:var(--pass);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+  }
+  .gate.slot{
+    border:1.5px dashed var(--faint);color:var(--faint);background:transparent;
+    transition:border-color .3s,color .3s;
+  }
+  .gate.slot.flash{border-color:var(--warn);color:var(--warn)}
+  .gate.slot.filled{border:1.5px dashed var(--blue);color:var(--blue)}
+  .slotlbl{
+    position:absolute;font-family:var(--mono);font-size:10px;color:var(--faint);
+    white-space:nowrap;transition:color .3s;
+  }
+  .slotlbl.flash{color:var(--warn)}
+  .bluelbl{
+    position:absolute;font-family:var(--mono);font-size:10px;color:var(--blue);
+    white-space:nowrap;opacity:0;transition:opacity .3s;
+  }
+  .bluelbl.show{opacity:1}
+  svg.wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .wire{stroke:var(--line);stroke-width:2;fill:none}
+  .wire.fb{stroke-dasharray:5 5}
+  .wire.fb.active{stroke:var(--warn)}
+
+  /* ── 패킷 ─────────────────────────────── */
+  #pk{
+    position:absolute;min-width:120px;padding:6px 10px;border-radius:8px;
+    background:var(--panel);border:1.5px solid var(--asr);
+    font-family:var(--mono);font-size:10px;line-height:1.5;text-align:center;
+    transform:translate(-50%,-50%);transition:left 1s ease,top .8s ease,opacity .3s,border-color .3s;
+    z-index:5;
+  }
+  #pk b{display:block;font-size:11px}
+  #pk.bad{border-color:var(--warn);color:var(--warn)}
+  #pk.safe{border-color:var(--pass);color:var(--pass)}
+  @media (prefers-reduced-motion: reduce){
+    #pk{transition:opacity .1s}
+    .node,.gate,.wire{transition:none}
+  }
+
+  /* ── 콘솔 ─────────────────────────────── */
+  .console{
+    background:#0C1118;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.9;
+    min-height:150px;margin-bottom:14px;
+  }
+  .console .tea{color:var(--blue)}
+  .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)}
+  .console .ok{color:var(--pass)}
+  .console .wr{color:var(--warn)}
+
+  /* ── 판정 배너 ─────────────────────────── */
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--runner);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--runner)}
+
+  /* ── 칩 ───────────────────────────────── */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{
+    font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;
+    background:var(--panel);border:1px solid var(--line);cursor:pointer;
+  }
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;color:var(--text);
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody table{border-collapse:collapse;margin:10px 0;width:100%}
+  .chipbody th,.chipbody td{
+    border:1px solid var(--line);padding:7px 10px;font-size:12.5px;text-align:left;
+  }
+  .chipbody th{color:var(--muted);font-weight:600;background:var(--panel2)}
+  .chipbody .g{color:var(--pass)} .chipbody .r{color:var(--fail)} .chipbody .w{color:var(--warn)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-5 · 1차 PoC 시연 — 드릴 3 (5장)</div>
+      <h1>폴백 사각지대 <span class="q">— 검증이 가장 덜 된 길이, 가장 나쁜 밤에 열립니다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn" class="primary">▶ 드릴 시작</button>
+      <button id="bpBtn">📐 청사진</button>
+    </div>
+  </header>
+
+  <div class="board" id="board">
+    <span class="lanelbl" style="top:52px">본선 — 계약 게이트의 보호</span>
+    <span class="lanelbl" style="top:216px">폴백 경로 — 시연 전날 추가</span>
+
+    <svg class="wires" viewBox="0 0 920 320" preserveAspectRatio="none" aria-hidden="true">
+      <path class="wire" d="M116,126 H140"/>
+      <path class="wire" d="M256,126 H286"/>
+      <path class="wire" d="M402,126 H436"/>
+      <path class="wire" d="M552,126 H600"/>
+      <path class="wire" d="M756,126 H790"/>
+      <path class="wire fb" id="wFb1" d="M354,154 C354,190 354,220 380,248"/>
+      <path class="wire fb" id="wFb2" d="M496,262 H560"/>
+      <path class="wire fb" id="wFb3" d="M636,262 C672,262 678,200 678,158"/>
+    </svg>
+
+    <div class="node" id="nMIC" style="left:20px;top:98px">🎤 입력<small>utt · 16 kHz</small></div>
+    <div class="node" id="nASR" style="left:140px;top:98px">ASR<small>faster-whisper</small></div>
+    <div class="node" id="nNLU" style="left:286px;top:98px">NLU<small>분류기</small></div>
+    <div class="node" id="nTTS" style="left:436px;top:98px">TTS<small>합성 엔진</small></div>
+    <div class="node" id="gRunner" style="left:600px;top:98px;width:156px">러너 최종 관문<small>validate_tts_contract</small></div>
+    <div class="node" id="nSPK" style="left:790px;top:98px;width:110px">🔊 청중<small>스피커 출력</small></div>
+
+    <div class="gate" style="left:118px;top:113px" title="계약 게이트">✓</div>
+    <div class="gate" style="left:258px;top:113px" title="계약 게이트">✓</div>
+    <div class="gate" style="left:404px;top:113px" title="계약 게이트">✓</div>
+
+    <div class="node" id="nFB" style="left:380px;top:234px;width:116px">비상 합성기<small>폴백 · 8 kHz 설정</small></div>
+    <div class="gate slot" id="gSlot" style="left:515px;top:249px">?</div>
+    <span class="slotlbl" id="slotLbl" style="left:488px;top:288px">게이트 없음 — 사각지대</span>
+    <div class="gate slot filled" id="gBlue" style="left:515px;top:249px;opacity:0;transition:opacity .3s">✓</div>
+    <span class="bluelbl" id="gBlueLbl" style="left:470px;top:288px">📐 validate_tts_contract 추가안</span>
+
+    <div id="pk" style="left:68px;top:126px"><b>발화 패킷</b><span id="pkSub">16 kHz · 정상</span></div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>사각지대는 경로에 생기고, 방어선은 출구에 섭니다.</b>
+    가장 드물게 달리는 길이 가장 적게 검증됩니다 — 실행 빈도와 검증 밀도는 비례하는데, 위험은 그 반대로 움직입니다.
+    그래서 스피커 직전의 최종 관문 한 줄이 오늘 시연을 구했습니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">① 사각지대는 왜 생기나</button>
+    <button class="chip" data-t="c2">② 최종 관문이 막은 것</button>
+    <button class="chip" data-t="c3">③ 코드 동결과 백로그</button>
+  </div>
+  <div class="chipbody" id="c1">
+    본선 경로는 7-4에서 세대교체한 회귀 테스트 25종의 보호를 받습니다. 폴백 경로는 시연 준비 중에
+    급히 추가된 코드라서, 테스트도 계약 게이트도 따라붙지 못했습니다. 그리고 폴백은 정의상
+    <b>가장 나쁜 날에만 실행되는 코드</b>입니다 — 평소 리허설에서는 한 번도 달리지 않으니
+    문제가 있어도 조용히 잠들어 있습니다.
+    <table>
+      <tr><th>경로</th><th>실행 빈도</th><th>테스트 보호</th><th>계약 게이트</th></tr>
+      <tr><td>본선 (ASR→NLU→TTS)</td><td>매 발화</td><td class="g">회귀 25종</td><td class="g">단계마다 ✓</td></tr>
+      <tr><td>폴백 (비상 합성기)</td><td class="w">장애 시에만</td><td class="r">없음</td><td class="r">없음 — 사각지대</td></tr>
+    </table>
+    <p class="note">비상 합성기의 8 kHz는 전화망 계열 기본값입니다 — 5장에서 반복한 문장 그대로,
+    기본값도 계약입니다. 아무도 어기려 하지 않았는데 계약이 깨졌습니다.</p>
+  </div>
+  <div class="chipbody" id="c2">
+    러너의 마지막 한 줄 — <code>validate_tts_contract(r["tts"])</code> — 이 없었다면
+    청중은 8 kHz로 합성된 오디오를 16 kHz 재생기로 듣게 됩니다: <b>2배속에 한 옥타브 올라간 목소리</b>가
+    시연장 스피커로 나가는 겁니다. 경로 게이트와 출구 게이트는 역할이 다릅니다 —
+    <b>경로 게이트는 원인을 지목</b>하고(어느 단계가 어겼는지), <b>출구 게이트는 사고를 막습니다</b>(무엇이 됐든
+    청중에게는 안 내보낸다). 하나가 다른 하나를 대체하지 못하므로 둘 다 필요합니다.
+    <p class="note">강등 재생의 6.0초는 5장의 상수 실측에서 왔습니다: 0.18초/자 × 36자 상한 = 6.5초 추정치를
+    UX 상한 6.0초로 캡 — 실측할 것과 결정할 것의 구분이 여기서도 반복됩니다.</p>
+  </div>
+  <div class="chipbody" id="c3">
+    원인을 알았으니 바로 고치고 싶어집니다 — 하지만 <b>시연 당일 코드는 동결</b>입니다.
+    지금 폴백 경로에 게이트를 끼워 넣으면, 그 수정이야말로 회귀 테스트가 한 번도 달려 보지 않은
+    새 사각지대가 됩니다. 그래서 백로그에는 반드시 <b>한 묶음</b>으로 올립니다:
+    ① 폴백 경로에 <code>validate_tts_contract</code> 게이트 추가 + ② 회귀 25종 재실행.
+    둘을 쪼개면 ①이 오늘의 사고를 그대로 재생산합니다.
+    <p class="note">📐 청사진 버튼이 보여주는 것은 "내일 아침의 첫 작업"이지, 오늘 밤의 수정이 아닙니다.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var ERR = 'ContractError: TTS 계약 위반: sr 8000 != 16000';
+  var GREET_S = 6.0;
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function el(id){ return document.getElementById(id); }
+  function wait(ms){
+    return new Promise(function(res){ setTimeout(res, reduced ? Math.min(ms, 200) : ms); });
+  }
+  var logBox = el("log");
+  function log(html){
+    var d = document.createElement("div");
+    d.innerHTML = html;
+    logBox.appendChild(d);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  var pk = el("pk"), pkSub = el("pkSub");
+  var playBtn = el("playBtn"), bpBtn = el("bpBtn");
+  var vd = el("vd"), chips = el("chips");
+  var playing = false;
+
+  function centerX(node){ return node.offsetLeft + node.offsetWidth / 2; }
+  function centerY(node){ return node.offsetTop + node.offsetHeight / 2; }
+  function pos(x, y){ pk.style.left = x + "px"; pk.style.top = y + "px"; }
+  function setPk(cls, title, sub){
+    pk.className = cls || "";
+    pk.firstElementChild.textContent = title;
+    pkSub.textContent = sub;
+  }
+
+  function reset(){
+    logBox.innerHTML = "";
+    vd.classList.remove("show");
+    chips.classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("on"); });
+    ["nTTS","gRunner","nSPK","nFB"].forEach(function(id){ el(id).className = "node"; });
+    el("gSlot").classList.remove("flash");
+    el("slotLbl").classList.remove("flash");
+    ["wFb1","wFb2","wFb3"].forEach(function(id){ el(id).classList.remove("active"); });
+    el("gBlue").style.opacity = "0";
+    el("gBlueLbl").classList.remove("show");
+    bpBtn.classList.remove("on","show");
+    bpOn = false;
+    setPk("", "발화 패킷", "16 kHz · 정상");
+    pk.style.opacity = "1";
+    pos(68, 126);
+  }
+
+  function play(){
+    playing = true;
+    playBtn.disabled = true;
+    bpBtn.disabled = true;
+    reset();
+    log('<span class="tea">드릴 3 기동</span> TTS 엔진 강제 다운 <span class="mut"># 시연 리허설 — 장애는 예고 없이 온다</span>');
+    wait(700).then(function(){
+      pos(centerX(el("nASR")), 126);
+      return wait(900);
+    }).then(function(){
+      pos(centerX(el("nNLU")), 126);
+      log('<span class="ok">✔</span> ASR → NLU 통과 <span class="mut"># 본선 게이트 정상</span>');
+      return wait(900);
+    }).then(function(){
+      el("nTTS").classList.add("down");
+      log('<span class="bad">✘ TTS 다운</span> 합성 엔진 응답 없음 — 오케스트레이터가 폴백 경로를 엽니다.');
+      return wait(900);
+    }).then(function(){
+      el("wFb1").classList.add("active");
+      pos(centerX(el("nFB")), 262);
+      return wait(1000);
+    }).then(function(){
+      el("nFB").classList.add("hit");
+      setPk("bad", "폴백 오디오", "sr = 8000 · 오염");
+      log('<span class="wr">폴백 합성 완료</span> 비상 합성기 설정 sr=8000 <span class="mut"># 전화망 계열 기본값 — 기본값도 계약이다</span>');
+      return wait(1000);
+    }).then(function(){
+      el("wFb2").classList.add("active");
+      pos(el("gSlot").offsetLeft + 13, 262);
+      return wait(900);
+    }).then(function(){
+      el("gSlot").classList.add("flash");
+      el("slotLbl").classList.add("flash");
+      log('<span class="wr">…통과</span> 폴백 경로에는 계약 게이트가 없습니다 — <span class="wr">사각지대</span>. 본선이라면 여기서 잡혔을 오염이 그대로 흘러갑니다.');
+      return wait(1100);
+    }).then(function(){
+      el("wFb3").classList.add("active");
+      pos(centerX(el("gRunner")), 126);
+      log('<span class="tea">러너 최종 관문 기동</span> validate_tts_contract(r["tts"]) <span class="mut"># 스피커로 나가기 직전 검사</span>');
+      return wait(800);
+    }).then(function(){
+      el("gRunner").classList.add("hit");
+      pk.style.opacity = "0";
+      log('<span class="bad">✘ 포착</span> ' + ERR + ' — 오염이 청중의 귀에 닿기 직전에 잡혔습니다.');
+      return wait(900);
+    }).then(function(){
+      el("gRunner").className = "node pass";
+      el("nSPK").className = "node pass";
+      setPk("safe", "강등 재생", "사전 합성 인사말 · " + GREET_S.toFixed(1) + "초");
+      pos(centerX(el("nSPK")), 126);
+      pk.style.opacity = "1";
+      log('<span class="ok">✔ 강등</span> demo_fallback_greeting.npy 재생 (' + GREET_S.toFixed(1) + '초) — 침묵 금지.');
+      log('<span class="mut">   시연 멘트: "음성 합성 장비 문제로 준비된 안내 음성으로 대체합니다."</span>');
+      vd.classList.add("show");
+      chips.classList.add("show");
+      playing = false;
+      playBtn.disabled = false; playBtn.textContent = "↻ 다시 재생";
+      bpBtn.disabled = false; bpBtn.classList.add("show");
+    });
+  }
+
+  var bpOn = false;
+  function toggleBlueprint(){
+    bpOn = !bpOn;
+    el("gBlue").style.opacity = bpOn ? "1" : "0";
+    el("gBlueLbl").classList.toggle("show", bpOn);
+    el("gSlot").style.opacity = bpOn ? "0" : "1";
+    el("slotLbl").style.opacity = bpOn ? "0" : "1";
+    bpBtn.classList.toggle("on", bpOn);
+    if (bpOn){
+      log('<span class="tea">📐 청사진</span> 폴백 경로에 validate_tts_contract 게이트를 추가하면 오염은 발생 지점에서 잡힙니다.');
+      log('<span class="mut">   단, 오늘은 코드 동결 — 백로그에 "게이트 추가 + 회귀 재실행" 한 묶음으로 올려 두었습니다.</span>');
+    }
+  }
+
+  playBtn.addEventListener("click", function(){ if(!playing) play(); });
+  bpBtn.addEventListener("click", function(){ if(!playing) toggleBlueprint(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var body = document.getElementById(ch.getAttribute("data-t"));
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+
+  // 데이터 정합 자가 점검
+  console.assert(ERR.indexOf("8000 != 16000") !== -1, "위반 문구");
+  console.assert(Math.abs(GREET_S - 6.0) < 1e-9, "인사말 6.0초 (0.18×36자 상한 캡)");
+})();
+</script>
+</body>
+</html>

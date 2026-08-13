@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>드릴 발사대와 대응표 — 발사해 보지 않은 대응은 희망이다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --asr:#4C8DAE; --nlu:#8A7BB8; --tts:#7A9E6E;
+    --pass:#58B77E; --fail:#E4585A; --warn:#D9A441; --blue:#6FA8DC;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:960px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  #paperBtn{display:none}
+  #paperBtn.show{display:inline-block}
+  #paperBtn.on{border-color:var(--fail);color:var(--fail)}
+
+  /* ── 상단: 발사대 + 파이프라인 ── */
+  .top{display:grid;grid-template-columns:250px 1fr;gap:14px;margin-bottom:14px}
+  @media (max-width:720px){ .top{grid-template-columns:1fr} }
+
+  .launcher{
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .launcher h2, .board h2{
+    font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--faint);
+    text-transform:uppercase;
+  }
+  .drill{
+    display:flex;align-items:center;gap:10px;background:var(--panel);
+    border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
+    transition:border-color .3s,box-shadow .3s;
+  }
+  .drill .lamp{
+    width:12px;height:12px;border-radius:50%;background:var(--faint);flex:none;
+    transition:background .3s,box-shadow .3s;
+  }
+  .drill.fire{border-color:var(--warn);box-shadow:0 0 0 3px rgba(217,164,65,.18)}
+  .drill.fire .lamp{background:var(--warn)}
+  .drill.done{border-color:var(--pass)}
+  .drill.done .lamp{background:var(--pass)}
+  .drill .dt{font-size:13px;font-weight:700}
+  .drill .dt small{display:block;font-family:var(--mono);font-size:9.5px;font-weight:400;color:var(--faint)}
+  .counter{
+    margin-top:auto;border-top:1px dashed var(--line);padding-top:10px;
+    font-family:var(--mono);font-size:11px;color:var(--faint);text-align:center;line-height:1.9;
+  }
+  .counter b{color:var(--warn);font-size:15px}
+
+  .board{
+    position:relative;background:var(--panel2);border:1px solid var(--line);
+    border-radius:12px;padding:14px;min-height:172px;
+  }
+  .pipeline{position:relative;height:120px;margin-top:10px}
+  .node{
+    position:absolute;top:26px;width:16.5%;height:52px;border-radius:10px;
+    background:var(--panel);border:1.5px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-size:12.5px;font-weight:600;transition:border-color .3s,box-shadow .3s;
+  }
+  .node small{font-family:var(--mono);font-size:9px;color:var(--faint);font-weight:400;
+    max-width:95%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .node.hit{border-color:var(--fail);color:var(--fail);box-shadow:0 0 0 3px rgba(228,88,90,.22)}
+  .node.warn{border-color:var(--warn);box-shadow:0 0 0 3px rgba(217,164,65,.2)}
+  .node.ok{border-color:var(--pass);box-shadow:0 0 0 3px rgba(88,183,126,.16)}
+  #nMic{left:0} #nAsr{left:20.5%} #nNlu{left:41%} #nTts{left:61.5%} #nSpk{left:82%;width:18%}
+  .wire{position:absolute;top:51px;height:2px;background:var(--line);width:4%}
+  .caption{
+    position:absolute;left:0;right:0;top:92px;text-align:center;
+    font-family:var(--mono);font-size:11px;color:var(--warn);opacity:0;transition:opacity .3s;
+  }
+  .caption.show{opacity:1}
+
+  /* ── 대응표 ── */
+  .rtable{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-bottom:14px;
+  }
+  .rtable h2{
+    font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--faint);
+    text-transform:uppercase;margin-bottom:10px;
+  }
+  table{border-collapse:collapse;width:100%}
+  th,td{border:1px solid var(--line);padding:8px 10px;font-size:12.5px;text-align:left;line-height:1.6}
+  th{color:var(--muted);font-weight:600;background:var(--panel2);font-size:11.5px}
+  tr.rrow{opacity:.4;transition:opacity .3s}
+  tr.rrow.hot{opacity:1;background:rgba(217,164,65,.07)}
+  tr.rrow.ok{opacity:1;background:transparent}
+  .vcell{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+  tr.ok .vcell{color:var(--pass)}
+  tr.paper .vcell{color:var(--faint)}
+  td .m{font-family:var(--mono);font-size:11px;color:var(--blue)}
+  .bonus{
+    display:none;margin-top:10px;border:1px dashed var(--warn);border-radius:8px;
+    padding:9px 12px;font-size:12.5px;color:var(--warn);line-height:1.7;
+  }
+  .bonus.show{display:block}
+  .bonus code{font-family:var(--mono);font-size:11px}
+
+  .console{
+    background:#0C1118;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.9;
+    min-height:130px;margin-bottom:14px;
+  }
+  .console .tea{color:var(--blue)} .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)} .console .ok{color:var(--pass)} .console .wr{color:var(--warn)}
+
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--pass);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--pass)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .chipbody table td, .chipbody table th{font-size:12.5px}
+  .chipbody .g{color:var(--pass)} .chipbody .w{color:var(--warn)} .chipbody .r{color:var(--fail)}
+
+  @media (prefers-reduced-motion: reduce){
+    .drill,.node,tr.rrow,.caption{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-5 · 1차 PoC 시연 — 5장</div>
+      <h1>드릴 발사대와 대응표 <span class="q">— 발사해 보지 않은 대응은 희망입니다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ 드릴 3연발</button>
+      <button id="paperBtn">📄 발사 생략 모드</button>
+    </div>
+  </header>
+
+  <div class="top">
+    <div class="launcher">
+      <h2>발사대 — 예고 없이 · 본선 코드에 그대로</h2>
+      <div class="drill" id="d1"><span class="lamp"></span><span class="dt">드릴 1 · 입력 무음<small>마이크 신호 소실 주입</small></span></div>
+      <div class="drill" id="d2"><span class="lamp"></span><span class="dt">드릴 2 · ASR 오인식<small>오염 전사 주입</small></span></div>
+      <div class="drill" id="d3"><span class="lamp"></span><span class="dt">드릴 3 · TTS 다운<small>합성 엔진 강제 정지</small></span></div>
+      <div class="counter" id="counter">발사 <b>0</b> · 검증 <b>0</b> · 발견 <b>0</b></div>
+    </div>
+
+    <div class="board">
+      <h2>본선 파이프라인 — 시연과 같은 코드</h2>
+      <div class="pipeline">
+        <div class="node" id="nMic">🎤 입력<small>마이크</small></div>
+        <div class="wire" style="left:16.5%"></div>
+        <div class="node" id="nAsr">ASR<small>faster-whisper</small></div>
+        <div class="wire" style="left:37%"></div>
+        <div class="node" id="nNlu">NLU<small>분류기</small></div>
+        <div class="wire" style="left:57.5%"></div>
+        <div class="node" id="nTts">TTS<small>합성 엔진</small></div>
+        <div class="wire" style="left:78%"></div>
+        <div class="node" id="nSpk">🔊 청중<small>러너 관문 뒤</small></div>
+        <div class="caption" id="cap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rtable">
+    <h2>사건 대응표 — 각 행은 문장이 아니라 실행 기록</h2>
+    <table>
+      <tr><th style="width:20%">증상</th><th style="width:34%">기계의 대응 (코드)</th><th style="width:30%">대본의 대응 (멘트)</th><th style="width:16%">검증</th></tr>
+      <tr class="rrow" id="r1">
+        <td>입력 무음 · 마이크 소실</td>
+        <td>예비 음원 전환 — gTTS 사전 합성 골든셋 음성 (7-4의 설계된 폴백)</td>
+        <td>"입력 장비를 예비 음원으로 전환해 이어가겠습니다."</td>
+        <td class="vcell" id="v1">미검증 ?</td>
+      </tr>
+      <tr class="rrow" id="r2">
+        <td>ASR 오인식</td>
+        <td>의도 생존 판정 — 생존 시 계속, 사망 시 재질문 분기</td>
+        <td>인식 자막 공개 + "글자보다 의도가 지표입니다."</td>
+        <td class="vcell" id="v2">미검증 ?</td>
+      </tr>
+      <tr class="rrow" id="r3">
+        <td>TTS 다운</td>
+        <td>handoff 폴백 → 러너 관문 → 강등 재생 <span class="m">demo_fallback_greeting.npy · 6.0초</span></td>
+        <td>"음성 합성 장비 문제로 준비된 안내 음성으로 대체합니다."</td>
+        <td class="vcell" id="v3">미검증 ?</td>
+      </tr>
+    </table>
+    <div class="bonus" id="bonus">
+      ⛏ 부수확 — 드릴 3 발사 중 <b>사각지대 발견</b>: 폴백 경로에 <code>validate_tts_contract</code> 게이트 부재
+      (오염 <code>sr 8000 != 16000</code>이 러너 관문에서야 포착). 코드 동결 → 백로그
+      "게이트 추가 + 회귀 재실행" 한 묶음. → 「폴백 사각지대」 애니메이션이 이 장면의 확대판입니다.
+    </div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>대응표의 값은 글이 아니라 발사 기록에서 나옵니다.</b>
+    종이 위의 대응은 시연 당일이 첫 실행이 되고, 발사된 대응은 리허설이 첫 실행이 됩니다 —
+    그리고 드릴의 최고 수확은 통과 도장이 아니라, 드릴 3처럼 몰랐던 결함을 무대에 오르기 전에
+    발굴하는 것입니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">① 발사대의 규칙</button>
+    <button class="chip" data-t="c2">② 대응의 세 층</button>
+    <button class="chip" data-t="c3">③ 드릴이 발굴한 것</button>
+  </div>
+  <div class="chipbody" id="c1">
+    드릴이 검증이 되려면 두 규칙이 필요합니다. 첫째, <b>본선 코드에 주입</b>합니다 —
+    시연용 데모 분기를 따로 만들어 거기서 드릴을 돌리면, 검증된 것은 데모 분기이지
+    시연 당일 돌아갈 코드가 아닙니다 (7-3 골든셋 오염 실험과 같은 함정 구조입니다).
+    둘째, <b>예고 없이</b> 발사합니다 — 발표자가 타이밍을 알고 있으면 대본의 대응은 연습되지만
+    "모르는 상태에서의 첫 반응"은 검증되지 않은 채 남습니다. 리허설 러너가 드릴 순서를
+    섞는 이유입니다.
+    <p class="note">발사대는 새 장비가 아닙니다 — 6-5 위반 주입, 7-4 위반 포착 셀과 같은 문법이
+    시연 리허설로 자리를 옮긴 것뿐입니다.</p>
+  </div>
+  <div class="chipbody" id="c2">
+    대응표의 각 행에는 세 층이 겹쳐 있습니다:
+    <table>
+      <tr><th>층</th><th>담당</th><th>드릴 3에서</th></tr>
+      <tr><td>기계</td><td>폴백 코드·러너 관문</td><td>강등 재생 6.0초 — 침묵 금지</td></tr>
+      <tr><td>대본</td><td>build_demo_script() 파생 멘트</td><td>"음성 합성 장비 문제로 준비된 안내 음성으로 대체합니다."</td></tr>
+      <tr><td>사람</td><td>발표자의 첫 3초</td><td>당황을 절차로 바꾸는 것 — 드릴만이 연습시킬 수 있는 층</td></tr>
+    </table>
+    기계 층은 회귀 테스트가, 대본 층은 파생 재생성이 지키지만, 사람 층을 지키는 도구는
+    드릴뿐입니다 — M4 체크리스트에서 기계 3항목이 자동 OK인데 사람 3항목이
+    절차 붙은 PENDING인 이유와 같은 구분입니다.
+    <p class="note">멘트가 대본의 파생물이라는 것도 3장 규칙 그대로입니다 — 대응 멘트를 고치고
+    싶으면 결정을 고쳐 재생성합니다.</p>
+  </div>
+  <div class="chipbody" id="c3">
+    리허설 정본 기록: 드릴 3을 준비하며 폴백 경로를 처음으로 끝까지 달리게 했더니,
+    그 경로에만 계약 게이트가 없어 오염 레코드(<code>sr 8000 != 16000</code>)가 러너의
+    최종 관문까지 조용히 흘러갔습니다. 대응표 3행 자체는 검증 통과 — 강등 재생은 약속대로
+    나갔습니다 — 그러나 드릴이 아니었다면 이 사각지대는 <b>청중 앞에서 발견됐을 것입니다</b>.
+    <table>
+      <tr><th>드릴 없이</th><th>드릴로</th></tr>
+      <tr><td class="r">시연 당일, 청중 앞에서 첫 발견</td><td class="g">리허설에서 발견 → 백로그 → 내일 아침의 첫 작업</td></tr>
+    </table>
+    <p class="note">코드 동결이라 오늘 밤 고치지 않는 것까지가 절차입니다 —
+    "조용히 고치지 말고" 원칙이 백로그 항목("게이트 추가 + 회귀 재실행" 한 묶음)으로
+    형태를 바꾼 것입니다.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var GREET_S = 6.0;
+  var MENT3 = "음성 합성 장비 문제로 준비된 안내 음성으로 대체합니다.";
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function el(id){ return document.getElementById(id); }
+  function wait(ms){ return new Promise(function(res){ setTimeout(res, reduced ? Math.min(ms,200) : ms); }); }
+  var logBox = el("log");
+  function log(html){
+    var d = document.createElement("div"); d.innerHTML = html;
+    logBox.appendChild(d); logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  var playBtn = el("playBtn"), paperBtn = el("paperBtn");
+  var vd = el("vd"), chips = el("chips"), cap = el("cap");
+  var playing = false, paperOn = false;
+  var fired = 0, verified = 0, found = 0;
+
+  function setCounter(){
+    el("counter").innerHTML = '발사 <b>' + fired + '</b> · 검증 <b>' + verified + '</b> · 발견 <b>' + found + '</b>';
+  }
+  function caption(txt){
+    cap.textContent = txt;
+    cap.classList.toggle("show", !!txt);
+  }
+  function nodes(reset){
+    ["nMic","nAsr","nNlu","nTts","nSpk"].forEach(function(id){
+      el(id).className = "node";
+    });
+    if (reset) caption("");
+  }
+
+  function reset(){
+    logBox.innerHTML = "";
+    vd.classList.remove("show"); chips.classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("on"); });
+    ["d1","d2","d3"].forEach(function(id){ el(id).className = "drill"; });
+    [1,2,3].forEach(function(n){
+      el("r"+n).className = "rrow";
+      el("v"+n).textContent = "미검증 ?";
+    });
+    el("bonus").classList.remove("show");
+    paperBtn.classList.remove("on","show"); paperOn = false;
+    nodes(true);
+    fired = 0; verified = 0; found = 0; setCounter();
+  }
+
+  function stampRow(n){
+    el("r"+n).classList.remove("hot");
+    el("r"+n).classList.add("ok");
+    el("v"+n).textContent = "리허설 검증 ✓";
+    verified += 1; setCounter();
+  }
+
+  function drill1(){
+    el("d1").classList.add("fire"); fired += 1; setCounter();
+    el("r1").classList.add("hot");
+    log('<span class="wr">드릴 1 발사</span> 마이크 신호 소실 주입 <span class="mut"># 예고 없이</span>');
+    return wait(700).then(function(){
+      el("nMic").classList.add("hit");
+      caption("입력 무음 0.8초 — 발화가 도착하지 않음");
+      return wait(1000);
+    }).then(function(){
+      el("nMic").className = "node ok";
+      caption("예비 음원 전환 — gTTS 사전 합성 골든셋 음성");
+      log('<span class="ok">✔ 기계</span> 예비 음원 전환 <span class="mut"># 7-4 마이크 셀의 설계된 폴백과 같은 경로</span>');
+      log('<span class="tea">🎙 대본</span> "입력 장비를 예비 음원으로 전환해 이어가겠습니다."');
+      return wait(900);
+    }).then(function(){
+      stampRow(1);
+      el("d1").className = "drill done";
+      nodes(true);
+      return wait(600);
+    });
+  }
+
+  function drill2(){
+    el("d2").classList.add("fire"); fired += 1; setCounter();
+    el("r2").classList.add("hot");
+    log('<span class="wr">드릴 2 발사</span> 오염 전사 주입 — "주문 취소 해주새요" <span class="mut"># 글자가 틀린 전사</span>');
+    return wait(700).then(function(){
+      el("nAsr").classList.add("warn");
+      caption('인식: "주문 취소 해주새요" — 오인식 발생');
+      return wait(1000);
+    }).then(function(){
+      el("nNlu").className = "node ok";
+      caption("의도 생존 판정: cancel 생존 → 진행");
+      log('<span class="ok">✔ 기계</span> 의도 생존 — <span class="mut">"글자 몇 개 틀려도 cancel이 살아서 도착하면 시스템은 일한 겁니다" (7-4)</span>');
+      log('<span class="tea">🎙 대본</span> 인식 자막을 청중에게 그대로 공개 — "글자보다 의도가 지표입니다."');
+      log('<span class="mut">   사망 분기도 리허설 완료: 재질문 멘트로 강등 후 재시도.</span>');
+      return wait(900);
+    }).then(function(){
+      stampRow(2);
+      el("d2").className = "drill done";
+      nodes(true);
+      return wait(600);
+    });
+  }
+
+  function drill3(){
+    el("d3").classList.add("fire"); fired += 1; setCounter();
+    el("r3").classList.add("hot");
+    log('<span class="wr">드릴 3 발사</span> TTS 합성 엔진 강제 정지');
+    return wait(700).then(function(){
+      el("nTts").classList.add("hit");
+      caption("TTS 다운 → handoff 폴백 경로 개방");
+      return wait(1000);
+    }).then(function(){
+      el("nSpk").classList.add("warn");
+      caption("러너 최종 관문: 오염 포착 (sr 8000 != 16000) — 사각지대 경유");
+      log('<span class="bad">✘ 발견</span> 폴백 경로에 게이트 부재 — 오염이 러너 관문에서야 잡힘. <span class="wr">사각지대 +1</span>');
+      found += 1; setCounter();
+      el("bonus").classList.add("show");
+      return wait(1100);
+    }).then(function(){
+      el("nSpk").className = "node ok";
+      caption("강등 재생 — demo_fallback_greeting.npy · " + GREET_S.toFixed(1) + "초 · 침묵 금지");
+      log('<span class="ok">✔ 기계</span> 강등 재생 ' + GREET_S.toFixed(1) + '초 — 대응표 3행은 약속대로 작동.');
+      log('<span class="tea">🎙 대본</span> "' + MENT3 + '"');
+      log('<span class="mut">   발견은 백로그로 — 코드 동결. 검증과 발견은 별개의 수확입니다.</span>');
+      return wait(900);
+    }).then(function(){
+      stampRow(3);
+      el("d3").className = "drill done";
+      nodes(true);
+    });
+  }
+
+  function play(){
+    playing = true; playBtn.disabled = true; paperBtn.disabled = true;
+    reset();
+    log('<span class="tea">5장 — 드릴 발사대</span> 본선 코드에, 예고 없이, 3연발.');
+    wait(600)
+      .then(drill1)
+      .then(drill2)
+      .then(drill3)
+      .then(function(){
+        log('<span class="ok">발사 3 · 검증 3 · 발견 1</span> — 대응표 전 행이 실행 기록이 됐습니다.');
+        vd.classList.add("show"); chips.classList.add("show");
+        playing = false;
+        playBtn.disabled = false; playBtn.textContent = "↻ 다시 발사";
+        paperBtn.disabled = false; paperBtn.classList.add("show");
+      });
+  }
+
+  function togglePaper(){
+    paperOn = !paperOn;
+    paperBtn.classList.toggle("on", paperOn);
+    if (paperOn){
+      [1,2,3].forEach(function(n){
+        el("r"+n).className = "rrow paper";
+        el("r"+n).style.opacity = "1";
+        el("v"+n).textContent = "문서상 완료 ?";
+      });
+      el("bonus").classList.remove("show");
+      log('<span class="bad">📄 발사 생략 모드</span> 대응표는 완성돼 보입니다 — 그러나 전 행이 시연 당일 첫 실행.');
+      log('<span class="bad">   사각지대도 그날 청중 앞에서 처음 발견됐을 것입니다.</span> <span class="mut"># 발견 카운터가 0인 이유</span>');
+    } else {
+      [1,2,3].forEach(function(n){
+        el("r"+n).className = "rrow ok";
+        el("r"+n).style.opacity = "";
+        el("v"+n).textContent = "리허설 검증 ✓";
+      });
+      el("bonus").classList.add("show");
+      log('<span class="ok">↻ 발사 기록 복귀</span> 같은 표, 다른 무게 — 각 행 뒤에 실행이 있습니다.');
+    }
+  }
+
+  playBtn.addEventListener("click", function(){ if(!playing) play(); });
+  paperBtn.addEventListener("click", function(){ if(!playing) togglePaper(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var body = document.getElementById(ch.getAttribute("data-t"));
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+
+  // 데이터 정합 자가 점검 (1순위 애니메이션·리허설 정본 승계)
+  console.assert(MENT3.indexOf("준비된 안내 음성") !== -1, "드릴 3 시연 멘트");
+  console.assert(Math.abs(GREET_S - 6.0) < 1e-9, "강등 재생 6.0초");
+
+  reset();
+})();
+</script>
+</body>
+</html>

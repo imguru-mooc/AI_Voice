@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시연 타임라인과 1.4초의 침묵 — 시연은 테스트가 아니다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --asr:#4C8DAE; --nlu:#8A7BB8; --tts:#7A9E6E;
+    --pass:#58B77E; --fail:#E4585A; --warn:#D9A441; --blue:#6FA8DC;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:940px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:8px}
+  button{
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button:disabled{opacity:.35;cursor:default}
+  #narrBtn{display:none}
+  #narrBtn.show{display:inline-block}
+  #narrBtn.on{border-color:var(--blue);color:var(--blue)}
+
+  /* ── 무대 보드 ── */
+  .board{
+    position:relative;background:var(--panel2);border:1px solid var(--line);
+    border-radius:12px;padding:18px 18px 16px;margin-bottom:14px;
+  }
+  .lanelbl{
+    font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--faint);
+    text-transform:uppercase;margin-bottom:8px;
+  }
+  .track{
+    position:relative;height:64px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;margin-bottom:6px;
+  }
+  .seg{
+    position:absolute;top:10px;bottom:10px;border-radius:6px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    font-size:12px;font-weight:600;opacity:0;transition:opacity .3s;
+    white-space:nowrap;overflow:hidden;
+  }
+  .seg small{font-family:var(--mono);font-size:9.5px;font-weight:400;opacity:.85}
+  .seg.on{opacity:1}
+  .seg.cust{background:rgba(76,141,174,.22);border:1.5px solid var(--asr);left:2%;width:26%}
+  .seg.gap{
+    background:transparent;border:1.5px dashed var(--faint);color:var(--faint);
+    left:29.5%;width:19.5%;
+  }
+  .seg.gap.tense{border-color:var(--warn);color:var(--warn)}
+  .seg.agent{background:rgba(88,183,126,.20);border:1.5px solid var(--pass);left:50.5%;width:31%}
+  .narr{
+    position:absolute;left:29.5%;width:19.5%;top:10px;bottom:10px;border-radius:6px;
+    background:rgba(111,168,220,.16);border:1.5px solid var(--blue);color:var(--blue);
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;
+  }
+  .narr small{font-family:var(--mono);font-size:9px;font-weight:400}
+  .narr.show{display:flex}
+  .playhead{
+    position:absolute;top:0;bottom:0;width:2px;background:var(--text);opacity:0;
+  }
+  .playhead.on{opacity:.9}
+
+  .backstage{position:relative;height:70px;margin-top:10px}
+  .bs{
+    position:absolute;top:0;height:18px;border-radius:4px;
+    font-family:var(--mono);font-size:9.5px;line-height:18px;padding-left:6px;color:#0E141D;
+    font-weight:700;width:0;overflow:hidden;white-space:nowrap;
+  }
+  .bs.asr{background:var(--asr);left:29.5%;top:2px}
+  .bs.nlu{background:var(--nlu);left:38.16%;top:26px}
+  .bs.tts{background:var(--tts);left:42.36%;top:50px}
+  @media (prefers-reduced-motion: no-preference){
+    .bs{transition:width linear}
+  }
+
+  .meterrow{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px;flex-wrap:wrap;
+  }
+  .audience{
+    display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:8px 14px;
+  }
+  .face{font-size:26px;transition:transform .2s}
+  .audlbl{font-size:12px;color:var(--muted);line-height:1.5}
+  .audlbl b{font-family:var(--mono);color:var(--warn)}
+  .stamp{
+    font-family:var(--mono);font-size:12px;border:1.5px solid var(--pass);color:var(--pass);
+    border-radius:8px;padding:8px 14px;line-height:1.7;opacity:0;transition:opacity .4s;
+  }
+  .stamp.on{opacity:1}
+
+  .console{
+    background:#0C1118;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.9;
+    min-height:120px;margin-bottom:14px;
+  }
+  .console .tea{color:var(--blue)} .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)} .console .ok{color:var(--pass)} .console .wr{color:var(--warn)}
+
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--warn)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody table{border-collapse:collapse;margin:10px 0;width:100%}
+  .chipbody th,.chipbody td{border:1px solid var(--line);padding:7px 10px;font-size:12.5px;text-align:left}
+  .chipbody th{color:var(--muted);font-weight:600;background:var(--panel2)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .chipbody .g{color:var(--pass)} .chipbody .w{color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">7-5 · 1차 PoC 시연 — 4장 리허설 러너</div>
+      <h1>시연 타임라인과 1.4초의 침묵 <span class="q">— 시연은 테스트가 아닙니다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ 청중석에서 듣기</button>
+      <button id="narrBtn">🎙 해설로 덮기</button>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="lanelbl">청중이 듣는 것 — 시연장 타임라인 (실제 속도)</div>
+    <div class="track" id="track">
+      <div class="seg cust" id="segCust">🎤 고객 발화<small>"주문 취소해 주세요" · 2.0초</small></div>
+      <div class="seg gap" id="segGap">···<small id="gapCnt">침묵</small></div>
+      <div class="narr" id="segNarr">🎙 발표자 해설<small>"지금 세 단계를 지나는 중입니다"</small></div>
+      <div class="seg agent" id="segAgent">🔊 에이전트 응답<small>"취소 접수를 도와드리겠습니다…"</small></div>
+      <div class="playhead" id="ph"></div>
+    </div>
+
+    <div class="lanelbl" style="margin-top:12px">무대 뒤 — 침묵을 채우고 있는 것</div>
+    <div class="backstage">
+      <div class="bs asr" id="bsAsr">ASR 620</div>
+      <div class="bs nlu" id="bsNlu">NLU 300 (승격)</div>
+      <div class="bs tts" id="bsTts">TTS 480</div>
+    </div>
+
+    <div class="meterrow">
+      <div class="audience">
+        <span class="face" id="face">🙂</span>
+        <span class="audlbl">청중 반응 · 침묵 경과 <b id="silCnt">0.0초</b><br><span id="audMsg">아직 편안합니다</span></span>
+      </div>
+      <div class="stamp" id="stamp">테스트 판정: PASS ✅<br>1400 ms ≤ 예산 1500 ms</div>
+    </div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>같은 1400 ms를 테스트는 통과로 읽고, 청중은 침묵으로 듣습니다.</b>
+    p95가 예산 안에 있다는 것과 시연장이 어색하지 않다는 것은 다른 명제입니다 —
+    리허설 러너가 시간을 장면 단위로 재는 이유는, 이 1.4초를 시연 전에 발견해서
+    설계할 기회를 얻기 위해서입니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="c1">① 같은 숫자, 두 재판정</button>
+    <button class="chip" data-t="c2">② 침묵의 해부 — TTFA</button>
+    <button class="chip" data-t="c3">③ 오늘 밤의 처방 vs 백로그</button>
+  </div>
+  <div class="chipbody" id="c1">
+    <table>
+      <tr><th>재판관</th><th>재는 것</th><th>판정</th></tr>
+      <tr><td>test_pipeline.py</td><td>p95 ≤ 1500 ms</td><td class="g">PASS — 1400 ms</td></tr>
+      <tr><td>청중의 귀</td><td>응답 없는 시간</td><td class="w">1.4초의 침묵 — 어색함</td></tr>
+    </table>
+    사람 사이의 턴 교대는 보통 수백 ms 안에서 일어납니다 — 1초를 넘는 공백은 "못 들었나?",
+    "고장났나?"라는 해석을 부릅니다. 1-3에서 min_silence를 조정하며 만났던
+    "말 끊는 에이전트 vs 굼뜬 에이전트" 트레이드오프의 시연장 버전입니다.
+    승격을 부결하고 규칙 구성(합계 1140 ms)으로 시연해도 침묵은 1.1초 —
+    <b>구성 선택으로는 침묵을 줄일 수 있을 뿐 없앨 수 없습니다.</b>
+    <p class="note">그래서 4장의 결론은 "더 빠른 모델"이 아니라 "침묵의 설계"입니다.</p>
+  </div>
+  <div class="chipbody" id="c2">
+    침묵 1.4초의 내부: <code>ASR 620 → NLU 300 → TTS 480</code> — 직렬로 쌓인 세 단계가
+    전부 끝나야 첫 오디오가 나갑니다. 청중이 처음 소리를 듣는 시각이 TTFA이고,
+    배치 파이프라인에서는 TTFA = 전체 합계입니다. 1-3의 간트 차트 실험에서 확인했듯
+    스트리밍은 TTFA를 조각 수만큼 앞당기고, 6-3에서는 그것을 WebSocket으로 실측했습니다 —
+    다만 그때 프레임 뭉침 사고도 함께 겪었죠. 침묵을 기술로 줄이는 길은 이미 배웠고,
+    문제는 <b>오늘 밤 그 길을 걸을 수 없다</b>는 것입니다.
+    <p class="note">수치는 대역 프로파일 합계입니다 — 실측 p95는 세션마다 다르며,
+    시연 전날 리허설 러너의 기록이 최종 근거입니다.</p>
+  </div>
+  <div class="chipbody" id="c3">
+    <table>
+      <tr><th>처방</th><th>수단</th><th>가능 시점</th></tr>
+      <tr><td>🎙 해설로 덮기</td><td>시연 대본 수정 — 침묵 구간에 발표자 해설 배치</td><td class="g">오늘 밤 (코드 동결 안전)</td></tr>
+      <tr><td>선발화(필러) 패턴</td><td>LLM 대기 중 TTS로 "확인해 드릴게요" 먼저 송출</td><td class="w">백로그 — 코드 변경 + 회귀 재실행</td></tr>
+      <tr><td>스트리밍 TTFA 단축</td><td>6-3 WebSocket 경로를 본선에 편입</td><td class="w">백로그 — 코드 변경 + 회귀 재실행</td></tr>
+    </table>
+    해설로 덮기가 대본 수정인 이상, 3장의 규칙이 그대로 적용됩니다 —
+    대본은 손으로 고치지 않고 <b>결정을 고쳐 재생성</b>합니다
+    (결정 기록에 "침묵 해설 ON" 항목이 추가되고 build_demo_script()가 해설 줄을 파생).
+    침묵을 편집할 수 없다면, 침묵에 대사를 주면 됩니다.
+    <p class="note">청중 앞에서 침묵은 결함처럼 들리지만, 해설이 붙는 순간
+    "파이프라인이 일하는 시간"이라는 시연 포인트가 됩니다 — 약점의 전시가 아니라 구조의 전시.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // 정본 수치 (7-4 승계 · 승격 구성): ASR 620 + NLU 300 + TTS 480 = 1400 ms
+  var ASR = 620, NLU = 300, TTS = 480;
+  var SILENCE = ASR + NLU + TTS;          // 1400 ms
+  var BUDGET = 1500, RULE_TOTAL = 1140;
+  var CUST = 2000, AGENT = 3200;          // 고객 발화 2.0초 · 응답 재생(연출)
+
+  // 트랙 좌표: 고객 2%–28%, 침묵 29.5%–49%, 응답 50.5%–81.5%
+  var GAP_L = 29.5, GAP_W = 19.5;
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function el(id){ return document.getElementById(id); }
+  function wait(ms){ return new Promise(function(res){ setTimeout(res, reduced ? Math.min(ms,200) : ms); }); }
+  var logBox = el("log");
+  function log(html){
+    var d = document.createElement("div"); d.innerHTML = html;
+    logBox.appendChild(d); logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  var playBtn = el("playBtn"), narrBtn = el("narrBtn");
+  var vd = el("vd"), chips = el("chips");
+  var ph = el("ph"), face = el("face"), silCnt = el("silCnt"), audMsg = el("audMsg");
+  var playing = false, narrOn = false;
+
+  function setBs(id, w, ms){
+    var b = el(id);
+    if (reduced){ b.style.transition = "none"; }
+    else { b.style.transitionDuration = ms + "ms"; }
+    b.style.width = w + "%";
+  }
+  function bsWidth(dur){ return GAP_W * dur / SILENCE; }
+
+  function reset(){
+    logBox.innerHTML = "";
+    vd.classList.remove("show"); chips.classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("on"); });
+    ["segCust","segGap","segAgent"].forEach(function(id){ el(id).classList.remove("on"); });
+    el("segGap").classList.remove("tense");
+    el("segNarr").classList.remove("show");
+    el("stamp").classList.remove("on");
+    ["bsAsr","bsNlu","bsTts"].forEach(function(id){
+      var b = el(id); b.style.transition = "none"; b.style.width = "0"; void b.offsetWidth;
+    });
+    ph.classList.remove("on"); ph.style.left = "2%";
+    face.textContent = "🙂"; silCnt.textContent = "0.0초"; audMsg.textContent = "아직 편안합니다";
+    narrBtn.classList.remove("on","show"); narrOn = false;
+    el("gapCnt").textContent = "침묵";
+  }
+
+  function movePh(fromPct, toPct, ms){
+    return new Promise(function(res){
+      if (reduced){ ph.style.left = toPct + "%"; setTimeout(res, 150); return; }
+      var t0 = null;
+      function step(ts){
+        if (t0 === null) t0 = ts;
+        var k = Math.min(1, (ts - t0) / ms);
+        ph.style.left = (fromPct + (toPct - fromPct) * k) + "%";
+        if (k < 1) requestAnimationFrame(step); else res();
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function runSilence(withNarr){
+    // 실시간 1.4초: 카운터 + 청중 반응 + 무대 뒤 워터폴 + 플레이헤드
+    return new Promise(function(res){
+      var start = null, done = false;
+      setBs("bsAsr", bsWidth(ASR), reduced ? 0 : ASR);
+      setTimeout(function(){ setBs("bsNlu", bsWidth(NLU), reduced ? 0 : NLU); }, reduced ? 0 : ASR);
+      setTimeout(function(){ setBs("bsTts", bsWidth(TTS), reduced ? 0 : TTS); }, reduced ? 0 : ASR + NLU);
+      movePh(GAP_L, GAP_L + GAP_W, reduced ? 150 : SILENCE);
+      if (reduced){
+        silCnt.textContent = "1.4초";
+        if (!withNarr){
+          face.textContent = "🤨"; audMsg.textContent = "…고장났나?";
+          el("segGap").classList.add("tense");
+        } else {
+          audMsg.textContent = "해설을 듣는 중";
+        }
+        setTimeout(res, 200); return;
+      }
+      function tick(ts){
+        if (start === null) start = ts;
+        var e = ts - start;
+        silCnt.textContent = (Math.min(e, SILENCE) / 1000).toFixed(1) + "초";
+        if (!withNarr){
+          if (e > 400 && e <= 900){ face.textContent = "😐"; audMsg.textContent = "어…?"; }
+          else if (e > 900){
+            face.textContent = "🤨"; audMsg.textContent = "…고장났나?";
+            el("segGap").classList.add("tense");
+          }
+        } else {
+          audMsg.textContent = "해설을 듣는 중";
+        }
+        if (e < SILENCE) requestAnimationFrame(tick);
+        else if (!done){ done = true; res(); }
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function play(withNarr){
+    playing = true; playBtn.disabled = true; narrBtn.disabled = true;
+    reset();
+    if (withNarr){ narrOn = true; narrBtn.classList.add("on"); el("segNarr").classList.add("show"); }
+    log('<span class="tea">리허설 러너 — 장면 1/6</span> golden g01 "주문 취소" <span class="mut"># 장면별 기계 판정 + 시간 기록</span>');
+    ph.classList.add("on");
+    wait(500).then(function(){
+      el("segCust").classList.add("on");
+      log('<span class="mut">🎤 고객 발화 재생 (2.0초)</span>');
+      return movePh(2, 28, reduced ? 150 : CUST);
+    }).then(function(){
+      el("segGap").classList.add("on");
+      if (withNarr){
+        log('<span class="tea">🎙 발표자</span> "지금 이 순간 음성이 ASR → NLU → TTS 세 단계를 지나고 있습니다."');
+      } else {
+        log('<span class="wr">···</span> <span class="mut"># 지금부터 1.4초 — 세어 보세요</span>');
+      }
+      return runSilence(withNarr);
+    }).then(function(){
+      el("segAgent").classList.add("on");
+      el("gapCnt").textContent = "침묵 1.4초";
+      log('<span class="ok">🔊 첫 오디오</span> TTFA = ' + SILENCE + ' ms — 침묵의 길이와 정확히 같습니다.');
+      return movePh(50.5, 81.5, reduced ? 150 : Math.min(AGENT, 1600));
+    }).then(function(){
+      ph.classList.remove("on");
+      el("stamp").classList.add("on");
+      if (withNarr){
+        log('<span class="ok">✔ 장면 종료</span> 침묵 구간에 해설이 얹혀 청중 반응 유지 — 같은 1.4초, 다른 체감.');
+      } else {
+        log('<span class="tea">판정 대조</span> test_pipeline.py: <span class="ok">PASS</span> (' + SILENCE + ' ≤ ' + BUDGET + ' ms) / 청중석: <span class="wr">1.4초의 침묵</span>');
+        log('<span class="mut">   둘 다 옳습니다 — 재는 것이 다를 뿐. 그래서 시연은 테스트가 아닙니다.</span>');
+      }
+      vd.classList.add("show"); chips.classList.add("show");
+      playing = false;
+      playBtn.disabled = false; playBtn.textContent = "↻ 다시 듣기";
+      narrBtn.disabled = false; narrBtn.classList.add("show");
+    });
+  }
+
+  playBtn.addEventListener("click", function(){ if(!playing) play(narrOn); });
+  narrBtn.addEventListener("click", function(){
+    if(playing) return;
+    play(!narrOn);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(ch){
+    ch.addEventListener("click", function(){
+      var body = document.getElementById(ch.getAttribute("data-t"));
+      var wasOpen = body.classList.contains("show");
+      Array.prototype.forEach.call(document.querySelectorAll(".chipbody"), function(b){ b.classList.remove("show"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(c){ c.classList.remove("on"); });
+      if(!wasOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+
+  // 데이터 정합 자가 점검 (7-4 정본 승계)
+  console.assert(ASR + NLU + TTS === 1400, "침묵 = 1400 ms");
+  console.assert(SILENCE <= BUDGET, "예산 내 통과");
+  console.assert(RULE_TOTAL === 1140, "규칙 구성 1140 ms");
+
+  reset();
+})();
+</script>
+</body>
+</html>
