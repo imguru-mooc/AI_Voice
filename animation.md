@@ -32,3 +32,10 @@
 - [시연 타임라인과 1.4초의 침묵](https://imguru-mooc.github.io/AI_Voice/html/demo_timeline_silence_animation.html)
 - [드릴 발사대와 대응표](https://imguru-mooc.github.io/AI_Voice/html/drill_launcher_animation.html)
 - [M4의 두 층](https://imguru-mooc.github.io/AI_Voice/html/m4_two_layers_animation.html)
+
+### 응답 품질 고도화
+- [백로그 대차대조표](https://imguru-mooc.github.io/AI_Voice/html/backlog_ledger_animation.html)
+- [빨강 먼저 — 사각지대 수리의 날](https://imguru-mooc.github.io/AI_Voice/html/red_first_repair_animation.html)
+- [오탐과 미탐, 두 가지 실패의 무게](https://imguru-mooc.github.io/AI_Voice/html/two_failures_weight_animation.html)
+- [키워드 납치](https://imguru-mooc.github.io/AI_Voice/html/keyword_hijack_animation.html)
+- [양방향 스모크와 승계 타임라인](https://imguru-mooc.github.io/AI_Voice/html/smoke_handover_animation.html)
