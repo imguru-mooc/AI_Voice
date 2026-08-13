@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>빨강 먼저 — 수리는 빨강이 초록이 되는 것으로만 증명됩니다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --warn:#D9A441; --blue:#6FA8DC;
+    --tts:#7A9E6E; --runner:#C48A3F; --gatec:#8A7BB8;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:960px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500;font-size:15px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:8px; padding:9px 15px; font-size:13.5px; font-weight:600;
+    cursor:pointer; font-family:inherit; transition:border-color .15s, background .15s;
+  }
+  button:hover{border-color:var(--faint)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d3a5f;border-color:#2b5384}
+  button.primary:hover{background:#234a79}
+  #laterBtn{display:none;border-color:#5c4a1a;background:#241d0a}
+  #laterBtn.show{display:inline-block}
+  #laterBtn.on{border-color:var(--warn)}
+
+  /* ── 백로그 카드 ──────────────────────── */
+  .backlog{
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:11px 15px;margin-bottom:12px;
+  }
+  .backlog .bid{font-family:var(--mono);font-size:12px;color:var(--warn);white-space:nowrap}
+  .backlog .btext{font-size:12.5px;color:var(--muted);line-height:1.55;flex:1;min-width:240px}
+  .backlog .btext b{color:var(--text)}
+  .bstamp{
+    font-family:var(--mono);font-size:10.5px;border:1.5px solid var(--line);border-radius:6px;
+    padding:3px 8px;color:var(--faint);transform:rotate(-4deg);transition:border-color .3s,color .3s;
+  }
+  .bstamp.open{border-color:var(--warn);color:var(--warn)}
+  .bstamp.done{border-color:var(--pass);color:var(--pass);transform:rotate(4deg)}
+
+  /* ── 파이프라인 (폴백 경로) ─────────────── */
+  .board{
+    background:var(--panel2); border:1px solid var(--line); border-radius:12px;
+    padding:16px 16px 14px; margin-bottom:12px; position:relative;
+  }
+  .lanelbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;margin-bottom:10px}
+  .pipe{display:flex;gap:8px;align-items:stretch;position:relative}
+  .node{
+    flex:1;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    padding:9px 10px;text-align:center;transition:border-color .3s,background .3s,opacity .3s;
+  }
+  .node .nm{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .node .ds{font-size:10.5px;color:var(--faint);margin-top:3px;line-height:1.45}
+  .node.dead{border-color:var(--fail);opacity:.55}
+  .node.taint{border-color:var(--warn)}
+  .node.catch{border-color:var(--fail);background:rgba(228,88,90,.08)}
+  .node.good{border-color:var(--pass);background:rgba(88,183,126,.06)}
+
+  .slot{
+    flex:1;border:1.5px dashed var(--fail);border-radius:9px;padding:9px 10px;text-align:center;
+    color:var(--fail);transition:border-color .3s,color .3s,background .3s;
+  }
+  .slot .nm{font-family:var(--mono);font-size:11px}
+  .slot .ds{font-size:10.5px;margin-top:3px;line-height:1.45;color:inherit;opacity:.85}
+  .slot.fixed{border-style:solid;border-color:var(--gatec);color:var(--gatec);background:rgba(138,123,184,.07)}
+  .slot.fixedcatch{border-style:solid;border-color:var(--pass);color:var(--pass);background:rgba(88,183,126,.07)}
+  .slot.ripped{border-style:dashed;border-color:var(--fail);color:var(--fail);background:none}
+
+  .pk{
+    position:absolute;top:50%;left:-2%;transform:translateY(-50%);
+    width:15px;height:15px;border-radius:50%;background:var(--warn);
+    box-shadow:0 0 10px rgba(217,164,65,.6);opacity:0;transition:left .8s linear, opacity .3s;
+  }
+  .pk.on{opacity:1}
+  .pk.stop{background:var(--fail);box-shadow:0 0 10px rgba(228,88,90,.7)}
+
+  /* ── 테스트 패널 ─────────────────────── */
+  .grid{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-bottom:14px}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr} }
+  .panelbox{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 15px}
+  .tcode{
+    font-family:var(--mono);font-size:11px;line-height:1.85;color:var(--muted);
+    background:#0B111A;border:1px solid var(--line);border-radius:9px;padding:11px 13px;
+    opacity:.35;transition:opacity .4s;
+  }
+  .tcode.on{opacity:1}
+  .tcode .kw{color:var(--blue)}
+  .tcode .hl{color:var(--warn);background:rgba(217,164,65,.1);border-radius:3px;padding:0 2px}
+  .tcode .cm{color:var(--faint)}
+
+  .judge{
+    font-family:var(--mono);font-size:12px;border:1px dashed var(--line);border-radius:9px;
+    padding:10px 13px;line-height:1.8;color:var(--faint);
+    transition:border-color .3s,color .3s,background .3s;
+  }
+  .judge.red{border-style:solid;border-color:var(--fail);color:var(--fail);background:rgba(228,88,90,.06)}
+  .judge.green{border-style:solid;border-color:var(--pass);color:var(--pass);background:rgba(88,183,126,.06)}
+  .judge small{display:block;font-size:10px;color:var(--faint);margin-top:4px}
+
+  /* ── 콘솔·배너·칩 ─────────────────────── */
+  .console{
+    background:#0B111A; border:1px solid var(--line); border-radius:10px;
+    padding:13px 15px; font-family:var(--mono); font-size:11.8px; line-height:1.75;
+    min-height:120px; max-height:220px; overflow-y:auto; margin-bottom:14px;
+  }
+  .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)}
+  .console .ok{color:var(--pass)}
+  .console .wr{color:var(--warn)}
+  .console .tea{color:var(--blue)}
+
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--fail);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--fail)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;color:var(--text);
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody table{border-collapse:collapse;margin:10px 0;width:100%}
+  .chipbody th,.chipbody td{border:1px solid var(--line);padding:7px 10px;font-size:12.5px;text-align:left}
+  .chipbody th{color:var(--muted);font-weight:600;background:var(--panel2)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .chipbody .g{color:var(--pass)} .chipbody .r{color:var(--fail)} .chipbody .w{color:var(--warn)}
+
+  @media (prefers-reduced-motion: reduce){
+    .pk,.node,.slot,.tcode,.judge,.bstamp,.verdict,.chips{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">8-1 · 응답 품질 고도화 — 2장 b01 · 「폴백 사각지대」의 속편</div>
+      <h1>빨강 먼저 <span class="q">— 수리는 빨강이 초록이 되는 것으로만 증명됩니다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn" class="primary">▶ 동결 해제 — 수리의 날</button>
+      <button id="laterBtn">🕰 반 년 뒤</button>
+    </div>
+  </header>
+
+  <div class="backlog">
+    <span class="bid">b01</span>
+    <span class="btext">폴백 경로에 <b>validate_tts_contract</b> 게이트 부재 —
+      <b>"게이트 추가 + 회귀 재실행" 한 묶음</b>. 7-5 시연 리허설의 부수확: 다섯 건 중 유일하게
+      <b>오염이 조용히 통과</b>했던 항목. 시끄럽게 터진 문제는 급하지 않습니다 — 조용히 지나간 문제가 급합니다.</span>
+    <span class="bstamp" id="bstamp">코드 동결 중</span>
+  </div>
+
+  <div class="board">
+    <div class="lanelbl">폴백 경로 — 시연 전날 추가된 그 길 (7-5 드릴 3)</div>
+    <div class="pipe">
+      <div class="node" id="nTts"><div class="nm">TTS 본선</div><div class="ds">합성 엔진</div></div>
+      <div class="node" id="nFb"><div class="nm">폴백 합성기</div><div class="ds">비상용 · 8 kHz 오설정</div></div>
+      <div class="slot" id="slot"><div class="nm">［ 사각지대 ］</div><div class="ds">게이트 없음 — 오염이 조용히 통과</div></div>
+      <div class="node" id="nRun"><div class="nm">러너 최종 관문</div><div class="ds">validate_tts_contract</div></div>
+      <div class="node" id="nSpk"><div class="nm">🔊 스피커</div><div class="ds">청중</div></div>
+      <div class="pk" id="pk"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panelbox">
+      <div class="lanelbl">셀 2-1 — 고치기 전에, 실패하는 테스트부터 (영구 회귀)</div>
+      <div class="tcode" id="tcode"><span class="cm"># test_fallback_gate.py — 오염을 폴백 경로에 주입하고 묻는다:</span><br><span class="cm"># 위반이 잡히느냐가 아니라, 어디서 잡히느냐.</span><br><span class="kw">with</span> pytest.raises(ContractError) <span class="kw">as</span> e:<br>&nbsp;&nbsp;&nbsp;&nbsp;run_fallback(tainted_8k)<br>msg = str(e.value)<br><span class="hl">assert msg.startswith("[fallback]")</span>  <span class="cm"># 발원지 표식 검사</span></div>
+    </div>
+    <div class="panelbox">
+      <div class="lanelbl">판정 — 서브프로세스 pytest</div>
+      <div class="judge" id="judge">대기 — 판정은 언제나 서브프로세스가 새로 import해서 내립니다.<small>커널에 남은 옛 pe는 무관 (6-5 원칙)</small></div>
+    </div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>게이트만 넣고 끝이 아니라, 스물여섯 개 전체가 초록이어야 묶음이 닫힙니다.</b>
+    빨강이 없었다면 "고쳐졌다"는 여러분의 기억일 뿐이고, 회귀가 없었다면 수리가 다른 것을
+    깨뜨렸는지 알 수 없습니다 — 그래서 백로그 문구가 처음부터 "게이트 추가 + 회귀 재실행"
+    한 묶음이었습니다. 이제 위반은 발원지(폴백)에서 즉시 터지고, 최종 관문은 마지막 보루로 남습니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="k1">① 빨강의 자격</button>
+    <button class="chip" data-t="k2">② 표식이 곧 주소</button>
+    <button class="chip" data-t="k3">③ 판정의 위생</button>
+  </div>
+  <div class="chipbody" id="k1">
+    게이트 한 줄이면 끝나는 걸 왜 돌아가는가:
+    <table>
+      <tr><th>테스트 없이 고치면</th><th>빨강을 먼저 못 박으면</th></tr>
+      <tr><td class="r">"고쳐졌다"는 기억 — 재판정 불가</td><td class="g">수리가 재판정 가능한 사실이 됨</td></tr>
+      <tr><td class="r">반 년 뒤 재발해도 아무도 모름</td><td class="g">영구 회귀 — 재발하는 순간 빨강이 뜸 (🕰 재생)</td></tr>
+    </table>
+    실행 전의 예측 의식도 같은 규율입니다 — "몇 개가 실패할까요? 실패 메시지 첫 단어는
+    뭘까요?"를 먼저 적게 하면, 빨강이 사고가 아니라 <b>예정된 관찰</b>이 됩니다.
+    <p class="note">계보: 7-5의 코드 동결이 "조용히 고치지 말고" 원칙을 백로그로 형태를 바꾼
+    것이었고, 오늘은 그 백로그가 빨강→초록으로 형태를 바꿉니다 — 「폴백 사각지대」 청사진
+    토글이 예고한 바로 그 수리입니다.</p>
+  </div>
+  <div class="chipbody" id="k2">
+    테스트의 핵심 줄은 위반 포착 여부가 아니라 <b>표식</b>을 검사합니다 —
+    <code>assert msg.startswith("[fallback]")</code>. 같은 위반 문자열에서 대괄호 하나가 바뀝니다:
+    <table>
+      <tr><th>표식</th><th>뜻</th><th>디버깅 비용</th></tr>
+      <tr><td class="r">[runner-final]</td><td>최종 관문에서 포착 — 발원지에서 한참 떨어짐</td>
+        <td>"어느 경로가 오염시켰나"부터 추적</td></tr>
+      <tr><td class="g">[fallback]</td><td>발원지에서 포착</td><td class="g">범인이 메시지에 적혀 있습니다</td></tr>
+    </table>
+    최종 관문이 있는데 발원지 게이트가 왜 또 필요한가 — 첫째 <b>심층 방어</b>: 관문 하나는
+    단일 실패점입니다. 둘째 <b>디버깅 비용</b>: 표식이 곧 주소입니다. 그리고 발원지 게이트를
+    산 뒤에도 최종 관문은 마지막 보루로 남습니다.
+    <p class="note">7-4의 v0 교훈("폭발 지점과 원인 지점의 거리가 멀수록 추적 비용이 커진다")이
+    테스트 한 줄의 문법으로 굳은 것입니다.</p>
+  </div>
+  <div class="chipbody" id="k3">
+    오늘처럼 파일을 수리하고 곧바로 재판정하는 날, 판정을 오염시키는 함정 셋과 방어:
+    <table>
+      <tr><th>함정</th><th>방어</th></tr>
+      <tr><td>커널에 import된 옛 모듈이 그대로 판정에 쓰임</td>
+        <td class="g">판정은 언제나 서브프로세스 — 새로 import (6-5 원칙)</td></tr>
+      <tr><td>.pyc 캐시가 초 단위 수정 시각·크기로 신선도 판단 — 같은 크기 수정이 1초 안이면 낡은 코드 실행</td>
+        <td class="g"><code>PYTHONDONTWRITEBYTECODE</code>로 원천 봉쇄</td></tr>
+      <tr><td>exit 2·4·5를 "테스트 실패"로 오독</td>
+        <td class="g">exit 1만 빨강 (V1: pytest <code>ExitCode</code> — 2 중단·4 오용·5 수집 실패)</td></tr>
+    </table>
+    <p class="note">빨강→초록의 증명력은 판정기의 위생에서 나옵니다 — 판정기가 낡은 코드를
+    돌리면 초록도 거짓말이 됩니다.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var MSG_FINAL = "[runner-final] SR 위반: 8000 != 16000";
+  var MSG_ORIGIN = "[fallback] SR 위반: 8000 != 16000";
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var el = function(id){ return document.getElementById(id); };
+  var logBox = el("log"), playBtn = el("playBtn"), laterBtn = el("laterBtn");
+  var pk = el("pk");
+  var playing = false, played = false;
+
+  function log(html){
+    var d = document.createElement("div");
+    d.innerHTML = html;
+    logBox.appendChild(d);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduced ? 0 : ms); }); }
+  function movePk(pct, ms){
+    return new Promise(function(res){
+      if (reduced){ pk.style.transition = "none"; pk.style.left = pct + "%"; setTimeout(res, 40); return; }
+      pk.style.transition = "left " + ms + "ms linear, opacity .3s";
+      requestAnimationFrame(function(){ pk.style.left = pct + "%"; });
+      setTimeout(res, ms + 60);
+    });
+  }
+  function judge(cls, html){
+    var j = el("judge");
+    j.className = "judge" + (cls ? " " + cls : "");
+    j.innerHTML = html;
+  }
+  function slotState(cls, nm, ds){
+    var s = el("slot");
+    s.className = "slot" + (cls ? " " + cls : "");
+    s.innerHTML = '<div class="nm">' + nm + '</div><div class="ds">' + ds + '</div>';
+  }
+  function nodesReset(){
+    ["nTts","nFb","nRun","nSpk"].forEach(function(n){ el(n).className = "node"; });
+    pk.classList.remove("on","stop");
+    pk.style.transition = "none";
+    pk.style.left = "-2%";
+  }
+
+  function reset(){
+    logBox.innerHTML = "";
+    el("vd").classList.remove("show");
+    el("chips").classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(b){ b.classList.remove("on"); });
+    nodesReset();
+    slotState(null, "［ 사각지대 ］", "게이트 없음 — 오염이 조용히 통과");
+    el("tcode").classList.remove("on");
+    judge(null, "대기 — 판정은 언제나 서브프로세스가 새로 import해서 내립니다.<small>커널에 남은 옛 pe는 무관 (6-5 원칙)</small>");
+    el("bstamp").className = "bstamp";
+    el("bstamp").textContent = "코드 동결 중";
+  }
+
+  // 오염 패킷 1회 주행: catchAt = "runner" | "origin"
+  function runTaint(catchAt){
+    nodesReset();
+    el("nTts").classList.add("dead");
+    pk.classList.add("on");
+    el("nFb").classList.add("taint");
+    return movePk(30, 700).then(function(){
+      log('<span class="wr">주입</span> TTS 다운 → 폴백 합성기 — 오염 레코드 생성 (8 kHz)');
+      return movePk(50, 600);
+    }).then(function(){
+      if (catchAt === "origin"){
+        pk.classList.add("stop");
+        slotState("fixedcatch", "발원지 게이트", "validate_tts_contract(rec) — 즉시 포착");
+        log('<span class="ok">⛔ 발원지 포착</span> ' + MSG_ORIGIN + ' <span class="mut"># 표식이 바뀌었습니다 — 범인이 메시지에 적혀 있습니다</span>');
+        return wait(700);
+      }
+      log('<span class="mut">… 사각지대 통과 — 아무 일도 일어나지 않음 (그게 문제입니다)</span>');
+      return movePk(71, 600).then(function(){
+        pk.classList.add("stop");
+        el("nRun").classList.add("catch");
+        log('<span class="bad">⛔ 최종 관문 포착</span> ' + MSG_FINAL + ' <span class="mut"># 발원지에서 한참 떨어진 곳</span>');
+        return wait(700);
+      });
+    });
+  }
+
+  function play(){
+    log('<span class="tea">동결 해제</span> b01 개봉 — 7-5의 백로그를 오늘 갚습니다. 규율: 고치기 전에 실패하는 테스트부터.');
+    el("bstamp").classList.add("open");
+    el("bstamp").textContent = "동결 해제";
+    return wait(900).then(function(){
+      el("tcode").classList.add("on");
+      log('<span class="tea">셀 2-1</span> test_fallback_gate.py 작성 — 핵심은 <span class="wr">assert msg.startswith("[fallback]")</span>: 위반이 잡히느냐가 아니라 어디서 잡히느냐.');
+      log('<span class="mut">   예측부터 적습니다 — 몇 개가 실패할까요? 실패 메시지 첫 단어는 뭘까요?</span>');
+      return wait(1300);
+    }).then(function(){
+      log('<span class="tea">셀 2-2</span> 예정된 빨강 — 오염을 폴백 경로에 주입:');
+      return runTaint("runner");
+    }).then(function(){
+      judge("red", '1 failed — AssertionError<br>msg가 "[fallback]"으로 시작하지 않음 (실제: "[runner-final]…")<small>예측한 그대로의 빨강 — 이제 수리할 자격이 생겼습니다</small>');
+      log('<span class="bad">✘ 빨강</span> 위반은 잡혔지만 표식이 [runner-final] — 테스트가 요구한 발원지가 아닙니다. 예측 적중.');
+      return wait(1400);
+    }).then(function(){
+      log('<span class="tea">셀 2-3</span> 수리 — 패치는 파일로: 폴백 경로 return 직전에 validate_tts_contract(rec) 게이트 추가.');
+      slotState("fixed", "발원지 게이트", 'validate_tts_contract(rec)<br>실패 메시지에 "[fallback]" 표식');
+      log('<span class="mut">   커널의 pe는 옛 버전으로 남지만 무관 — 판정은 서브프로세스가 새로 import합니다.</span>');
+      return wait(1300);
+    }).then(function(){
+      log('<span class="tea">셀 2-4</span> 초록 재판정 — 같은 오염을 다시 주입:');
+      return runTaint("origin");
+    }).then(function(){
+      el("nRun").classList.add("good");
+      judge("green", '26 passed · exit 0<br>빨강 1 → 초록 26<small>기존 25건도 전부 무사 — "게이트 추가 + 회귀 재실행" 한 묶음이 닫혔습니다</small>');
+      el("bstamp").classList.add("done");
+      el("bstamp").textContent = "b01 종결";
+      log('<span class="ok">✔ b01 종결</span> 빨강 1 → 초록 26 — 위반은 이제 발원지에서 즉시 터지고, 최종 관문은 마지막 보루로 남습니다.');
+      el("vd").classList.add("show");
+      el("chips").classList.add("show");
+      laterBtn.classList.add("show");
+    });
+  }
+
+  function playLater(){
+    log('<span class="wr">반 년 뒤</span> 누군가 폴백 코드를 정리하다가 게이트 줄을 지웠습니다 — 본인은 눈치채지 못합니다.');
+    slotState("ripped", "［ 사각지대 재발 ］", "게이트 줄 삭제됨");
+    return wait(1100).then(function(){
+      log('<span class="tea">커밋 전 회귀</span> 26건 자동 재판정 — test_fallback_gate.py가 영구 회귀석에 앉아 있습니다:');
+      return runTaint("runner");
+    }).then(function(){
+      judge("red", '1 failed — AssertionError<br>msg가 "[fallback]"으로 시작하지 않음<small>사각지대 재발이 청중이 아니라 커밋 앞에서 잡혔습니다</small>');
+      log('<span class="bad">✘ 즉시 빨강</span> 같은 테스트가 같은 방식으로 웁니다 — 오늘의 빨강은 하루짜리가 아니라 영구 회귀였습니다.');
+      log('<span class="mut">   테스트 없이 고쳤다면 이 삭제는 조용히 통과했고, 다음 발견 장소는 또 무대였을 것입니다.</span>');
+      el("vd").classList.add("show");
+      el("chips").classList.add("show");
+    });
+  }
+
+  playBtn.addEventListener("click", function(){
+    if (playing) return;
+    playing = true; playBtn.disabled = true; laterBtn.disabled = true;
+    laterBtn.classList.remove("on");
+    reset();
+    play().then(function(){
+      playing = false; played = true;
+      playBtn.disabled = false; laterBtn.disabled = false;
+      playBtn.textContent = "↻ 다시 재생";
+    });
+  });
+
+  laterBtn.addEventListener("click", function(){
+    if (playing || !played) return;
+    playing = true; playBtn.disabled = true; laterBtn.disabled = true;
+    laterBtn.classList.add("on");
+    reset();
+    el("bstamp").classList.add("done");
+    el("bstamp").textContent = "b01 종결 (반 년 전)";
+    playLater().then(function(){
+      playing = false;
+      playBtn.disabled = false; laterBtn.disabled = false;
+    });
+  });
+
+  document.querySelectorAll(".chip").forEach(function(ch){
+    ch.addEventListener("click", function(){
+      var id = ch.getAttribute("data-t");
+      var body = el(id);
+      var isOpen = body.classList.contains("show");
+      document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+      document.querySelectorAll(".chip").forEach(function(b){ b.classList.remove("on"); });
+      if (!isOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

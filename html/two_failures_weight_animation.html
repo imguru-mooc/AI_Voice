@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오탐과 미탐 — 숫자 6이 숫자 1보다 큰데, 급한 건 1쪽입니다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --warn:#D9A441; --blue:#6FA8DC;
+    --net:#D9A441; --spk:#E4585A;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:960px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500;font-size:15px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:8px; padding:9px 15px; font-size:13.5px; font-weight:600;
+    cursor:pointer; font-family:inherit; transition:border-color .15s, background .15s;
+  }
+  button:hover{border-color:var(--faint)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d3a5f;border-color:#2b5384}
+  button.primary:hover{background:#234a79}
+  #v2Btn{display:none;border-color:#274a2f;background:#0f2415}
+  #v2Btn.show{display:inline-block}
+  #v2Btn.on{border-color:var(--pass)}
+
+  /* ── 보드 ─────────────────────────────── */
+  .board{
+    background:var(--panel2); border:1px solid var(--line); border-radius:12px;
+    padding:16px 16px 14px; margin-bottom:14px;
+  }
+  .lanelbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;margin-bottom:10px}
+
+  .feed{
+    border:1px solid var(--line);border-radius:8px;background:var(--panel);
+    padding:8px 11px;font-size:12.5px;line-height:1.55;min-height:44px;margin-bottom:12px;
+    display:flex;align-items:center;gap:8px;transition:border-color .3s;
+  }
+  .feed .uid{font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap}
+  .feed.ok{border-color:var(--pass)} .feed.unk{border-color:var(--warn)} .feed.wrong{border-color:var(--fail)}
+
+  .dest{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  @media (max-width:720px){ .dest{grid-template-columns:1fr} }
+  .lane{
+    border:1px solid var(--line);border-radius:10px;background:var(--panel);
+    padding:11px 12px;transition:border-color .3s, opacity .3s;position:relative;
+  }
+  .lane h3{font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
+  .lane h3 .cnt{font-family:var(--mono);font-size:14px}
+  .lane .sub{font-size:11px;color:var(--faint);margin-top:2px;line-height:1.5}
+  .lane .bin{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px;min-height:44px;align-content:flex-start}
+  .tk{
+    font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:5px;
+    padding:2px 5px;color:var(--muted);opacity:0;transform:translateY(-8px);
+    transition:opacity .35s, transform .35s;
+  }
+  .tk.in{opacity:1;transform:none}
+  .lane.okl h3 .cnt{color:var(--pass)}
+  .lane.okl.hot{border-color:var(--pass)}
+  .lane.unkl h3 .cnt{color:var(--warn)}
+  .lane.unkl.hot{border-color:var(--warn)}
+  .lane.unkl .net{
+    margin-top:9px;border-top:2px dashed var(--net);padding-top:6px;
+    font-size:10.5px;color:var(--net);font-family:var(--mono);
+  }
+  .lane.wrl h3 .cnt{color:var(--fail)}
+  .lane.wrl.hot{border-color:var(--fail);background:rgba(228,88,90,.05)}
+  .lane .say{
+    margin-top:9px;border:1px dashed var(--line);border-radius:7px;padding:7px 9px;
+    font-size:11px;line-height:1.6;color:var(--faint);transition:border-color .3s,color .3s;
+  }
+  .lane .say.on{border-style:solid;color:var(--muted)}
+  .lane.unkl .say.on{border-color:var(--warn)}
+  .lane.wrl .say.on{border-color:var(--fail)}
+  .stampbad{
+    display:none;position:absolute;top:8px;right:10px;transform:rotate(6deg);
+    font-family:var(--mono);font-size:10.5px;color:var(--fail);border:1.5px solid var(--fail);
+    border-radius:6px;padding:2px 7px;background:rgba(228,88,90,.08);
+  }
+  .lane.wrl.fired .stampbad{display:block}
+  .lane.dim{opacity:.45}
+
+  .footnote{font-size:11px;color:var(--faint);margin-top:10px}
+
+  /* 대시보드 */
+  .dash{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .met{
+    flex:1 1 150px;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:8px 12px;display:flex;justify-content:space-between;align-items:baseline;
+  }
+  .met .mn{font-size:11.5px;color:var(--muted)}
+  .met .mv{font-family:var(--mono);font-size:13px;font-weight:700}
+  .met .mv .arrow{color:var(--faint);font-weight:400}
+  .met .mv .bad{color:var(--fail)} .met .mv .good{color:var(--pass)} .met .mv .warnv{color:var(--warn)}
+
+  /* ── 콘솔·배너·칩 ─────────────────────── */
+  .console{
+    background:#0B111A; border:1px solid var(--line); border-radius:10px;
+    padding:13px 15px; font-family:var(--mono); font-size:11.8px; line-height:1.75;
+    min-height:120px; max-height:220px; overflow-y:auto; margin-bottom:14px;
+  }
+  .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)}
+  .console .ok{color:var(--pass)}
+  .console .wr{color:var(--warn)}
+  .console .tea{color:var(--blue)}
+
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--fail);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--fail)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;color:var(--text);
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody table{border-collapse:collapse;margin:10px 0;width:100%}
+  .chipbody th,.chipbody td{border:1px solid var(--line);padding:7px 10px;font-size:12.5px;text-align:left}
+  .chipbody th{color:var(--muted);font-weight:600;background:var(--panel2)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .chipbody .g{color:var(--pass)} .chipbody .r{color:var(--fail)} .chipbody .w{color:var(--warn)}
+
+  @media (prefers-reduced-motion: reduce){
+    .tk,.lane,.feed,.say,.verdict,.chips{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">8-1 · 응답 품질 고도화 — 3장 품질을 숫자로</div>
+      <h1>오탐과 미탐, 두 가지 실패의 무게 <span class="q">— 숫자 6이 숫자 1보다 큰데, 급한 건 1쪽입니다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn" class="primary">▶ 기준선 측정 (규칙 v1)</button>
+      <button id="v2Btn">🔬 규칙 v2 재측정</button>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="lanelbl">확장 골든셋 15건 → 분류기 → 세 갈래 종착지</div>
+    <div class="feed" id="feed"><span class="uid">대기</span> 재생을 누르면 15건이 차례로 판정됩니다 — 실행 전에 내기합시다: 15건 중 몇 개 맞힐까요?</div>
+
+    <div class="dest">
+      <div class="lane okl" id="laneOk">
+        <h3>정상 안내 <span class="cnt" id="cOk">0</span></h3>
+        <div class="sub">의도 일치 — 계획된 응답이 나감</div>
+        <div class="bin" id="binOk"></div>
+      </div>
+      <div class="lane unkl" id="laneUnk">
+        <h3>안전 미탐 <span class="cnt" id="cUnk">0</span></h3>
+        <div class="sub">unknown → 상담원 — 늦지만 정확 · <b>비용</b></div>
+        <div class="bin" id="binUnk"></div>
+        <div class="net">─ 안전망: "모르면 사람에게" (7-3 원칙) ─</div>
+        <div class="say" id="sayUnk">🧑‍💼 "정확한 안내를 위해 상담원을 연결해 드리겠습니다."</div>
+      </div>
+      <div class="lane wrl" id="laneWr">
+        <div class="stampbad">사고</div>
+        <h3>위험 오탐 <span class="cnt" id="cWr">0</span></h3>
+        <div class="sub">엉뚱한 의도 — 잘못된 안내가 고객에게 <b>발송</b>됨 · <b>사고</b></div>
+        <div class="bin" id="binWr"></div>
+        <div class="say" id="sayWr">🔊 (스피커 대기)</div>
+      </div>
+    </div>
+
+    <div class="dash">
+      <div class="met"><span class="mn">정확도</span><span class="mv" id="mAcc">—</span></div>
+      <div class="met"><span class="mn">위험 오탐</span><span class="mv" id="mWr">—</span></div>
+      <div class="met"><span class="mn">안전 미탐</span><span class="mv" id="mUnk">—</span></div>
+    </div>
+    <div class="footnote">* 기준선(규칙 v1)의 건별 OK/미탐 배정은 총계(8·1·6)에 맞춘 재구성 — 노트북 셀 3-2 실행 출력과 건 단위로 다르면 맞출 것. v2 재측정의 건별 판정은 셀 4-3 정본과 일치.</div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>미탐 6건은 늦지만 사고가 없고, 오탐 1건은 잘못된 안내가 나갑니다.</b>
+    미탐은 안전장치가 작동한 것이고, 오탐은 안전장치를 통과해 버린 것입니다 — 같은 "틀림"이
+    아닙니다. 정확도 하나만 보면 이 비대칭이 보이지 않아서 지표가 3개이고,
+    위험 오답 0이 항상 먼저입니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="k1">① 두 실패의 해부</button>
+    <button class="chip" data-t="k2">② 왜 지표가 3개인가</button>
+    <button class="chip" data-t="k3">③ 순서의 규율 — 1→0, 그다음 6→1</button>
+  </div>
+  <div class="chipbody" id="k1">
+    <table>
+      <tr><th></th><th>무슨 일이 벌어지나</th><th>무게</th></tr>
+      <tr><td><b>오탐</b> (엉뚱한 의도)</td><td>잘못된 안내가 고객에게 <b>발송</b>된다 —
+        v_008은 요금제 상담을 원했는데 청구 내역 안내를 들었습니다</td><td class="r">사고</td></tr>
+      <tr><td><b>미탐</b> (unknown)</td><td>상담원에게 넘어간다 — 늦지만 정확</td><td class="w">비용</td></tr>
+    </table>
+    "모르면 사람에게"(7-3 원칙)가 있는 시스템에서 미탐은 안전장치가 <b>작동</b>한 것이고,
+    오탐은 안전장치를 <b>통과해 버린</b> 것입니다. 그래서 애니메이션에서 미탐 6건은 안전망에
+    떨어지고, v_008 혼자 망을 지나 스피커까지 갑니다.
+    <p class="note">미탐도 공짜가 아닙니다 — 상담원 연결은 돈과 시간입니다. 다만 사고와 비용은
+    같은 저울에 올리지 않습니다.</p>
+  </div>
+  <div class="chipbody" id="k2">
+    정확도 하나로는 이 비대칭이 안 보입니다 — 사고실험: 미탐 1건을 오탐 1건과 맞바꾸면
+    <table>
+      <tr><th></th><th>정확도</th><th>사고 수</th></tr>
+      <tr><td>미탐 7 · 오탐 0</td><td>8/15 (53.3%)</td><td class="g">0</td></tr>
+      <tr><td>미탐 6 · 오탐 1</td><td>8/15 (53.3%)</td><td class="r">1</td></tr>
+    </table>
+    두 세계의 정확도는 같은데 한쪽에만 사고가 있습니다. 그래서 지표는 3개입니다 —
+    정확도 · 위험 오답 건수 · 안전 미탐 건수. 그리고 골든셋은 의도별 3건 균형을
+    assert로 강제합니다: 한 의도만 몰리면 정확도가 그 의도 성능에 지배되기 때문입니다.
+    <p class="note">"위험 오답 0이 항상 먼저입니다" — 93.3%보다 오탐 0이 중요한 숫자인 이유.</p>
+  </div>
+  <div class="chipbody" id="k3">
+    3장은 문제를 재기만 하고, 고치는 순서는 4장이 집행합니다:
+    <table>
+      <tr><th>순서</th><th>처리</th><th>결과</th></tr>
+      <tr><td>① 오탐 1 → 0</td><td>billing 제외 키워드 "요금제" (b05 상환)</td><td class="g">사고 경로 차단이 먼저</td></tr>
+      <tr><td>② 미탐 6 → 1</td><td>오류 분석표에 실제로 찍힌 동의어만 추가 ("돈", "나왔", "먹통", "느려" …)</td><td class="g">14/15 (93.3%)</td></tr>
+      <tr><td>③ 남은 1건</td><td>v_007 우회 표현 — 억지로 잡지 않고 안전 미탐으로 남김 → b06</td><td class="w">근거가 모일 자리</td></tr>
+    </table>
+    v_007을 LLM으로 잡을 수는 있지만 가격이 +260 ms(7-4 실측)입니다 — 15건 중 1건을 위해
+    전 발화가 기다릴 이유가 지금은 없고, 직렬 원칙대로 이런 사례가 쌓이는 것이
+    승격 결정 게이트에 올릴 근거가 됩니다.
+    <p class="note">미탐은 방치가 아니라 순서의 문제입니다 — 위험 오답 0을 먼저 만들고,
+    그다음 미탐을 줄입니다.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var HANDOFF_SAY = "정확한 안내를 위해 상담원을 연결해 드리겠습니다.";
+  var BILLING_SAY = "고객님, 최근 청구 내역을 확인해 안내해 드리겠습니다.";
+  var V008 = "할인 되는 요금제로 바꾸고 싶어요.";
+  // 기준선 배정: OK 8건(골든 5 + v_001·v_006·v_009) · 미탐 6건 · 오탐 1건(v_008) — 총계는 셀 3-2 정본
+  var OK_BASE = [
+    ["utt_001~005", "골든 5건 — 아나운서 문장, 늘 정답"],
+    ["v_001", "청구서 금액이 이상해서요."],
+    ["v_006", "번호 정지 좀 풀어주세요."],
+    ["v_009", "카드 말고 계좌로 빠져나가게 해주세요."]
+  ];
+  var UNK_BASE = [
+    ["v_002", "돈이 너무 많이 나왔어요, 왜죠?"],
+    ["v_003", "와이파이가 먹통이에요."],
+    ["v_004", "속도가 너무 느려서 점검 받고 싶어요."],
+    ["v_005", "폰을 잃어버렸어요, 어떡하죠?"],
+    ["v_007", "옆집처럼 같이 쓰면 더 싸게 되는 거 있다던데요."],
+    ["v_010", "이체 날짜를 바꾸고 싶은데요."]
+  ];
+
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var el = function(id){ return document.getElementById(id); };
+  var logBox = el("log"), playBtn = el("playBtn"), v2Btn = el("v2Btn");
+  var playing = false, played = false;
+  var nOk = 0, nUnk = 0, nWr = 0;
+
+  function log(html){
+    var d = document.createElement("div");
+    d.innerHTML = html;
+    logBox.appendChild(d);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduced ? 0 : ms); }); }
+  function feed(uid, text, cls){
+    var f = el("feed");
+    f.className = "feed" + (cls ? " " + cls : "");
+    f.innerHTML = '<span class="uid">' + uid + '</span> "' + text + '"';
+  }
+  function token(binId, label){
+    var t = document.createElement("span");
+    t.className = "tk";
+    t.textContent = label;
+    el(binId).appendChild(t);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add("in"); }); });
+  }
+  function counts(){
+    el("cOk").textContent = nOk;
+    el("cUnk").textContent = nUnk;
+    el("cWr").textContent = nWr;
+  }
+  function hot(laneId, on){
+    ["laneOk","laneUnk","laneWr"].forEach(function(x){ el(x).classList.remove("hot"); });
+    if (on) el(laneId).classList.add("hot");
+  }
+  function dash(mode){
+    if (mode === "base"){
+      el("mAcc").innerHTML = "8/15 (53.3%)";
+      el("mWr").innerHTML = '<span class="bad">1</span>';
+      el("mUnk").innerHTML = '<span class="warnv">6</span>';
+    } else if (mode === "v2"){
+      el("mAcc").innerHTML = '8/15 <span class="arrow">→</span> <span class="good">14/15 (93.3%)</span>';
+      el("mWr").innerHTML = '<span class="bad">1</span> <span class="arrow">→</span> <span class="good">0</span>';
+      el("mUnk").innerHTML = '<span class="warnv">6</span> <span class="arrow">→</span> <span class="warnv">1</span>';
+    } else {
+      el("mAcc").textContent = "—"; el("mWr").textContent = "—"; el("mUnk").textContent = "—";
+    }
+  }
+
+  function reset(){
+    logBox.innerHTML = "";
+    el("vd").classList.remove("show");
+    el("chips").classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(b){ b.classList.remove("on"); });
+    ["binOk","binUnk","binWr"].forEach(function(b){ el(b).innerHTML = ""; });
+    nOk = nUnk = nWr = 0; counts();
+    hot(null, false);
+    ["laneOk","laneUnk","laneWr"].forEach(function(x){ el(x).classList.remove("dim","fired"); });
+    el("sayUnk").className = "say";
+    el("sayWr").className = "say";
+    el("sayWr").innerHTML = "🔊 (스피커 대기)";
+    feed("대기", "…", null);
+    dash(null);
+  }
+
+  function playBase(){
+    log('<span class="tea">기준선 측정</span> 규칙 v1 × 확장 골든셋 15건 (의도별 3건 균형) <span class="mut"># 지표는 3개: 정확도 · 위험 오탐 · 안전 미탐</span>');
+    var chain = wait(500);
+    // OK 8건 — 묶음 처리
+    OK_BASE.forEach(function(item){
+      chain = chain.then(function(){
+        feed(item[0], item[1], "ok");
+        hot("laneOk", true);
+        token("binOk", item[0]);
+        nOk += (item[0] === "utt_001~005") ? 5 : 1;
+        counts();
+        return wait(560);
+      });
+    });
+    chain = chain.then(function(){
+      log('<span class="ok">OK 8건</span> 의도 일치 — 계획된 응답이 나갔습니다.');
+      return wait(400);
+    });
+    // 미탐 6건 — 안전망 낙하
+    UNK_BASE.forEach(function(item, i){
+      chain = chain.then(function(){
+        feed(item[0], item[1], "unk");
+        hot("laneUnk", true);
+        token("binUnk", item[0]);
+        nUnk += 1; counts();
+        if (i === 0) el("sayUnk").classList.add("on");
+        return wait(620);
+      });
+    });
+    chain = chain.then(function(){
+      log('<span class="wr">미탐 6건</span> unknown → 안전망 → 상담원 — "' + HANDOFF_SAY + '" <span class="mut"># 늦지만 사고 없음 · 비용</span>');
+      return wait(700);
+    });
+    // 오탐 1건 — 안전망 통과
+    chain = chain.then(function(){
+      feed("v_008", V008 + " — 정답 plan_change", "wrong");
+      hot("laneWr", true);
+      log('<span class="tea">v_008</span> billing이 "요금제" 속 "요금"을 잡음 — 안전망에 걸리지 않고 통과합니다.');
+      return wait(1000);
+    }).then(function(){
+      token("binWr", "v_008");
+      nWr += 1; counts();
+      el("laneWr").classList.add("fired");
+      el("sayWr").classList.add("on");
+      el("sayWr").innerHTML = '🔊 "' + BILLING_SAY + '"<br><span style="font-size:10px">← 요금제 상담을 원한 고객에게 청구 내역 안내가 발송됨</span>';
+      log('<span class="bad">✘ 사고</span> 잘못된 안내가 고객에게 발송 — 오탐은 안전장치를 통과해 버린 것입니다.');
+      return wait(1100);
+    }).then(function(){
+      hot(null, false);
+      dash("base");
+      log('<span class="tea">기준선</span> 8/15 (53.3%) · 위험 오탐 1 · 안전 미탐 6');
+      log('<span class="mut">   숫자 6이 숫자 1보다 큰데, 급한 건 1쪽입니다 — 미탐은 안전망이 일한 것, 오탐은 안전망이 뚫린 것.</span>');
+      el("vd").classList.add("show");
+      el("chips").classList.add("show");
+      v2Btn.classList.add("show");
+    });
+    return chain;
+  }
+
+  function playV2(){
+    log('<span class="tea">규칙 v2 재측정</span> 4장의 수리 반영 — 제외 키워드 "요금제" + 오류 분석표 동의어("돈"·"나왔"·"먹통"·"느려" …)');
+    return wait(700).then(function(){
+      feed("v_008", V008, "ok");
+      hot("laneOk", true);
+      token("binOk", "골든 5 + v_00x 9건");
+      nOk = 14; counts();
+      log('<span class="ok">OK 14건</span> v_008 → plan_change 정상 (b05 상환) · 미탐이던 5건도 동의어로 회수.');
+      return wait(1000);
+    }).then(function(){
+      feed("v_007", "옆집처럼 같이 쓰면 더 싸게 되는 거 있다던데요.", "unk");
+      hot("laneUnk", true);
+      token("binUnk", "v_007 → b06");
+      nUnk = 1; counts();
+      el("sayUnk").classList.add("on");
+      log('<span class="wr">미탐 1건</span> v_007 우회 표현 — 억지 키워드로 오탐 위험을 사느니 안전 미탐으로 남깁니다 (의도된 한계 → b06).');
+      return wait(900);
+    }).then(function(){
+      hot(null, false);
+      el("laneWr").classList.add("dim");
+      el("sayWr").innerHTML = "🔊 (무사고 — 잘못된 안내 발송 0건)";
+      dash("v2");
+      log('<span class="ok">✔ 개선 후</span> 14/15 (93.3%) · 위험 오탐 0 · 안전 미탐 1 — 위험 오답 0이 93.3%보다 중요한 숫자입니다.');
+      el("vd").classList.add("show");
+      el("chips").classList.add("show");
+    });
+  }
+
+  playBtn.addEventListener("click", function(){
+    if (playing) return;
+    playing = true; playBtn.disabled = true; v2Btn.disabled = true;
+    v2Btn.classList.remove("on");
+    reset();
+    playBase().then(function(){
+      playing = false; played = true;
+      playBtn.disabled = false; v2Btn.disabled = false;
+      playBtn.textContent = "↻ 기준선 다시 재생";
+    });
+  });
+
+  v2Btn.addEventListener("click", function(){
+    if (playing || !played) return;
+    playing = true; playBtn.disabled = true; v2Btn.disabled = true;
+    v2Btn.classList.add("on");
+    reset();
+    playV2().then(function(){
+      playing = false;
+      playBtn.disabled = false; v2Btn.disabled = false;
+    });
+  });
+
+  document.querySelectorAll(".chip").forEach(function(ch){
+    ch.addEventListener("click", function(){
+      var id = ch.getAttribute("data-t");
+      var body = el(id);
+      var isOpen = body.classList.contains("show");
+      document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+      document.querySelectorAll(".chip").forEach(function(b){ b.classList.remove("on"); });
+      if (!isOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키워드 납치 — 새 발화를 잡으려던 키워드가 잘 되던 발화를 데려갑니다</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --warn:#D9A441; --blue:#6FA8DC;
+    --gate:#4C8DAE; --naive:#C48A3F; --shield:#8A7BB8;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:960px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500;font-size:15px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:8px; padding:9px 15px; font-size:13.5px; font-weight:600;
+    cursor:pointer; font-family:inherit; transition:border-color .15s, background .15s;
+  }
+  button:hover{border-color:var(--faint)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d3a5f;border-color:#2b5384}
+  button.primary:hover{background:#234a79}
+  #v2Btn{display:none;border-color:#3a2f5e;background:#1d1830}
+  #v2Btn.show{display:inline-block}
+  #v2Btn.on{border-color:var(--shield)}
+
+  /* ── 보드: 사다리 + 점수판 ─────────────── */
+  .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:12px;margin-bottom:14px}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr} }
+  .panelbox{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 15px;position:relative}
+  .lanelbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;margin-bottom:10px}
+
+  .drop{
+    border:1px solid var(--line);border-radius:8px;background:var(--panel);
+    padding:8px 11px;font-size:12px;line-height:1.55;margin-bottom:10px;
+    transition:border-color .3s, opacity .3s;
+  }
+  .drop .uid{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+  .drop .gold{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .drop b{color:var(--warn)}
+  .drop.live{border-color:var(--blue)}
+  .drop.won{border-color:var(--pass)}
+  .drop.lost{border-color:var(--fail)}
+  .drop.idle{opacity:.45}
+
+  .ladder{display:flex;flex-direction:column;gap:7px}
+  .gate{
+    border:1px solid var(--line);border-radius:8px;background:var(--panel);
+    padding:7px 11px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+    transition:border-color .25s, background .25s;
+  }
+  .gate .gname{font-family:var(--mono);font-size:11.5px;color:var(--gate);white-space:nowrap}
+  .gate .kws{font-size:11.5px;color:var(--muted);text-align:right;line-height:1.5}
+  .gate .kws .kw{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line);border-radius:5px;padding:1px 5px;margin-left:3px;display:inline-block}
+  .gate .kws .kw.new{border-color:var(--naive);color:var(--naive)}
+  .gate .kws .kw.shield{border-color:var(--shield);color:var(--shield)}
+  .gate .kws .kw.hit{border-color:var(--fail);color:var(--fail)}
+  .gate .kws .kw.good{border-color:var(--pass);color:var(--pass)}
+  .gate .mark{font-family:var(--mono);font-size:12px;color:var(--faint);width:22px;text-align:center}
+  .gate.miss{border-color:#3a475c}
+  .gate.catchbad{border-color:var(--fail);background:rgba(228,88,90,.07)}
+  .gate.catchgood{border-color:var(--pass);background:rgba(88,183,126,.06)}
+  .gate.skipped{opacity:.42}
+
+  .guard{
+    margin-top:10px;border:1px dashed var(--line);border-radius:8px;padding:8px 11px;
+    font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--faint);
+    transition:border-color .3s,color .3s;
+  }
+  .guard.fire{border-style:solid;border-color:var(--fail);color:var(--fail);background:rgba(228,88,90,.06)}
+  .guard.calm{border-style:solid;border-color:var(--pass);color:var(--pass);background:rgba(88,183,126,.05)}
+
+  /* 점수판 */
+  .score{display:flex;flex-direction:column;gap:8px}
+  .met{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;
+    display:flex;justify-content:space-between;align-items:baseline;
+  }
+  .met .mn{font-size:12px;color:var(--muted)}
+  .met .mv{font-family:var(--mono);font-size:13px;font-weight:700}
+  .met .mv .arrow{color:var(--faint);font-weight:400}
+  .met .mv .bad{color:var(--fail)} .met .mv .good{color:var(--pass)} .met .mv .warnv{color:var(--warn)}
+  .verdictbox{
+    margin-top:2px;border:1px dashed var(--line);border-radius:8px;padding:9px 12px;
+    font-size:11.5px;line-height:1.7;color:var(--faint);transition:border-color .3s,color .3s;
+  }
+  .verdictbox.bad{border-style:solid;border-color:var(--fail);color:var(--fail)}
+  .verdictbox.good{border-style:solid;border-color:var(--pass);color:var(--pass)}
+
+  /* ── 콘솔·배너·칩 ─────────────────────── */
+  .console{
+    background:#0B111A; border:1px solid var(--line); border-radius:10px;
+    padding:13px 15px; font-family:var(--mono); font-size:11.8px; line-height:1.75;
+    min-height:130px; max-height:230px; overflow-y:auto; margin-bottom:14px;
+  }
+  .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)}
+  .console .ok{color:var(--pass)}
+  .console .wr{color:var(--warn)}
+  .console .tea{color:var(--blue)}
+
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--naive);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--naive)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;color:var(--text);
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody table{border-collapse:collapse;margin:10px 0;width:100%}
+  .chipbody th,.chipbody td{border:1px solid var(--line);padding:7px 10px;font-size:12.5px;text-align:left}
+  .chipbody th{color:var(--muted);font-weight:600;background:var(--panel2)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .chipbody .g{color:var(--pass)} .chipbody .r{color:var(--fail)} .chipbody .w{color:var(--warn)}
+
+  @media (prefers-reduced-motion: reduce){
+    .gate,.drop,.guard,.verdictbox,.verdict,.chips{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">8-1 · 응답 품질 고도화 — 4장 개선-회귀 사이클</div>
+      <h1>키워드 납치 <span class="q">— 새 발화를 잡으려던 키워드가 잘 되던 발화를 데려갑니다</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn" class="primary">▶ 성급한 1차</button>
+      <button id="v2Btn">🔬 정밀한 2차</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="panelbox">
+      <div class="lanelbl">규칙 사다리 — 위에서부터 첫 일치가 판정 (first-match)</div>
+
+      <div class="drop idle" id="d008">
+        <span class="uid">v_008</span> "요금제로 바꾸고 싶어요"
+        <span class="gold">— 정답 plan_change · 백로그 b05의 그 발화</span>
+      </div>
+      <div class="drop idle" id="d005">
+        <span class="uid">utt_005 (골든)</span> "자동이체 계좌를 다른 은행으로 <b>변경</b>하고 싶습니다."
+        <span class="gold">— 정답 payment_change · 지금까지 늘 정답이던 발화</span>
+      </div>
+
+      <div class="ladder">
+        <div class="gate" id="gBill">
+          <span class="gname">billing</span>
+          <span class="kws" id="kBill"><span class="kw">요금</span><span class="kw">청구</span><span class="kw">…</span></span>
+          <span class="mark" id="mBill"></span>
+        </div>
+        <div class="gate" id="gTech">
+          <span class="gname">tech_support</span>
+          <span class="kws"><span class="kw">인터넷</span><span class="kw">기사</span><span class="kw">…</span></span>
+          <span class="mark" id="mTech"></span>
+        </div>
+        <div class="gate" id="gLoss">
+          <span class="gname">loss_suspend</span>
+          <span class="kws"><span class="kw">분실</span><span class="kw">정지</span><span class="kw">…</span></span>
+          <span class="mark" id="mLoss"></span>
+        </div>
+        <div class="gate" id="gPlan">
+          <span class="gname">plan_change</span>
+          <span class="kws" id="kPlan"><span class="kw">결합</span><span class="kw">할인</span></span>
+          <span class="mark" id="mPlan"></span>
+        </div>
+        <div class="gate" id="gPay">
+          <span class="gname">payment_change</span>
+          <span class="kws"><span class="kw">자동이체</span><span class="kw">계좌</span><span class="kw">이체</span></span>
+          <span class="mark" id="mPay"></span>
+        </div>
+      </div>
+
+      <div class="guard" id="guard">골든 가드 — 원본 5건은 언제나 만점. 이 가드를 통과하지 못한 규칙은 측정할 가치도 없이 폐기.</div>
+    </div>
+
+    <div class="panelbox">
+      <div class="lanelbl">3지표 점수판 — 확장 골든셋 15건</div>
+      <div class="score">
+        <div class="met"><span class="mn">정확도</span><span class="mv" id="sAcc">8/15 (53.3%)</span></div>
+        <div class="met"><span class="mn">위험 오탐</span><span class="mv" id="sWrong"><span class="bad">1</span></span></div>
+        <div class="met"><span class="mn">안전 미탐</span><span class="mv" id="sUnk"><span class="warnv">6</span></span></div>
+        <div class="met"><span class="mn">회귀</span><span class="mv" id="sReg">25 passed + 게이트 1</span></div>
+        <div class="verdictbox" id="vbox">규칙 v1 — 기준선. 급한 쪽은 6이 아니라 1입니다: 미탐은 늦지만 사고가 없고, 오탐은 잘못된 안내가 나갑니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>이중 실패 — 과거를 깨뜨렸고, 미래도 못 얻었습니다.</b>
+    "변경" 한 단어가 utt_005를 납치했고(골든 가드 발화), 정작 v_008은 여전히 오탐입니다
+    (규칙 순서상 billing이 "요금제" 속 "요금"을 먼저 잡기 때문). 그럴듯한 개선일수록
+    가드 앞에 먼저 세워야 하는 이유이고 — 개선의 자격은 회귀가 줍니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="k1">① 납치의 역학 — 두 개의 함정</button>
+    <button class="chip" data-t="k2">② 가드 → 측정 → 회귀 → 채택</button>
+    <button class="chip" data-t="k3">③ 잡지 않기로 한 것 — v_007과 b06</button>
+  </div>
+  <div class="chipbody" id="k1">
+    성급한 1차는 함정 두 개를 동시에 밟았습니다:
+    <table>
+      <tr><th>함정</th><th>역학</th><th>피해자</th></tr>
+      <tr><td>first-match 순서</td><td>plan_change가 사다리에서 payment_change보다 위 —
+        "변경"을 넣는 순간 utt_005가 payment_change에 도착하지 못함</td>
+        <td class="r">utt_005 납치 (골든 회귀)</td></tr>
+      <tr><td>부분 문자열</td><td>"요금제" 안에 "요금"이 있음 — billing이 사다리 맨 위에서
+        v_008을 먼저 잡으므로, plan_change에 무엇을 넣든 차례가 오지 않음</td>
+        <td class="r">v_008 오탐 그대로 (개선 실패)</td></tr>
+    </table>
+    정밀한 2차는 두 함정을 각각의 자리에서 풉니다 — 납치는 "변경"을 넣지 않는 것으로,
+    부분 문자열은 billing에 제외 키워드 <code>"none": ["요금제"]</code>를 두는 것으로
+    (요금≠요금제). 동의어는 오류 분석표에 실제로 찍힌 단어에서만 가져옵니다.
+    <p class="note">7-3 골든셋 오염 실험과 같은 함정 구조입니다 — △를 몰래 키워드로 잡으려던
+    그 손이, 여기서는 "변경"을 넣던 손입니다.</p>
+  </div>
+  <div class="chipbody" id="k2">
+    b04가 완성한 채택 절차입니다:
+    <table>
+      <tr><th>단계</th><th>판정</th><th>규모·속도</th></tr>
+      <tr><td>① 골든 가드</td><td>원본 5건 만점 — 못 지키면 즉시 폐기</td><td>5건 · 빠른 안전벨트</td></tr>
+      <tr><td>② 측정</td><td>3지표 — 정확도 · 위험 오탐 · 안전 미탐</td><td>확장 골든셋 15건</td></tr>
+      <tr><td>③ 회귀</td><td>26 passed · exit 0 — 과거 전체가 무사한가</td><td>26건 · 진짜 판정</td></tr>
+      <tr><td>④ 채택</td><td>intent_rules.json에 v2 기록</td><td>—</td></tr>
+    </table>
+    성급한 1차는 ①에서 죽었으므로 ②③은 참고 측정일 뿐이었고, intent_rules.json을
+    건드리지 않았으므로 롤백할 것도 없었습니다 — 가드가 빠를수록 실패가 쌉니다.
+    <p class="note">"개선의 자격은 회귀가 준다" — 93.3%가 채택 사유가 아니라,
+    26건 초록이 채택 사유입니다.</p>
+  </div>
+  <div class="chipbody" id="k3">
+    2차가 고치지 <b>않은</b> 것이 하나 남습니다 — v_007("옆집처럼 같이 쓰면…")은 키워드가
+    잡을 수 없는 우회 표현입니다. 억지 키워드로 오탐 위험을 사느니 안전 미탐으로 남깁니다:
+    <table>
+      <tr><th>억지로 잡으면</th><th>안전 미탐으로 남기면</th></tr>
+      <tr><td class="r">넓은 키워드 → 또 다른 납치 위험 (오늘 배운 그 함정)</td>
+          <td class="g">상담원 연결 — 늦지만 사고 없음, 그리고 b06으로 기록</td></tr>
+    </table>
+    b06은 방치가 아니라 근거가 모일 자리입니다 — 직렬 원칙에서 이런 사례가 쌓이는 것이
+    LLM 경로(L) 승격의 근거가 되고, 지금 15건 중 1건으로는 +260 ms(7-4 실측)를
+    지불할 이유가 되지 않습니다.
+    <p class="note">결정을 안 하는 게 아니라, 승격 결정 게이트(7-5 2장)에 올릴 근거를
+    쌓는 중입니다.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var UTT5 = "자동이체 계좌를 다른 은행으로 변경하고 싶습니다.";
+  var V008 = "요금제로 바꾸고 싶어요";
+  var GUARD_MSG = "[골든 가드 · 성급한 1차] 원본 5건 회귀 발생: [('utt_005', '정답 payment_change → 판정 plan_change')]";
+
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var el = function(id){ return document.getElementById(id); };
+  var logBox = el("log"), playBtn = el("playBtn"), v2Btn = el("v2Btn");
+  var playing = false, played = false;
+  var GATES = ["Bill","Tech","Loss","Plan","Pay"];
+
+  function log(html){
+    var d = document.createElement("div");
+    d.innerHTML = html;
+    logBox.appendChild(d);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduced ? 0 : ms); }); }
+
+  function clearLadder(){
+    GATES.forEach(function(g){
+      el("g"+g).className = "gate";
+      el("m"+g).textContent = "";
+    });
+    document.querySelectorAll(".kw").forEach(function(k){
+      k.classList.remove("hit","good");
+    });
+  }
+  function setDrops(state008, state005){
+    el("d008").className = "drop " + state008;
+    el("d005").className = "drop " + state005;
+  }
+  function setKwPlan(mode){
+    var k = el("kPlan");
+    if (mode === "naive"){
+      k.innerHTML = '<span class="kw">결합</span><span class="kw">할인</span><span class="kw new">변경 +</span>';
+    } else if (mode === "v2"){
+      k.innerHTML = '<span class="kw">결합</span><span class="kw">할인</span><span class="kw good">요금제 +</span>';
+    } else {
+      k.innerHTML = '<span class="kw">결합</span><span class="kw">할인</span>';
+    }
+  }
+  function setKwBill(mode){
+    var k = el("kBill");
+    if (mode === "v2"){
+      k.innerHTML = '<span class="kw">요금</span><span class="kw">청구</span><span class="kw">…</span><span class="kw shield">none: 요금제</span>';
+    } else {
+      k.innerHTML = '<span class="kw">요금</span><span class="kw">청구</span><span class="kw">…</span>';
+    }
+  }
+  function setScore(mode){
+    if (mode === "base"){
+      el("sAcc").innerHTML = "8/15 (53.3%)";
+      el("sWrong").innerHTML = '<span class="bad">1</span>';
+      el("sUnk").innerHTML = '<span class="warnv">6</span>';
+      el("sReg").innerHTML = "25 passed + 게이트 1";
+      el("vbox").className = "verdictbox";
+      el("vbox").textContent = "규칙 v1 — 기준선. 급한 쪽은 6이 아니라 1입니다: 미탐은 늦지만 사고가 없고, 오탐은 잘못된 안내가 나갑니다.";
+    } else if (mode === "naive"){
+      el("vbox").className = "verdictbox bad";
+      el("vbox").textContent = "성급한 1차 — 폐기. 골든을 깨뜨렸고(가드 발화) v_008도 못 고쳤습니다. intent_rules.json은 건드리지 않았으므로 롤백할 것도 없습니다.";
+    } else if (mode === "v2"){
+      el("sAcc").innerHTML = '8/15 <span class="arrow">→</span> <span class="good">14/15 (93.3%)</span>';
+      el("sWrong").innerHTML = '<span class="bad">1</span> <span class="arrow">→</span> <span class="good">0</span>';
+      el("sUnk").innerHTML = '<span class="warnv">6</span> <span class="arrow">→</span> <span class="warnv">1</span>';
+      el("sReg").innerHTML = '<span class="good">26 passed · exit 0</span>';
+      el("vbox").className = "verdictbox good";
+      el("vbox").textContent = "규칙 v2 채택 확정 — 가드 → 측정(15건) → 회귀(26건) → 채택. 남은 미탐 1건(v_007)은 b06으로.";
+    }
+  }
+  function guardState(cls, text){
+    var g = el("guard");
+    g.className = "guard" + (cls ? " " + cls : "");
+    g.textContent = text;
+  }
+
+  // 발화 1건이 사다리를 낙하 — stops: [게이트명, 'miss'|'catchbad'|'catchgood', 마크, 키워드셀렉터]
+  function fall(steps){
+    var chain = Promise.resolve();
+    steps.forEach(function(s){
+      chain = chain.then(function(){
+        var g = el("g"+s[0]), m = el("m"+s[0]);
+        g.classList.add(s[1] === "miss" ? "miss" : s[1]);
+        m.textContent = s[2];
+        if (s[3]){
+          var kw = document.querySelector(s[3]);
+          if (kw) kw.classList.add(s[1] === "catchbad" ? "hit" : "good");
+        }
+        return wait(s[1] === "miss" ? 380 : 750);
+      });
+    });
+    return chain;
+  }
+  function skipBelow(fromIdx){
+    for (var i = fromIdx; i < GATES.length; i++) el("g"+GATES[i]).classList.add("skipped");
+  }
+
+  function reset(){
+    logBox.innerHTML = "";
+    el("vd").classList.remove("show");
+    el("chips").classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(b){ b.classList.remove("on"); });
+    clearLadder();
+    setDrops("idle","idle");
+    setKwPlan("v1"); setKwBill("v1");
+    setScore("base");
+    guardState(null, "골든 가드 — 원본 5건은 언제나 만점. 이 가드를 통과하지 못한 규칙은 측정할 가치도 없이 폐기.");
+  }
+
+  function playNaive(){
+    log('<span class="tea">성급한 1차</span> v_008("' + V008 + '")을 고치려고 plan_change에 "변경"을 추가 <span class="mut"># 그럴듯해 보입니다</span>');
+    setKwPlan("naive");
+    return wait(900).then(function(){
+      log('<span class="mut">plan_change.any = [\'결합\', \'할인\', \'변경\']</span>');
+      log('<span class="tea">골든 가드 판정</span> 원본 5건 재분류 — utt_005 낙하:');
+      setDrops("idle","live");
+      return fall([
+        ["Bill","miss","✕"], ["Tech","miss","✕"], ["Loss","miss","✕"],
+        ["Plan","catchbad","⚠", "#kPlan .kw.new"]
+      ]);
+    }).then(function(){
+      skipBelow(4);
+      setDrops("idle","lost");
+      log('<span class="bad">🧲 납치</span> "변경"이 utt_005를 낚아챔 — payment_change("자동이체·계좌·이체")에는 차례가 오지 않습니다 (first-match).');
+      guardState("fire", "AssertionError: " + GUARD_MSG);
+      log('<span class="bad">✘ AssertionError</span> ' + GUARD_MSG);
+      return wait(1400);
+    }).then(function(){
+      clearLadder();
+      log('<span class="tea">참고 측정</span> 그렇다면 v_008은 고쳐졌을까요 — v_008 낙하:');
+      setDrops("live","lost");
+      return fall([["Bill","catchbad","⚠", "#kBill .kw"]]);
+    }).then(function(){
+      skipBelow(1);
+      setDrops("lost","lost");
+      log('<span class="bad">✘ 오탐 그대로</span> billing이 "요금제" 속 "요금"을 먼저 잡습니다 — plan_change에 무엇을 넣든 차례가 오지 않았습니다.');
+      return wait(900);
+    }).then(function(){
+      setScore("naive");
+      log('<span class="wr">이중 실패</span> 과거를 깨뜨렸고(골든 회귀), 미래도 못 얻었습니다(v_008 여전히 오탐) → 1차 규칙 폐기.');
+      el("vd").classList.add("show");
+      el("chips").classList.add("show");
+      v2Btn.classList.add("show");
+    });
+  }
+
+  function playV2(){
+    log('<span class="tea">정밀한 2차</span> 교훈 반영 — ① billing에 제외 키워드 "요금제"(요금≠요금제) ② 동의어는 오류 분석표에서만 ③ v_007은 안전 미탐으로 남김');
+    setKwPlan("v2"); setKwBill("v2");
+    return wait(1000).then(function(){
+      log('<span class="mut">plan_change.any = [\'결합\', \'할인\', \'요금제\'] · billing.none = [\'요금제\']</span>');
+      log('<span class="tea">v_008 낙하</span>');
+      setDrops("live","idle");
+      return fall([
+        ["Bill","miss","✕", "#kBill .kw.shield"],
+        ["Tech","miss","✕"], ["Loss","miss","✕"],
+        ["Plan","catchgood","✓", "#kPlan .kw.good"]
+      ]);
+    }).then(function(){
+      skipBelow(4);
+      setDrops("won","idle");
+      log('<span class="ok">✔ 정답</span> billing 앞에서 제외 키워드가 발동("요금제" 포함 → billing 불발) → plan_change가 "요금제"로 정상 포착. b05 상환.');
+      return wait(1000);
+    }).then(function(){
+      clearLadder();
+      log('<span class="tea">utt_005 낙하</span> 납치가 재발하지 않는지:');
+      setDrops("won","live");
+      return fall([
+        ["Bill","miss","✕"], ["Tech","miss","✕"], ["Loss","miss","✕"],
+        ["Plan","miss","✕"],
+        ["Pay","catchgood","✓"]
+      ]);
+    }).then(function(){
+      setDrops("won","won");
+      log('<span class="ok">✔ 정답</span> "변경"이 없으니 plan_change를 그냥 지나 payment_change("계좌")에 안착 — 늘 그랬듯이.');
+      guardState("calm", "골든 가드 통과 ✓ — 원본 5건 만점 (조용한 초록이 정상입니다)");
+      return wait(900);
+    }).then(function(){
+      setScore("v2");
+      log('<span class="ok">✔ 채택 확정</span> 측정 14/15 (93.3%) · 위험 오탐 1 → 0 · 회귀 26 passed · exit 0 — intent_rules.json ← 규칙 v2.');
+      log('<span class="mut">   위험 오탐 0이 93.3%보다 중요한 숫자입니다. 남은 미탐 v_007은 b06으로 — 의도된 한계.</span>');
+      el("vd").classList.add("show");
+      el("chips").classList.add("show");
+    });
+  }
+
+  playBtn.addEventListener("click", function(){
+    if (playing) return;
+    playing = true; playBtn.disabled = true; v2Btn.disabled = true;
+    v2Btn.classList.remove("on");
+    reset();
+    playNaive().then(function(){
+      playing = false; played = true;
+      playBtn.disabled = false; v2Btn.disabled = false;
+      playBtn.textContent = "↻ 1차 다시 재생";
+    });
+  });
+
+  v2Btn.addEventListener("click", function(){
+    if (playing || !played) return;
+    playing = true; playBtn.disabled = true; v2Btn.disabled = true;
+    v2Btn.classList.add("on");
+    reset();
+    playV2().then(function(){
+      playing = false;
+      playBtn.disabled = false; v2Btn.disabled = false;
+    });
+  });
+
+  document.querySelectorAll(".chip").forEach(function(ch){
+    ch.addEventListener("click", function(){
+      var id = ch.getAttribute("data-t");
+      var body = el(id);
+      var isOpen = body.classList.contains("show");
+      document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+      document.querySelectorAll(".chip").forEach(function(b){ b.classList.remove("on"); });
+      if (!isOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

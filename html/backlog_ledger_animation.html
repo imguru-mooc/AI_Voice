@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>백로그 대차대조표 — 부채 없는 프로젝트가 아니라, 장부가 맞는 프로젝트</title>
+<style>
+  :root{
+    --bg:#10161F; --panel:#1A2230; --panel2:#151C28; --line:#2B3648;
+    --text:#E8EDF5; --muted:#8B98AC; --faint:#5C6980;
+    --pass:#58B77E; --fail:#E4585A; --warn:#D9A441; --blue:#6FA8DC;
+    --ledger:#C48A3F; --newdebt:#8A7BB8;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    display:flex; align-items:flex-start; justify-content:center; padding:24px; min-height:100vh;
+  }
+  .stage{width:100%;max-width:960px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+  h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  h1 .q{color:var(--muted);font-weight:500;font-size:15px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{
+    background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:8px; padding:9px 15px; font-size:13.5px; font-weight:600;
+    cursor:pointer; font-family:inherit; transition:border-color .15s, background .15s;
+  }
+  button:hover{border-color:var(--faint)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:#1d3a5f;border-color:#2b5384}
+  button.primary:hover{background:#234a79}
+  #noBtn{display:none;border-color:#5c2a2a;background:#241010}
+  #noBtn.show{display:inline-block}
+  #noBtn.on{border-color:var(--fail)}
+
+  /* ── 장부 ─────────────────────────────── */
+  .board{
+    background:var(--panel2); border:1px solid var(--line); border-radius:12px;
+    padding:16px 16px 14px; margin-bottom:12px;
+  }
+  .boardhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:11px}
+  .lanelbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase}
+  .balance{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .balance b{color:var(--text)}
+  .balance .good{color:var(--pass)} .balance .warnv{color:var(--warn)}
+
+  table.ledger{border-collapse:collapse;width:100%}
+  .ledger th{
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);
+  }
+  .ledger td{
+    padding:8px;border-bottom:1px solid var(--line);font-size:12px;line-height:1.6;
+    color:var(--muted);vertical-align:top;transition:background .3s;
+  }
+  .ledger tr.row td:first-child{font-family:var(--mono);font-size:11.5px;color:var(--warn);white-space:nowrap}
+  .ledger tr.row .fix,.ledger tr.row .ev{color:var(--faint)}
+  .ledger tr.row.hot td{background:rgba(111,168,220,.05)}
+  .ledger tr.row.paid .fix{color:var(--text)}
+  .ledger tr.row.paid .ev{color:var(--muted)}
+  .ledger tr.row.paid .ev code{font-family:var(--mono);font-size:10.5px;color:var(--blue)}
+  .ledger tr.row.lost td{color:var(--faint)}
+  .st{
+    display:inline-block;font-family:var(--mono);font-size:10px;border:1.5px solid var(--line);
+    border-radius:5px;padding:2px 7px;color:var(--faint);white-space:nowrap;
+    transition:border-color .3s,color .3s,transform .3s;
+  }
+  .st.open{border-color:var(--warn);color:var(--warn)}
+  .st.paid{border-color:var(--pass);color:var(--pass);transform:rotate(-3deg)}
+  .st.issued{border-color:var(--newdebt);color:var(--newdebt)}
+  .st.ghost{border-color:var(--fail);color:var(--fail);border-style:dashed}
+  .chbadge{
+    display:inline-block;font-family:var(--mono);font-size:9.5px;color:var(--faint);
+    border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px;
+  }
+  tr.row6{display:none}
+  tr.row6.show{display:table-row}
+
+  /* 리포트 발행 배지 */
+  .report{
+    margin-top:11px;border:1px dashed var(--line);border-radius:9px;padding:9px 13px;
+    font-size:11.5px;line-height:1.7;color:var(--faint);transition:border-color .3s,color .3s;
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  }
+  .report.on{border-style:solid;border-color:var(--blue);color:var(--muted)}
+  .report.dead{border-color:var(--fail);color:var(--fail)}
+  .report code{font-family:var(--mono);font-size:10.5px;color:var(--blue)}
+  .report .schema{font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:5px;padding:2px 6px;white-space:nowrap}
+  .report.on .schema{border-color:var(--blue);color:var(--blue)}
+
+  /* ── 콘솔·배너·칩 ─────────────────────── */
+  .console{
+    background:#0B111A; border:1px solid var(--line); border-radius:10px;
+    padding:13px 15px; font-family:var(--mono); font-size:11.8px; line-height:1.75;
+    min-height:120px; max-height:220px; overflow-y:auto; margin-bottom:14px;
+  }
+  .console .mut{color:var(--faint)}
+  .console .bad{color:var(--fail)}
+  .console .ok{color:var(--pass)}
+  .console .wr{color:var(--warn)}
+  .console .tea{color:var(--blue)}
+
+  .verdict{
+    border:1px solid var(--line);border-left:4px solid var(--ledger);border-radius:8px;
+    background:var(--panel);padding:14px 18px;font-size:14.5px;line-height:1.7;
+    opacity:0;transition:opacity .5s;margin-bottom:14px;
+  }
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--ledger)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;opacity:0;transition:opacity .5s}
+  .chips.show{opacity:1}
+  .chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+  .chip.on{border-color:var(--text)}
+  .chipbody{
+    display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.85;color:var(--text);
+  }
+  .chipbody.show{display:block}
+  .chipbody code{font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .chipbody table{border-collapse:collapse;margin:10px 0;width:100%}
+  .chipbody th,.chipbody td{border:1px solid var(--line);padding:7px 10px;font-size:12.5px;text-align:left}
+  .chipbody th{color:var(--muted);font-weight:600;background:var(--panel2)}
+  .chipbody .note{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .chipbody .g{color:var(--pass)} .chipbody .r{color:var(--fail)} .chipbody .w{color:var(--warn)}
+
+  @media (prefers-reduced-motion: reduce){
+    .st,.ledger td,.report,.verdict,.chips{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div>
+      <div class="eyebrow">8-1 · 응답 품질 고도화 — 1장 개봉 · 5장 결산</div>
+      <h1>백로그 대차대조표 <span class="q">— 부채 없는 프로젝트가 아니라, 장부가 맞는 프로젝트</span></h1>
+    </div>
+    <div class="controls">
+      <button id="playBtn" class="primary">▶ 개봉 — 상환 — 결산</button>
+      <button id="noBtn">🌫 장부 없는 세계</button>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="boardhead">
+      <span class="lanelbl">7-5 코드 동결이 남긴 부채 — 조용히 고치는 대신 적어 둔 것</span>
+      <span class="balance" id="bal">미결 <b>5</b> · 상환 <b>0</b> · 신규 <b>0</b></span>
+    </div>
+    <table class="ledger">
+      <tr><th>항목</th><th style="width:29%">처리</th><th style="width:33%">증거</th><th>상태</th></tr>
+      <tr class="row" id="r1">
+        <td>b01 폴백 게이트 부재</td>
+        <td class="fix" id="f1">—</td>
+        <td class="ev" id="e1">—</td>
+        <td><span class="st" id="s1">동결</span><span class="chbadge">2장</span></td>
+      </tr>
+      <tr class="row" id="r2">
+        <td>b02 골든셋 부족</td>
+        <td class="fix" id="f2">—</td>
+        <td class="ev" id="e2">—</td>
+        <td><span class="st" id="s2">동결</span><span class="chbadge">3장</span></td>
+      </tr>
+      <tr class="row" id="r3">
+        <td>b03 지표 미정의</td>
+        <td class="fix" id="f3">—</td>
+        <td class="ev" id="e3">—</td>
+        <td><span class="st" id="s3">동결</span><span class="chbadge">3장</span></td>
+      </tr>
+      <tr class="row" id="r4">
+        <td>b04 개선-회귀 절차 없음</td>
+        <td class="fix" id="f4">—</td>
+        <td class="ev" id="e4">—</td>
+        <td><span class="st" id="s4">동결</span><span class="chbadge">4장</span></td>
+      </tr>
+      <tr class="row" id="r5">
+        <td>b05 '요금제' 오분류</td>
+        <td class="fix" id="f5">—</td>
+        <td class="ev" id="e5">—</td>
+        <td><span class="st" id="s5">동결</span><span class="chbadge">4장</span></td>
+      </tr>
+      <tr class="row row6" id="r6">
+        <td>b06 우회 표현 미탐</td>
+        <td class="fix">안전 미탐으로 남김 — LLM 승격 근거 축적의 시작점</td>
+        <td class="ev">v_007 · 지금 15건 중 1건으로는 +260ms를 지불할 이유가 되지 않음 (직렬 원칙)</td>
+        <td><span class="st issued" id="s6">신규 발행</span><span class="chbadge">→ 8-2</span></td>
+      </tr>
+    </table>
+    <div class="report" id="rep">
+      <span>📑</span>
+      <span><code>quality_report_8_1.json</code> — 세션 결산서이자 8-2의 회귀 기준선.
+      발행 전에 스키마로 형식을 못 박고, 양방향 스모크로 검증기를 검증합니다.</span>
+      <span class="schema" id="schema">스키마 미검증</span>
+    </div>
+  </div>
+
+  <div class="console" id="log" aria-live="polite"></div>
+
+  <div class="verdict" id="vd">
+    <b>백로그는 부끄러운 목록이 아니라, 코드 동결이 만든 회계입니다.</b>
+    7-5 밤에 조용히 고치는 대신 다섯 건을 적었고, 오늘 전부 증거와 함께 갚았고,
+    새 부채 하나는 이유와 함께 발행했습니다. 상환은 주장("고쳤어요")으로 닫히지 않고
+    재판정 가능한 증거로만 닫힙니다 — 그래서 증거 열의 모든 항목이 파일이거나 숫자입니다.
+  </div>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-t="k1">① 개봉 순서의 논리</button>
+    <button class="chip" data-t="k2">② 증거의 문법</button>
+    <button class="chip" data-t="k3">③ 좋은 부채 — b06과 결산서</button>
+  </div>
+  <div class="chipbody" id="k1">
+    b01이 왜 1번인가 — 다섯 건 중 유일하게 <b>오염이 조용히 통과</b>했던 항목이기 때문입니다.
+    시끄럽게 터진 문제는 급하지 않습니다. 조용히 지나간 문제가 급합니다.
+    그리고 오늘 세션 구조가 곧 백로그 처리 순서입니다:
+    <table>
+      <tr><th>장</th><th>갚는 부채</th><th>규율</th></tr>
+      <tr><td>2장</td><td>b01</td><td>고치기 전에 실패하는 테스트부터 (빨강 먼저)</td></tr>
+      <tr><td>3장</td><td>b02 · b03</td><td>품질은 주장이 아니라 측정 — 기준선부터</td></tr>
+      <tr><td>4장</td><td>b04 · b05</td><td>개선의 자격은 회귀가 준다</td></tr>
+      <tr><td>5장</td><td>결산 + b06 발행</td><td>리포트도 계약 — 스키마로 못 박는다</td></tr>
+    </table>
+    <p class="note">목차가 곧 상환 계획서인 셈입니다 — 백로그가 세션을 설계했습니다.</p>
+  </div>
+  <div class="chipbody" id="k2">
+    상환의 증거는 전부 재판정 가능한 형태입니다 — "고쳐졌다"는 기억이 아니라:
+    <table>
+      <tr><th>부채</th><th>증거</th><th>재판정 방법</th></tr>
+      <tr><td>b01</td><td><code>test_fallback_gate.py</code> · 빨강 1 → 초록 26</td><td>영구 회귀 — 언제든 다시 실행</td></tr>
+      <tr><td>b02</td><td><code>GOLD15</code> — 5건 → 15건</td><td>의도별 3건 균형 assert</td></tr>
+      <tr><td>b03</td><td><code>evaluate_quality</code> — 3지표</td><td>같은 함수로 언제든 재측정</td></tr>
+      <tr><td>b04</td><td>규칙 v2 채택 기록</td><td>가드 → 측정 → 회귀 → 채택 절차 재실행</td></tr>
+      <tr><td>b05</td><td>v_008 → plan_change · 오탐 1 → 0</td><td>골든셋 15건 재판정</td></tr>
+    </table>
+    <p class="note">🌫 재생이 보여주는 것 — 장부가 없으면 이 열이 통째로 사라지고,
+    상환 여부 자체가 판정 불능이 됩니다.</p>
+  </div>
+  <div class="chipbody" id="k3">
+    잔액이 0이 아니라 1로 끝나는 것이 이 장부의 정직입니다. b06(v_007 우회 표현)은 방치가
+    아니라 <b>발행</b>입니다 — 직렬 원칙에서 이런 사례가 쌓이는 것이 LLM 경로(L) 승격의
+    근거가 되고, 지금 15건 중 1건으로는 +260ms(7-4 실측)를 지불할 이유가 되지 않습니다.
+    근거가 모이면 승격 결정 게이트(7-5 2장)에 안건으로 올라갑니다.
+    <p class="note">결산서 <code>quality_report_8_1.json</code>은 8-2의 회귀 기준선입니다 —
+    부하를 걸고 이상 입력을 넣어도 오늘 이 숫자가 유지되는지를 판정하게 됩니다.
+    발행 전 양방향 스모크가 검증기를 검증합니다: 정상엔 침묵, 위반엔 반응 —
+    <code>'93.3%' is not of type 'number'</code>가 그 반응의 실연입니다.
+    다운로드를 잊으면 다음 시간에 기준선 없이 시작합니다 (Colab 휘발성 — 6-4 교훈).</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var ROWS = [
+    // [행, 장, 처리, 증거(HTML), 로그]
+    [1, "2장", "빨강 1 → 초록 26", '<code>test_fallback_gate.py</code> — 영구 회귀로 편입',
+       'b01 상환 — 게이트 추가 + 회귀 재실행 한 묶음. 발원지 표식 [fallback] 검사가 회귀석에 앉음.'],
+    [2, "3장", "5건 → 15건 (의도별 3건 균형)", '<code>GOLD15</code>',
+       'b02 상환 — 아나운서 문장 5건에 변형 10건(동의어·구어·우회) 합류.'],
+    [3, "3장", "정확도 · 오탐 · 미탐 3지표", '<code>evaluate_quality</code> — 기준선 8/15 (53.3%)',
+       'b03 상환 — 품질이 주장에서 숫자가 됨. 위험 오답 0이 항상 먼저.'],
+    [4, "4장", "가드 → 측정 → 회귀 → 채택", '규칙 v2 채택 기록 — 26 passed · exit 0',
+       'b04 상환 — 성급한 1차는 가드에서 폐기, 정밀한 2차가 절차를 완주.'],
+    [5, "4장", "제외 키워드로 수리 (오탐 1→0)", 'v_008 → plan_change · 14/15 (93.3%)',
+       "b05 상환 — 7-5 리허설의 그 '요금제' 오분류가 정상 판정으로."]
+  ];
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var el = function(id){ return document.getElementById(id); };
+  var logBox = el("log"), playBtn = el("playBtn"), noBtn = el("noBtn");
+  var playing = false, played = false;
+  var nOpen = 5, nPaid = 0, nNew = 0;
+
+  function log(html){
+    var d = document.createElement("div");
+    d.innerHTML = html;
+    logBox.appendChild(d);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduced ? 0 : ms); }); }
+  function bal(){
+    el("bal").innerHTML = '미결 <b class="warnv">' + nOpen + '</b> · 상환 <b class="good">' + nPaid + '</b> · 신규 <b>' + nNew + '</b>';
+  }
+  function stamp(i, cls, text){
+    var s = el("s"+i);
+    s.className = "st " + cls;
+    s.textContent = text;
+  }
+
+  function reset(){
+    logBox.innerHTML = "";
+    el("vd").classList.remove("show");
+    el("chips").classList.remove("show");
+    document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+    document.querySelectorAll(".chip").forEach(function(b){ b.classList.remove("on"); });
+    for (var i = 1; i <= 5; i++){
+      el("r"+i).className = "row";
+      stamp(i, "", "동결");
+      el("f"+i).textContent = "—";
+      el("e"+i).textContent = "—";
+    }
+    el("r6").className = "row row6";
+    el("rep").className = "report";
+    el("schema").textContent = "스키마 미검증";
+    nOpen = 5; nPaid = 0; nNew = 0;
+    el("bal").innerHTML = '미결 <b>5</b> · 상환 <b>0</b> · 신규 <b>0</b>';
+  }
+
+  function play(){
+    log('<span class="tea">1장 — 개봉</span> 코드 동결이 남긴 부채 5건을 엽니다 <span class="mut"># 시끄럽게 터진 문제는 급하지 않습니다 — 조용히 지나간 문제가 급합니다</span>');
+    var chain = wait(500);
+    for (var i = 1; i <= 5; i++){
+      (function(n){
+        chain = chain.then(function(){
+          stamp(n, "open", "미결");
+          return wait(230);
+        });
+      })(i);
+    }
+    chain = chain.then(function(){
+      bal();
+      log('<span class="mut">   오늘 세션 구조가 곧 백로그 처리 순서입니다 — 2장이 b01, 3장이 b02·b03, 4장이 b04·b05.</span>');
+      return wait(900);
+    });
+    ROWS.forEach(function(row){
+      chain = chain.then(function(){
+        var n = row[0];
+        el("r"+n).classList.add("hot");
+        log('<span class="tea">' + row[1] + '</span> ' + row[4]);
+        return wait(950).then(function(){
+          el("r"+n).classList.remove("hot");
+          el("r"+n).classList.add("paid");
+          el("f"+n).textContent = row[2];
+          el("e"+n).innerHTML = row[3];
+          stamp(n, "paid", "상환 ✓");
+          nOpen -= 1; nPaid += 1; bal();
+          return wait(420);
+        });
+      });
+    });
+    chain = chain.then(function(){
+      log('<span class="ok">상환 완료</span> 5건 → 0건 — 전부 증거와 함께 닫혔습니다.');
+      return wait(700);
+    }).then(function(){
+      log('<span class="tea">5장 — 결산</span> quality_report_8_1.json 발행: 스키마로 형식을 못 박고, 양방향 스모크로 검증기를 검증합니다.');
+      el("rep").classList.add("on");
+      el("schema").textContent = "스키마 검증 ✓ (양방향 스모크)";
+      return wait(1000);
+    }).then(function(){
+      log('<span class="mut">   위반 스모크의 반응: \'93.3%\' is not of type \'number\' — 정상엔 침묵, 위반엔 반응.</span>');
+      return wait(800);
+    }).then(function(){
+      el("r6").classList.add("show");
+      nNew = 1; bal();
+      log('<span class="wr">신규 발행</span> b06 우회 표현 미탐 (v_007) → 8-2로 — 방치가 아니라 근거가 모일 자리입니다.');
+      log('<span class="mut">   결산: 상환 5 · 신규 발행 1 — 잔액이 0이 아니라 1로 끝나는 것이 이 장부의 정직입니다.</span>');
+      el("vd").classList.add("show");
+      el("chips").classList.add("show");
+      noBtn.classList.add("show");
+    });
+    return chain;
+  }
+
+  function playNoLedger(){
+    log('<span class="wr">장부 없는 세계</span> 만약 7-5 밤에 코드 동결을 깨고 조용히 고쳤다면 —');
+    return wait(900).then(function(){
+      var chain = Promise.resolve();
+      var ghosts = [
+        [1, "게이트는 있는데 테스트가 없음 — 반 년 뒤 삭제돼도 아무도 모름"],
+        [2, "골든셋 확장은 아무도 제안하지 않음 — 문제였다는 기록이 없으니까"],
+        [3, "품질은 여전히 \"좋아진 것 같다\"는 감각"],
+        [4, "개선 절차 없음 — 다음 키워드 납치를 막을 가드도 없음"],
+        [5, "\"고쳐졌다\"는 기억뿐 — 재판정 불가"]
+      ];
+      ghosts.forEach(function(g){
+        chain = chain.then(function(){
+          el("r"+g[0]).classList.add("lost");
+          stamp(g[0], "ghost", "기록 없음");
+          el("f"+g[0]).textContent = "?";
+          el("e"+g[0]).textContent = g[1];
+          return wait(560);
+        });
+      });
+      return chain;
+    }).then(function(){
+      el("rep").classList.add("dead");
+      el("schema").textContent = "결산서 없음";
+      log('<span class="bad">✘ b06은 존재 자체가 없음</span> — v_007 같은 사례가 쌓일 자리가 없으니, LLM 승격은 영원히 "감"으로 결정하게 됩니다.');
+      log('<span class="mut">   장부가 없으면 부채가 사라지는 게 아니라, 보이지 않게 됩니다 — "조용히 고치지 말고"가 회계 원칙인 이유.</span>');
+      el("bal").innerHTML = '미결 <b class="warnv">?</b> · 상환 <b>?</b> · 신규 <b>?</b>';
+      el("vd").classList.add("show");
+      el("chips").classList.add("show");
+    });
+  }
+
+  playBtn.addEventListener("click", function(){
+    if (playing) return;
+    playing = true; playBtn.disabled = true; noBtn.disabled = true;
+    noBtn.classList.remove("on");
+    reset();
+    play().then(function(){
+      playing = false; played = true;
+      playBtn.disabled = false; noBtn.disabled = false;
+      playBtn.textContent = "↻ 다시 재생";
+    });
+  });
+
+  noBtn.addEventListener("click", function(){
+    if (playing || !played) return;
+    playing = true; playBtn.disabled = true; noBtn.disabled = true;
+    noBtn.classList.add("on");
+    reset();
+    playNoLedger().then(function(){
+      playing = false;
+      playBtn.disabled = false; noBtn.disabled = false;
+    });
+  });
+
+  document.querySelectorAll(".chip").forEach(function(ch){
+    ch.addEventListener("click", function(){
+      var id = ch.getAttribute("data-t");
+      var body = el(id);
+      var isOpen = body.classList.contains("show");
+      document.querySelectorAll(".chipbody").forEach(function(b){ b.classList.remove("show"); });
+      document.querySelectorAll(".chip").forEach(function(b){ b.classList.remove("on"); });
+      if (!isOpen){ body.classList.add("show"); ch.classList.add("on"); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
