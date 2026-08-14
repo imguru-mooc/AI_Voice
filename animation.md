@@ -45,3 +45,7 @@
 - [조용한 오탐](https://imguru-mooc.github.io/AI_Voice/html/2.조용한_오탐.html)
 - [200턴, 표류 0](https://imguru-mooc.github.io/AI_Voice/html/3.소크_표류0.html)
 - [p95 심판대](https://imguru-mooc.github.io/AI_Voice/html/4.p95_심판대.html)
+
+### 모니터링 배포
+- [백로그에서 경보로](https://imguru-mooc.github.io/AI_Voice/html/anim_8_3_backlog_to_alert.html)
+- [순서의 세금](https://imguru-mooc.github.io/AI_Voice/html/anim_8_3_order_tax.html)
