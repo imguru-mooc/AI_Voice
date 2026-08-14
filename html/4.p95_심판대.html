@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>평균은 안, 꼬리는 밖 — p95 심판대 (8-2 · 셀 4-2)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --line:#334155;
+    --tx:#e2e8f0; --dim:#94a3b8; --mut:#64748b;
+    --grn:#58B77E; --grnD:#2E7D4F; --amb:#D9A441; --ambD:#A06A00;
+    --red:#E4585A; --blu:#60a5fa; --vio:#a78bfa;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--tx);
+    font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;}
+  body{display:flex; justify-content:center; padding:18px 10px 40px}
+  .wrap{width:100%; max-width:920px}
+  header h1{font-size:21px; letter-spacing:-.3px}
+  header h1 .accent{color:var(--amb)}
+  header .sub{color:var(--dim); font-size:12.5px; margin-top:5px; line-height:1.5}
+  header .sub b{color:var(--amb); font-weight:600}
+  .honest{display:inline-block; margin-top:7px; font-size:10.5px; color:var(--blu);
+    border:1px solid #2a4a72; background:#0e1e33; border-radius:99px; padding:3px 10px}
+
+  .stage{position:relative; margin-top:12px; background:var(--panel2);
+    border:1px solid var(--line); border-radius:14px; padding:12px 14px 10px}
+  .banner{min-height:38px; display:flex; align-items:center; gap:8px;
+    font-size:13.5px; padding:2px 4px 8px}
+  .banner .tag{flex:none; font-size:11px; padding:2px 8px; border-radius:99px;
+    border:1px solid var(--line); color:var(--dim); background:var(--panel)}
+  .banner.warn .tag{border-color:var(--red); color:var(--red)}
+  .banner.ok   .tag{border-color:var(--grn); color:var(--grn)}
+
+  .counters{display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 8px}
+  .cnt{font-size:11px; color:var(--dim); background:var(--panel); border:1px solid var(--line);
+    border-radius:8px; padding:4px 9px; font-family:ui-monospace,Consolas,monospace}
+  .cnt b{color:var(--tx); font-weight:600}
+  .cnt.r b{color:var(--grn)} .cnt.l b{color:var(--amb)}
+  .cnt.l.over b{color:var(--red)}
+
+  svg{display:block; width:100%; height:auto; background:#0b1222;
+    border:1px solid var(--line); border-radius:10px}
+  .axis{stroke:#3a4a63; stroke-width:1}
+  .tick{fill:var(--mut); font-size:10px; font-family:ui-monospace,Consolas,monospace}
+  .barR{fill:var(--grn); fill-opacity:.62}
+  .barL{fill:var(--amb); fill-opacity:.62}
+  .barSpk{fill:var(--red); fill-opacity:.85}
+  .budget{stroke:var(--red); stroke-width:2}
+  .p95r{stroke:var(--grnD); stroke-width:1.6; stroke-dasharray:5 4}
+  .p95l{stroke:var(--ambD); stroke-width:1.6; stroke-dasharray:5 4}
+  .p95l.over{stroke:var(--red)}
+  .meanmark{fill:var(--dim); font-size:10.5px}
+  .lbl{font-size:10.5px; font-family:ui-monospace,Consolas,monospace}
+  .lblB{fill:var(--red)} .lblR{fill:var(--grn)} .lblL{fill:var(--amb)}
+  .lblL.over{fill:var(--red)}
+  .zone{fill:var(--red); fill-opacity:0; transition:fill-opacity .6s}
+  .zone.on{fill-opacity:.07}
+
+  .verdicts{display:none; gap:10px; margin-top:12px}
+  .verdicts.on{display:flex}
+  .vcard{flex:1; background:var(--panel); border:1.5px solid var(--line); border-radius:11px;
+    padding:10px 12px; font-size:12px; line-height:1.6}
+  .vcard h4{font-size:12.5px; margin-bottom:4px}
+  .vcard .nums{font-family:ui-monospace,Consolas,monospace; font-size:11.5px; color:var(--dim)}
+  .vcard .nums b{color:var(--tx)}
+  .vcard.pass{border-color:var(--grn)} .vcard.pass h4{color:var(--grn)}
+  .vcard.fail{border-color:var(--red)} .vcard.fail h4{color:var(--red)}
+  .vcard .verdict{margin-top:5px; font-weight:700}
+  .vcard.pass .verdict{color:var(--grn)} .vcard.fail .verdict{color:var(--red)}
+
+  .finale{display:none; margin-top:10px; background:var(--panel); border:1px solid #4a3a20;
+    border-left:3px solid var(--amb); border-radius:10px; padding:10px 13px;
+    font-size:12.5px; line-height:1.65}
+  .finale.on{display:block}
+  .finale b{color:var(--amb)} .finale code{font-family:ui-monospace,Consolas,monospace;
+    font-size:11px; color:var(--blu)}
+  .finale .b07{display:inline-block; font-size:10.5px; border:1px solid var(--amb);
+    color:var(--amb); border-radius:99px; padding:1px 9px; margin-right:6px}
+
+  .ctrl{display:flex; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap}
+  button{font:inherit; font-size:12.5px; color:var(--tx); background:var(--panel);
+    border:1px solid var(--line); border-radius:9px; padding:7px 14px; cursor:pointer;
+    transition:border-color .2s, background .2s}
+  button:hover{border-color:var(--blu)}
+  button.primary{border-color:var(--grn); color:var(--grn)}
+  button[disabled]{opacity:.4; cursor:default}
+  button.tog.active{background:#12304a; border-color:var(--blu); color:var(--blu)}
+  .hint{font-size:11px; color:var(--mut)}
+
+  .assume{display:none; margin-top:12px; background:var(--panel); border:1px solid var(--line);
+    border-radius:11px; padding:10px 12px; overflow-x:auto}
+  .assume.on{display:block}
+  table{border-collapse:collapse; width:100%; font-size:11.5px}
+  th,td{padding:5px 8px; text-align:left; border-bottom:1px solid #26334a; white-space:nowrap}
+  th{color:var(--dim); font-weight:600; font-size:10.5px}
+  td.meas{color:var(--grn)} td.model{color:var(--amb)}
+  .cap{font-size:10.5px; color:var(--mut); margin-top:7px; line-height:1.5}
+  .cap code{font-family:ui-monospace,Consolas,monospace; color:var(--blu)}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>평균은 안, 꼬리는 밖 <span class="accent">— p95 심판대</span></h1>
+    <div class="sub">8-2 시스템 안정화 테스트 · 셀 4-1 → 4-2 &nbsp;|&nbsp;
+      두 경로의 <b>평균</b>은 모두 예산 안이다. 그런데 요청 200개가 쌓이면, 판정은 평균이 아니라 <b>꼬리</b>가 내린다.</div>
+    <span class="honest">정직 라벨: 행동 시뮬레이터 — 평균은 7-4 실측, 지터·스파이크는 가정 (SEED=42 · PCG64 재현)</span>
+  </header>
+
+  <div class="stage">
+    <div class="banner" id="banner"><span class="tag" id="btag">도입</span><span id="btxt">평균 마커부터 보자 — R 1140ms, L 1400ms. 둘 다 예산 1500ms 왼쪽이다.</span></div>
+
+    <div class="counters">
+      <div class="cnt">요청 <b id="cN">0</b> / 200 × 2경로</div>
+      <div class="cnt r">R p95 <b id="cPR">—</b></div>
+      <div class="cnt l" id="cLwrap">L p95 <b id="cPL">—</b></div>
+      <div class="cnt">스파이크 <b id="cSpk">0</b>건 (5% 확률 · +300ms)</div>
+      <div class="cnt l" id="cOverWrap">L 예산 초과 턴 <b id="cOver">0</b></div>
+    </div>
+
+    <svg id="chart" viewBox="0 0 880 320" role="img"
+         aria-label="지연 분포 히스토그램: R·L 200턴, 예산 1500ms, p95 마커"></svg>
+
+    <div class="verdicts" id="verdicts">
+      <div class="vcard pass">
+        <h4>R (규칙) — 슬랙 360ms</h4>
+        <div class="nums">평균 <b>1140</b> · p50 <b>1138</b> · p95 <b>1260</b> · p99 <b>1488</b></div>
+        <div class="verdict">p95 ≤ 1500 → 예산 안 ✓</div>
+      </div>
+      <div class="vcard fail">
+        <h4>L (LLM) — 슬랙 100ms</h4>
+        <div class="nums">평균 <b>1400</b> · p50 <b>1415</b> · p95 <b>1647</b> · p99 <b>1761</b></div>
+        <div class="verdict">p95 = 1647 &gt; 1500 → 예산 초과 ✗ (+147ms)</div>
+      </div>
+    </div>
+
+    <div class="finale" id="finale">
+      <span class="b07">신규 백로그 b07</span>
+      판정 기준은 「고객 100명 중 95명이 예산 안」— 즉 <b>p95 ≤ 1500ms</b>다.
+      승격(<code>R → L</code>, +260ms)의 진짜 가격은 평균이 아니라 <b>꼬리(p95·p99)에서 청구</b>된다.
+      L의 슬랙 100ms는 지터 한 번, 스파이크 한 번이면 사라진다.
+      승격의 선행 조건: <b>예산 재협상 또는 스트리밍</b> — b06(승격할 이유)과 b07(승격의 선행 조건)이 승격 결정 게이트의 양쪽 저울추다.
+    </div>
+  </div>
+
+  <div class="ctrl">
+    <button class="primary" id="btnPlay">▶ 재생</button>
+    <button class="tog" id="btnSpk" disabled>스파이크 강조</button>
+    <button class="tog" id="btnZone" disabled>초과 구역</button>
+    <button class="tog" id="btnAssume" disabled>가정표</button>
+    <span class="hint" id="hint">약 30초 · 요청 200개가 히스토그램에 쌓이며 p95가 움직입니다</span>
+  </div>
+
+  <div class="assume" id="assume">
+    <table>
+      <thead><tr><th>가정</th><th>값</th><th>출처</th></tr></thead>
+      <tbody>
+        <tr><td>평균 왕복 지연</td><td>R 1140ms · L 1400ms</td><td class="meas">7-4 파이프라인 실측</td></tr>
+        <tr><td>지터 (정규분포 σ)</td><td>R 60ms · L 80ms</td><td class="model">모델 가정</td></tr>
+        <tr><td>스파이크</td><td>5% 확률 · +300ms</td><td class="model">모델 가정 (GC·네트워크 순간 정체 모사)</td></tr>
+        <tr><td>재현성</td><td>SEED=42 · PCG64</td><td class="meas">default_rng 런타임 실측 (V2)</td></tr>
+        <tr><td>백분위 보간</td><td>method="linear"</td><td class="meas">numpy 2.4.4 소스 실측 (V1)</td></tr>
+      </tbody>
+    </table>
+    <div class="cap">이 화면의 400개 지연값은 노트북 셀 4-1과 <b>같은 시드·같은 순서</b>로 생성된 정본 수열이다 —
+      실측이 아니라 모델이며, 모델의 가정 3개를 표로 남기는 것이 정직 라벨 「행동 시뮬레이터」의 규칙이다.
+      상한 검증: <code>p95</code> 산출은 <code>np.percentile</code>의 linear 보간과 동일 알고리즘으로 재계산해 셀 4-2 판정값과 일치함을 자가검증한다.</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+var LAT_R=[1458.28,1077.6,1185.03,1196.43,1022.94,1061.87,1147.67,1121.03,1138.99,1088.82,1192.76,1186.67,1143.96,1207.63,1168.05,1088.44,1162.13,1082.47,1192.71,1137.0,1128.91,1099.14,1513.35,1130.73,1114.3,1118.87,1171.94,1161.93,1164.76,1165.85,1268.5,1115.62,1109.27,1091.17,1476.96,1207.74,1133.16,1089.59,1090.53,1179.04,1184.6,1172.59,1100.07,1153.93,1147.0,1153.12,1192.29,1153.42,1180.73,1144.05,1157.35,1177.88,1052.57,1120.82,1111.78,1101.67,1123.49,1229.7,1088.05,1198.1,1039.03,1119.91,1149.77,1175.17,1182.67,1487.6,1119.08,1112.26,1191.48,1128.52,1063.46,1072.0,1084.83,1169.83,1148.55,1181.43,1414.36,1149.51,1177.54,1121.44,1167.41,1100.28,1418.22,1117.1,1068.25,1169.22,1111.84,1140.75,1168.84,1166.79,1179.92,1134.09,1114.6,1135.22,1038.76,1053.17,1060.64,1080.17,1163.99,1085.67,1117.31,1217.95,1118.62,1184.25,1083.98,1127.67,1083.0,1119.66,1190.42,1036.36,1166.07,1154.26,1104.35,1053.24,1144.33,1108.23,1153.96,1141.31,1236.11,1125.64,1078.59,1150.76,1153.2,1221.55,1190.11,1161.41,1227.8,1068.67,1101.61,1084.41,1116.61,1057.4,1178.11,1126.67,1051.75,1079.07,1158.81,1190.29,1259.8,1314.83,1164.86,1080.63,1012.08,1156.06,1091.22,1115.08,1103.27,1131.55,1203.96,1149.42,1130.48,1077.86,1039.52,1110.82,1136.77,1246.08,1147.82,1198.96,1110.04,1068.9,1082.09,1096.49,1267.71,1090.72,1190.31,1085.82,1195.89,1163.1,1130.6,1137.55,1100.71,1166.76,1112.7,1066.46,1063.32,1150.36,1234.75,1149.6,1132.88,1157.15,1218.36,1153.16,1115.34,1206.38,1165.73,1232.15,1150.99,1066.53,1057.91,1239.06,1543.42,1129.23,1117.01,1227.69,1073.58,1086.32,1178.6,1116.32,1139.69,1130.19];
+var LAT_L=[1215.19,1404.35,1362.26,1436.75,1456.16,1411.06,1760.81,1418.34,1442.41,1343.63,1385.63,1415.74,1465.64,1368.5,1441.69,1378.73,1390.6,1466.36,1240.56,1596.28,1281.43,1513.31,1345.74,1459.95,1377.21,1415.82,1487.14,1506.21,1394.47,1808.29,1407.37,1333.01,1352.45,1581.56,1328.95,1371.36,1764.29,1537.66,1289.43,1431.43,1316.76,1437.98,1389.51,1253.53,1474.26,1351.6,1357.29,1314.42,1347.66,1434.23,1384.86,1426.29,1428.95,1505.65,1372.58,1281.85,1485.38,1373.48,1489.17,1430.67,1389.51,1427.9,1556.08,1566.16,1405.55,1412.82,1486.1,1332.35,1426.65,1697.93,1425.11,1333.33,1272.83,1234.16,1310.61,1363.31,1376.54,1554.98,1488.48,1323.03,1427.82,1367.43,1377.25,1414.83,1449.53,1372.86,1485.11,1308.64,1400.51,1607.81,1417.85,1514.66,1407.32,1446.46,1395.46,1386.37,1337.64,1434.42,1331.88,1453.25,1486.82,1429.32,1377.1,1436.32,1375.31,1474.84,1253.49,1373.15,1240.74,1580.4,1509.11,1471.61,1642.44,1279.8,1162.84,1356.52,1593.63,1434.79,1355.23,1437.21,1275.12,1376.21,1407.96,1393.11,1463.26,1427.57,1453.47,1644.93,1471.83,1530.31,1622.39,1328.98,1506.86,1384.69,1512.31,1364.6,1516.4,1410.52,1420.66,1525.18,1371.06,1324.71,1364.11,1436.19,1274.74,1751.0,1356.9,1491.83,1208.46,1637.07,1265.08,1333.9,1719.81,1385.66,1679.73,1387.27,1416.27,1319.32,1456.55,1453.01,1430.8,1744.52,1423.71,1562.81,1393.03,1375.43,1339.72,1317.42,1300.44,1328.9,1394.35,1426.74,1404.09,1338.76,1472.01,1459.15,1387.23,1347.77,1443.87,1415.04,1284.15,1694.56,1420.96,1628.02,1415.19,1283.61,1506.89,1499.84,1379.8,1429.08,1207.21,1307.49,1376.5,1314.23,1457.15,1559.78,1305.87,1633.0,1718.84,1528.89];
+var SPIKE_R=[0,22,34,65,76,82,190];
+var SPIKE_L=[6,19,21,29,33,36,69,109,112,127,130,145,149,152,154,161,181,183,197,198];
+
+
+  /* ── 정본 판정값 (셀 4-2 실측) — 자가검증 대상 ─────────── */
+  var CANON = {
+    p50r:1138.3, p95r:1260.2, p99r:1487.9,
+    p50l:1414.9, p95l:1646.7, p99l:1760.8,
+    budget:1500, meanR:1140, meanL:1400, over:146.7,
+    slackR:360, slackL:100, upgrade:260,
+    n:200, spkR:7, spkL:20, overTurnsL:39, overTurnsR:2
+  };
+  function pctl(sortedAsc, q){          // numpy linear 보간과 동일
+    var idx = (sortedAsc.length - 1) * q;
+    var lo = Math.floor(idx), hi = Math.ceil(idx);
+    if(lo === hi) return sortedAsc[lo];
+    return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (idx - lo);
+  }
+  function pOf(arr, q){
+    var s = arr.slice().sort(function(a,b){return a-b;});
+    return pctl(s, q);
+  }
+  function r1(x){ return Math.round(x*10)/10; }
+  function selfCheck(){
+    var ok = true;
+    ok = ok && LAT_R.length === CANON.n && LAT_L.length === CANON.n;
+    ok = ok && r1(pOf(LAT_R,.5))===CANON.p50r && r1(pOf(LAT_R,.95))===CANON.p95r
+            && r1(pOf(LAT_R,.99))===CANON.p99r;
+    ok = ok && r1(pOf(LAT_L,.5))===CANON.p50l && r1(pOf(LAT_L,.95))===CANON.p95l
+            && r1(pOf(LAT_L,.99))===CANON.p99l;
+    ok = ok && r1(CANON.p95l - CANON.budget)===CANON.over;
+    ok = ok && (CANON.budget - CANON.meanR)===CANON.slackR
+            && (CANON.budget - CANON.meanL)===CANON.slackL
+            && (CANON.meanL - CANON.meanR)===CANON.upgrade;
+    ok = ok && SPIKE_R.length===CANON.spkR && SPIKE_L.length===CANON.spkL;
+    ok = ok && LAT_L.filter(function(v){return v>CANON.budget;}).length===CANON.overTurnsL;
+    ok = ok && LAT_R.filter(function(v){return v>CANON.budget;}).length===CANON.overTurnsR;
+    if(!ok){ console.error("[8-2 anim p95] 정본 정합 자가검증 실패"); }
+    return ok;
+  }
+  selfCheck();
+
+  /* ── 차트 좌표계 ─────────────────────────────────────── */
+  var $ = function(id){ return document.getElementById(id); };
+  var NS = "http://www.w3.org/2000/svg";
+  var svg = $("chart");
+  var W=880, H=320, ML=44, MR=16, MT=14, MB=34;
+  var X0=950, X1=1850, BIN=25;
+  var NBINS = (X1-X0)/BIN;               // 36
+  var xOf = function(ms){ return ML + (ms - X0) / (X1 - X0) * (W - ML - MR); };
+  var YMAX = 36;                          // 실측 최대 카운트 34 여유
+  var yOf = function(c){ return H - MB - c / YMAX * (H - MT - MB); };
+  function el(tag, attrs, parent){
+    var e = document.createElementNS(NS, tag);
+    for(var k in attrs) e.setAttribute(k, attrs[k]);
+    (parent || svg).appendChild(e); return e;
+  }
+  function txt(x, y, s, cls, anchor){
+    var t = el("text", {x:x, y:y, "class":cls || "tick",
+                        "text-anchor":anchor || "middle"});
+    t.textContent = s; return t;
+  }
+
+  /* 축 */
+  el("line", {x1:ML, y1:H-MB, x2:W-MR, y2:H-MB, "class":"axis"});
+  for(var gx=1000; gx<=1800; gx+=200){
+    el("line", {x1:xOf(gx), y1:H-MB, x2:xOf(gx), y2:H-MB+4, "class":"axis"});
+    txt(xOf(gx), H-MB+16, String(gx), "tick");
+  }
+  txt(W-MR, H-6, "왕복 지연 (ms)", "tick", "end");
+  txt(ML-6, MT+8, "턴", "tick", "end");
+
+  /* 초과 구역 (예산 오른쪽) */
+  var zone = el("rect", {x:xOf(1500), y:MT, width:xOf(1850)-xOf(1500),
+                         height:H-MT-MB, "class":"zone"});
+
+  /* 막대 그룹 (R·L·스파이크 세그먼트) */
+  var gR = el("g", {}), gL = el("g", {}), gSpk = el("g", {});
+  var barsR=[], barsL=[], spkR=[], spkL=[];
+  for(var i=0;i<NBINS;i++){
+    var bx = xOf(X0+i*BIN)+1, bw = xOf(X0+BIN)-xOf(X0)-2;
+    barsR.push(el("rect",{x:bx,width:bw,y:H-MB,height:0,"class":"barR"},gR));
+    barsL.push(el("rect",{x:bx,width:bw,y:H-MB,height:0,"class":"barL"},gL));
+    spkR.push(el("rect",{x:bx,width:bw*0.45,y:H-MB,height:0,"class":"barSpk",
+                         opacity:0},gSpk));
+    spkL.push(el("rect",{x:bx+bw*0.55,width:bw*0.45,y:H-MB,height:0,"class":"barSpk",
+                         opacity:0},gSpk));
+  }
+
+  /* 예산선·평균 마커·p95 선 */
+  el("line",{x1:xOf(1500),y1:MT,x2:xOf(1500),y2:H-MB,"class":"budget"});
+  txt(xOf(1500)+4, MT+12, "예산 1500ms", "lbl lblB", "start");
+  txt(xOf(1140), H-MB+29, "▲ 평균 R 1140", "lbl lblR");
+  txt(xOf(1400), H-MB+29, "▲ 평균 L 1400", "lbl lblL");
+
+  var lnPR = el("line",{x1:xOf(1140),y1:MT+18,x2:xOf(1140),y2:H-MB,
+                        "class":"p95r",opacity:0});
+  var lnPL = el("line",{x1:xOf(1400),y1:MT+18,x2:xOf(1400),y2:H-MB,
+                        "class":"p95l",opacity:0});
+  var tPR = txt(xOf(1140), MT+30, "", "lbl lblR"); tPR.setAttribute("opacity",0);
+  var tPL = txt(xOf(1400), MT+44, "", "lbl lblL"); tPL.setAttribute("opacity",0);
+
+  /* ── 상태 계산·렌더 ───────────────────────────────────── */
+  var spkSetR = {}, spkSetL = {};
+  SPIKE_R.forEach(function(i){ spkSetR[i]=1; });
+  SPIKE_L.forEach(function(i){ spkSetL[i]=1; });
+
+  function render(n, final){
+    var hr = new Array(NBINS).fill(0), hl = new Array(NBINS).fill(0);
+    var sr = new Array(NBINS).fill(0), sl = new Array(NBINS).fill(0);
+    var spk = 0, over = 0;
+    for(var i=0;i<n;i++){
+      var br = Math.min(NBINS-1, Math.max(0, Math.floor((LAT_R[i]-X0)/BIN)));
+      var bl = Math.min(NBINS-1, Math.max(0, Math.floor((LAT_L[i]-X0)/BIN)));
+      hr[br]++; hl[bl]++;
+      if(spkSetR[i]){ sr[br]++; spk++; }
+      if(spkSetL[i]){ sl[bl]++; spk++; }
+      if(LAT_L[i] > 1500) over++;
+    }
+    for(var b=0;b<NBINS;b++){
+      barsR[b].setAttribute("y", yOf(hr[b])); barsR[b].setAttribute("height", (H-MB)-yOf(hr[b]));
+      barsL[b].setAttribute("y", yOf(hl[b])); barsL[b].setAttribute("height", (H-MB)-yOf(hl[b]));
+      spkR[b].setAttribute("y", yOf(sr[b]));  spkR[b].setAttribute("height", (H-MB)-yOf(sr[b]));
+      spkL[b].setAttribute("y", yOf(sl[b]));  spkL[b].setAttribute("height", (H-MB)-yOf(sl[b]));
+    }
+    $("cN").textContent = n;
+    $("cSpk").textContent = spk;
+    $("cOver").textContent = over;
+    if(n >= 20){
+      var pr = pOf(LAT_R.slice(0,n), .95), pl = pOf(LAT_L.slice(0,n), .95);
+      lnPR.setAttribute("opacity",1); lnPL.setAttribute("opacity",1);
+      lnPR.setAttribute("x1",xOf(pr)); lnPR.setAttribute("x2",xOf(pr));
+      lnPL.setAttribute("x1",xOf(pl)); lnPL.setAttribute("x2",xOf(pl));
+      tPR.setAttribute("opacity",1); tPL.setAttribute("opacity",1);
+      tPR.setAttribute("x",xOf(pr));
+      tPL.setAttribute("x",Math.min(xOf(pl), W-70));
+      tPR.textContent = "R p95 " + Math.round(pr);
+      tPL.textContent = "L p95 " + Math.round(pl);
+      $("cPR").textContent = Math.round(pr) + "ms";
+      $("cPL").textContent = Math.round(pl) + "ms";
+      var overNow = pl > 1500;
+      lnPL.classList.toggle("over", overNow);
+      tPL.classList.toggle("over", overNow);
+      $("cLwrap").classList.toggle("over", overNow);
+    }
+    if(final){
+      tPR.textContent = "R p95 1260 ✓";
+      tPL.textContent = "L p95 1647 ✗";
+    }
+  }
+
+  /* ── 재생 시나리오 ───────────────────────────────────── */
+  var timers = [];
+  function later(fn, ms){ timers.push(setTimeout(fn, ms)); }
+  function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+  function banner(mode, tag, s){
+    var b = $("banner"); b.className = "banner" + (mode ? " " + mode : "");
+    $("btag").textContent = tag; $("btxt").textContent = s;
+  }
+  function finish(){
+    render(200, true);
+    $("verdicts").classList.add("on");
+    $("finale").classList.add("on");
+    zone.classList.add("on"); $("btnZone").classList.add("active");
+    banner("warn","판정","평균은 둘 다 안이었다. 그러나 p95 심판대에서 — R은 통과, L은 147ms 초과. 예산은 꼬리가 깬다.");
+    ["btnSpk","btnZone","btnAssume"].forEach(function(b){ $(b).disabled = false; });
+    $("btnPlay").disabled = false; $("btnPlay").textContent = "↻ 다시 재생";
+  }
+  function play(){
+    clearTimers();
+    $("verdicts").classList.remove("on"); $("finale").classList.remove("on");
+    zone.classList.remove("on");
+    gSpk.setAttribute("opacity",0);
+    ["btnSpk","btnZone","btnAssume"].forEach(function(b){
+      $(b).disabled = true; $(b).classList.remove("active"); });
+    $("assume").classList.remove("on");
+    $("btnPlay").disabled = true;
+    render(0,false);
+    $("cPR").textContent = "—"; $("cPL").textContent = "—";
+    banner("","도입","평균 마커부터 보자 — R 1140ms, L 1400ms. 둘 다 예산 1500ms 왼쪽이다. 그럼 끝난 얘기일까?");
+
+    later(function(){
+      banner("","적재","요청이 떨어진다 — 시드 42, 노트북 셀 4-1과 같은 순서의 200턴 × 2경로.");
+    }, 3000);
+
+    var TICKS = 40, PER = 5;              // 40틱 × 5건 = 200
+    for(var t=1; t<=TICKS; t++){
+      (function(t){
+        later(function(){
+          render(t*PER, false);
+          if(t === 12) banner("","적재","p95 마커가 생겼다 — 매 요청마다 다시 계산되는, 살아 있는 심판선이다.");
+          if(t === 24) banner("warn","꼬리","스파이크(+300ms)가 떨어질 때마다 L의 꼬리가 오른쪽으로 자란다 — L p95가 예산선을 넘본다.");
+          if(t === 34) banner("warn","꼬리","L p95가 예산선 오른쪽에 자리를 잡았다. 평균 1400은 여전히 왼쪽인데도.");
+        }, 4200 + t*420);
+      })(t);
+    }
+    later(finish, 4200 + (TICKS+2)*420 + 1200);
+  }
+
+  /* ── 토글 ────────────────────────────────────────────── */
+  $("btnPlay").addEventListener("click", play);
+  $("btnSpk").addEventListener("click", function(){
+    var on = gSpk.getAttribute("opacity") !== "1";
+    gSpk.setAttribute("opacity", on ? 1 : 0);
+    for(var i=0;i<NBINS;i++){ spkR[i].setAttribute("opacity",on?1:0);
+                              spkL[i].setAttribute("opacity",on?1:0); }
+    this.classList.toggle("active", on);
+    if(on) banner("warn","스파이크","빨간 세그먼트가 스파이크를 맞은 턴이다 — R 7건 · L 20건. 5% 가정이 꼬리의 재료가 된다.");
+  });
+  $("btnZone").addEventListener("click", function(){
+    zone.classList.toggle("on");
+    this.classList.toggle("active", zone.classList.contains("on"));
+  });
+  $("btnAssume").addEventListener("click", function(){
+    var a = $("assume"); a.classList.toggle("on");
+    this.classList.toggle("active", a.classList.contains("on"));
+  });
+
+  /* ── 모션 축소 환경 ───────────────────────────────────── */
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+    finish();
+    $("assume").classList.add("on"); $("btnAssume").classList.add("active");
+    $("btnPlay").textContent = "정지 화면 모드 (모션 축소)";
+    $("btnPlay").disabled = true;
+    $("hint").textContent = "모션 축소 설정이 감지되어 최종 상태를 바로 표시합니다";
+  } else {
+    render(0,false);
+  }
+})();
+</script>
+</body>
+</html>

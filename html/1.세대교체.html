@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>세대교체 — 어제의 스모크가 오늘의 입장권 (8-2 · 셀 0-5)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --line:#334155;
+    --tx:#e2e8f0; --dim:#94a3b8; --mut:#64748b;
+    --grn:#34d399; --red:#f87171; --amb:#fbbf24; --blu:#60a5fa; --vio:#a78bfa;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--tx);
+    font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;}
+  body{display:flex; justify-content:center; padding:18px 10px 40px}
+  .wrap{width:100%; max-width:920px}
+  header h1{font-size:21px; letter-spacing:-.3px}
+  header h1 .accent{color:var(--blu)}
+  header .sub{color:var(--dim); font-size:12.5px; margin-top:5px; line-height:1.5}
+  header .sub b{color:var(--blu); font-weight:600}
+
+  .stage{position:relative; margin-top:12px; background:var(--panel2);
+    border:1px solid var(--line); border-radius:14px; padding:12px 14px}
+  .banner{min-height:40px; display:flex; align-items:center; gap:8px;
+    font-size:13.5px; padding:2px 4px 10px}
+  .banner .tag{flex:none; font-size:11px; padding:2px 8px; border-radius:99px;
+    border:1px solid var(--line); color:var(--dim); background:var(--panel)}
+  .banner.ok   .tag{border-color:var(--grn); color:var(--grn)}
+  .banner.warn .tag{border-color:var(--red); color:var(--red)}
+  .banner.gen  .tag{border-color:var(--blu); color:var(--blu)}
+
+  /* ── 릴레이 레인 ─────────────────────────────────────── */
+  .lane{position:relative; display:flex; align-items:stretch; gap:0; margin-top:26px}
+  .sess{position:relative; flex:1; min-width:0; background:var(--panel);
+    border:1.5px solid var(--line); border-radius:12px; padding:10px 6px 9px;
+    text-align:center; transition:border-color .35s, box-shadow .35s, opacity .35s}
+  .sess .nm{font-size:12.5px; font-weight:700}
+  .sess .tt{font-size:9.5px; color:var(--mut); margin-top:2px; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis}
+  .sess .gates{display:flex; justify-content:center; gap:5px; margin-top:7px}
+  .gate{font-size:9px; color:var(--mut); border:1px dashed #3a4a63; border-radius:6px;
+    padding:2px 5px; transition:all .35s; white-space:nowrap}
+  .gate.pass{border-style:solid; border-color:var(--grn); color:var(--grn)}
+  .gate.seat{border-style:solid; border-color:var(--amb); color:var(--amb)}
+  .sess.dimmed{opacity:.42}
+  .sess.focus{border-color:var(--blu); box-shadow:0 0 12px rgba(96,165,250,.35)}
+  .sess.next{border-style:dashed}
+  .sess .stamp{position:absolute; top:-11px; right:6px; font-size:9px; color:var(--grn);
+    border:1px solid var(--grn); background:#0d2418; border-radius:99px; padding:1px 7px;
+    opacity:0; transform:scale(.6) rotate(-8deg); transition:opacity .35s, transform .35s}
+  .sess .stamp.on{opacity:1; transform:scale(1) rotate(-8deg)}
+  .arrow{flex:none; width:20px; display:flex; align-items:center; justify-content:center;
+    color:var(--mut); font-size:13px}
+
+  .doc{position:absolute; top:-26px; left:0; z-index:6; font-size:10.5px;
+    font-family:ui-monospace,Consolas,monospace;
+    padding:3px 9px; border-radius:7px; background:#0b1222; border:1.5px solid var(--vio);
+    color:var(--tx); white-space:nowrap; opacity:0;
+    transition:left 1.1s cubic-bezier(.4,0,.4,1), opacity .4s, border-color .4s, top .7s}
+  .doc.on{opacity:1}
+  .doc.sealed{border-color:var(--grn)}
+  .doc.corrupt{border-color:var(--red); color:var(--red)}
+
+  /* ── 문서 상세 카드 ──────────────────────────────────── */
+  .detail{display:flex; gap:12px; margin-top:30px}
+  .dcard{flex:6; background:#0b1222; border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; min-height:132px}
+  .dcard .dt{font-size:11px; color:var(--dim); margin-bottom:7px}
+  .dcard .dt code{font-family:ui-monospace,Consolas,monospace; color:var(--blu); font-size:10.5px}
+  .jline{font-family:ui-monospace,Consolas,monospace; font-size:11px; padding:1.5px 0;
+    color:var(--dim); opacity:0; transform:translateX(-6px); transition:opacity .4s, transform .4s}
+  .jline.on{opacity:1; transform:none}
+  .jline b{color:var(--tx); font-weight:600}
+  .jline.good b{color:var(--grn)}
+  .jline.bad b{color:var(--red)}
+  .jline.base b{color:var(--amb)}
+  .vpanel{flex:5; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; min-height:132px}
+  .vpanel .dt{font-size:11px; color:var(--dim); margin-bottom:7px}
+  .vrow{display:flex; align-items:center; gap:7px; font-size:11.5px; padding:3px 0;
+    opacity:0; transform:translateX(-6px); transition:opacity .45s, transform .45s}
+  .vrow.on{opacity:1; transform:none}
+  .vrow .dot{flex:none; width:8px; height:8px; border-radius:99px}
+  .dot.g{background:var(--grn)} .dot.r{background:var(--red)} .dot.a{background:var(--amb)}
+  .vrow b{font-family:ui-monospace,Consolas,monospace; font-weight:600; color:var(--tx); font-size:11px}
+  .vrow.good b{color:var(--grn)} .vrow.bad b{color:var(--red)} .vrow.seat b{color:var(--amb)}
+
+  /* ── 마무리 ──────────────────────────────────────────── */
+  .finale{display:none; margin-top:12px; background:var(--panel); border:1px solid #23406b;
+    border-left:3px solid var(--blu); border-radius:10px; padding:10px 13px;
+    font-size:12.5px; line-height:1.65}
+  .finale.on{display:block}
+  .finale b{color:var(--blu)}
+  .finale code{font-family:ui-monospace,Consolas,monospace; font-size:11px; color:var(--vio)}
+
+  .ctrl{display:flex; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap}
+  button{font:inherit; font-size:12.5px; color:var(--tx); background:var(--panel);
+    border:1px solid var(--line); border-radius:9px; padding:7px 14px; cursor:pointer;
+    transition:border-color .2s, background .2s}
+  button:hover{border-color:var(--blu)}
+  button.primary{border-color:var(--grn); color:var(--grn)}
+  button[disabled]{opacity:.4; cursor:default}
+  button.tog.active{background:#12304a; border-color:var(--blu); color:var(--blu)}
+  .hint{font-size:11px; color:var(--mut)}
+
+  .lineage{display:none; margin-top:12px; background:var(--panel); border:1px solid var(--line);
+    border-radius:11px; padding:10px 12px; overflow-x:auto}
+  .lineage.on{display:block}
+  table{border-collapse:collapse; width:100%; font-size:11.5px}
+  th,td{padding:5px 8px; text-align:left; border-bottom:1px solid #26334a; white-space:nowrap}
+  th{color:var(--dim); font-weight:600; font-size:10.5px}
+  td code{font-family:ui-monospace,Consolas,monospace; font-size:10.5px; color:var(--blu)}
+  td.g{color:var(--grn)} td.a{color:var(--amb)}
+  tr.today td{background:rgba(96,165,250,.07)}
+  .cap{font-size:10.5px; color:var(--mut); margin-top:7px; line-height:1.5}
+  .cap code{font-family:ui-monospace,Consolas,monospace; color:var(--blu)}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>세대교체 <span class="accent">— 어제의 스모크가 오늘의 입장권</span></h1>
+    <div class="sub">8-2 시스템 안정화 테스트 · 셀 0-4 → 0-5 · 5-1 → 5-2 &nbsp;|&nbsp;
+      세션은 끝나도 숫자는 퇴장하지 않는다 — 퇴장 리포트가 <b>다음 세션의 입장 관문</b>이 되어 세대를 건넌다.</div>
+  </header>
+
+  <div class="stage">
+    <div class="banner" id="banner"><span class="tag" id="btag">도입</span><span id="btxt">각 세션은 리포트를 발행하며 끝나고, 다음 세션은 그 리포트의 재검증으로 시작한다.</span></div>
+
+    <div class="lane" id="lane">
+      <div class="doc" id="doc">quality_report_8_1.json</div>
+
+      <div class="sess" id="s74"><div class="nm">7-4</div><div class="tt">파이프라인 통합</div>
+        <div class="gates"><div class="gate" id="g74">실측 R/L/예산</div></div>
+        <div class="stamp" id="st74">발행 ✓</div></div>
+      <div class="arrow">→</div>
+      <div class="sess" id="s75"><div class="nm">7-5</div><div class="tt">1차 PoC 시연</div>
+        <div class="gates"><div class="gate" id="g75a">입장 M3</div><div class="gate" id="g75b">단일 출처</div></div>
+        <div class="stamp" id="st75">발행 ✓</div></div>
+      <div class="arrow">→</div>
+      <div class="sess" id="s81"><div class="nm">8-1</div><div class="tt">응답 품질 고도화</div>
+        <div class="gates"><div class="gate" id="g81a">입장 25→26</div><div class="gate" id="g81b">b01~b05</div></div>
+        <div class="stamp" id="st81">발행 ✓</div></div>
+      <div class="arrow">→</div>
+      <div class="sess" id="s82"><div class="nm">8-2</div><div class="tt">시스템 안정화</div>
+        <div class="gates"><div class="gate" id="g82a">입장권 0-4</div><div class="gate" id="g82b">회귀석 0-5</div></div>
+        <div class="stamp" id="st82">발행 ✓</div></div>
+      <div class="arrow">→</div>
+      <div class="sess next" id="s83"><div class="nm">다음 세션</div><div class="tt">최종 시연</div>
+        <div class="gates"><div class="gate" id="g83">회귀석 (예약)</div></div></div>
+    </div>
+
+    <div class="detail">
+      <div class="dcard">
+        <div class="dt" id="dcTitle">📄 이동 중인 문서 — <code id="dcName">quality_report_8_1.json</code></div>
+        <div id="dcBody"></div>
+      </div>
+      <div class="vpanel">
+        <div class="dt" id="vpTitle">🛂 관문 로그</div>
+        <div id="vpBody"></div>
+      </div>
+    </div>
+
+    <div class="finale" id="finale">
+      정본은 하나, 파생은 코드로 — 그리고 <b>세대교체는 계속된다</b>.
+      8-1 스모크가 오늘 셀 0-5의 회귀가 됐듯, 오늘의 스모크(셀 5-2)는 다음 세션의 회귀가 된다.
+      다음 세션(최종 시연)은 <code>stability_report_8_2.json</code>을 근거 문서로 들고 간다 —
+      동봉 백로그 3건: <code>b06</code>(이월 · L 승격 근거) · <code>b07</code>(L p95 예산 초과) · <code>b08</code>(입구 상한 근거 미실측).
+    </div>
+  </div>
+
+  <div class="ctrl">
+    <button class="primary" id="btnPlay">▶ 재생</button>
+    <button class="tog" id="btnChain" disabled>계보 전체</button>
+    <button class="tog" id="btnSmoke" disabled>양방향 스모크</button>
+    <span class="hint" id="hint">약 40초 · 문서 하나가 발행 → 이동 → 회귀석 착석을 반복합니다</span>
+  </div>
+
+  <div class="lineage" id="lineage">
+    <table>
+      <thead><tr><th>세대</th><th>퇴장 문서 (발행)</th><th>다음 세션의 입장 관문</th><th>건네는 것</th></tr></thead>
+      <tbody>
+        <tr><td>7-4 → 7-5</td><td><code>project_report_7_4.json</code></td>
+          <td>대본 생성기의 <b>단일 출처</b> (6장면 파생)</td><td class="a">실측 R 1140 · L 1400 · 예산 1500ms</td></tr>
+        <tr><td>7-5 → 8-1</td><td><code>demo_report_7_5.json</code> + 백로그 5건</td>
+          <td>입장권 25 passed → 폴백 게이트 편입 26</td><td class="a">b01~b05 → 8-1에서 전부 done</td></tr>
+        <tr><td>8-1 → 8-2</td><td><code>quality_report_8_1.json</code></td>
+          <td>셀 0-4 입장권(26 passed·exit 0) + 셀 0-5 <b>회귀석</b>(스키마 재검증)</td>
+          <td class="g">기준선 after: 0.933 · wrong 0 · unknown 1</td></tr>
+        <tr class="today"><td>8-2 → 최종 시연</td><td><code>stability_report_8_2.json</code></td>
+          <td>회귀석 예약 — 양방향 스모크로 검증기까지 시험 완료</td>
+          <td class="g">39 passed · 표류 0 · b06/b07/b08</td></tr>
+      </tbody>
+    </table>
+    <div class="cap">같은 무늬가 네 번 반복된다: <b>발행(스키마 검증) → 이동 → 재검증(회귀석)</b>.
+      입장권 재판정은 서브프로세스 <code>pytest</code>(커널 내 <code>pytest.main</code> 금지 — 6-5 교훈)로,
+      <code>__pycache__</code> 제거 + <code>PYTHONDONTWRITEBYTECODE=1</code>을 동반한다.
+      문서를 "믿지 말고 검증한다" — 어제의 숫자도 계약(스키마)을 통과한 뒤에야 오늘의 기준선이 된다.</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  /* ── 정본 (셀 0-4·0-5·5-1·5-2) — 자가검증 대상 ─────────── */
+  var CANON = {
+    entrance:{tests:26, exit:0},
+    baseline:{n:15, intent_acc:0.933, wrong:0, unknown:1},
+    prevBaseline:{intent_acc:0.533, wrong:1, unknown:6},
+    backlogDone:["b01","b02","b03","b04","b05"],
+    nextOf81:["b06"],
+    publish82:{tests:39, soak:200, drift:0},
+    nextOf82:["b06","b07","b08"],
+    corruptVal:"1646.7ms", cleanVal:1646.7,
+    chain:["7-4","7-5","8-1","8-2","최종 시연"]
+  };
+  function selfCheck(){
+    var ok = true;
+    ok = ok && CANON.entrance.tests===26 && CANON.entrance.exit===0;
+    ok = ok && (CANON.baseline.n - CANON.baseline.unknown - CANON.baseline.wrong)===14; // 15-1-0
+    ok = ok && Math.abs(14/15 - CANON.baseline.intent_acc) < 0.0005;
+    ok = ok && Math.round((CANON.baseline.intent_acc - CANON.prevBaseline.intent_acc)*10)/10 === 0.4;
+    ok = ok && CANON.backlogDone.length===5 && CANON.nextOf81.length===1;
+    ok = ok && CANON.publish82.tests===39 && (26+13===39);
+    ok = ok && CANON.nextOf82.join(",")==="b06,b07,b08";
+    ok = ok && CANON.corruptVal===String(CANON.cleanVal)+"ms";
+    ok = ok && CANON.chain.length===5;
+    if(!ok){ console.error("[8-2 anim gen] 정본 정합 자가검증 실패"); }
+    return ok;
+  }
+  selfCheck();
+
+  var $ = function(id){ return document.getElementById(id); };
+  var timers = [];
+  function later(fn, ms){ timers.push(setTimeout(fn, ms)); }
+  function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+  function banner(mode, tag, s){
+    var b=$("banner"); b.className="banner"+(mode?" "+mode:"");
+    $("btag").textContent=tag; $("btxt").textContent=s;
+  }
+  function docTo(sessId, topPx){
+    var lane=$("lane").getBoundingClientRect();
+    var nd=$(sessId).getBoundingClientRect();
+    var d=$("doc");
+    d.style.left=(nd.left-lane.left+nd.width/2-d.offsetWidth/2)+"px";
+    if(topPx!==undefined) d.style.top=topPx+"px";
+  }
+  function setDoc(name, cls){
+    var d=$("doc"); d.textContent=name;
+    d.classList.remove("sealed","corrupt");
+    if(cls) d.classList.add(cls);
+  }
+  function jline(html, cls){
+    var e=document.createElement("div");
+    e.className="jline"+(cls?" "+cls:""); e.innerHTML=html;
+    $("dcBody").appendChild(e);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ e.classList.add("on"); }); });
+  }
+  function vrow(dot, html, cls){
+    var e=document.createElement("div");
+    e.className="vrow"+(cls?" "+cls:"");
+    e.innerHTML='<span class="dot '+dot+'"></span><b>'+html+"</b>";
+    $("vpBody").appendChild(e);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ e.classList.add("on"); }); });
+  }
+  function clearPanels(docName){
+    $("dcBody").innerHTML=""; $("vpBody").innerHTML="";
+    if(docName) $("dcName").textContent=docName;
+  }
+  var SESS=["s74","s75","s81","s82","s83"];
+  function focusOn(ids){
+    SESS.forEach(function(s){
+      $(s).classList.toggle("focus", ids.indexOf(s)>=0);
+      $(s).classList.toggle("dimmed", ids.length>0 && ids.indexOf(s)<0);
+    });
+  }
+  function resetAll(){
+    clearTimers();
+    SESS.forEach(function(s){ $(s).classList.remove("focus","dimmed"); });
+    ["st74","st75","st81","st82"].forEach(function(s){ $(s).classList.remove("on"); });
+    ["g74","g75a","g75b","g81a","g81b","g82a","g82b","g83"].forEach(function(g){
+      $(g).classList.remove("pass","seat"); });
+    var d=$("doc"); d.classList.remove("on","sealed","corrupt");
+    d.style.left="0px"; d.style.top="-26px";
+    clearPanels("quality_report_8_1.json");
+    $("finale").classList.remove("on");
+    $("lineage").classList.remove("on");
+    ["btnChain","btnSmoke"].forEach(function(b){ $(b).disabled=true; $(b).classList.remove("active"); });
+  }
+
+  /* ── 재생 시나리오 ───────────────────────────────────── */
+  function play(){
+    resetAll();
+    $("btnPlay").disabled=true;
+    banner("","도입","각 세션은 리포트를 발행하며 끝나고, 다음 세션은 그 리포트의 재검증으로 시작한다.");
+
+    /* 1) 주인공: 8-1 → 8-2 (셀 0-4 · 0-5) */
+    later(function(){
+      focusOn(["s81","s82"]);
+      banner("gen","8-1의 퇴장","8-1의 마지막 스모크가 도장을 찍으며 예고했다 — \"이 스모크가 8-2의 첫 회귀 테스트가 됩니다.\"");
+      $("st81").classList.add("on");
+      setDoc("quality_report_8_1.json", "sealed");
+      clearPanels("quality_report_8_1.json");
+      jline('"session": <b>"8-1"</b>');
+      jline('"regression": { "tests": <b>26</b>, "exit_code": <b>0</b> }');
+      jline('"metrics.after": { "n": 15, "intent_acc": <b>0.933</b>, "wrong": <b>0</b>, "unknown": <b>1</b> }', "good");
+      jline('"backlog_status": b01~b05 <b>done</b> · "next": [<b>b06</b>]');
+      docTo("s81", 4); $("doc").classList.add("on");
+    }, 1600);
+
+    later(function(){
+      banner("gen","이동","문서가 세대를 건넌다 — 8-2의 문 앞으로.");
+      docTo("s82", 4);
+    }, 6400);
+
+    later(function(){
+      banner("ok","관문 ① 셀 0-4","입장권 재판정 — 문서를 믿기 전에, 코드부터 다시 심판대에 세운다.");
+      $("g82a").classList.add("pass");
+      vrow("g", "subprocess pytest — __pycache__ 제거 · PYTHONDONTWRITEBYTECODE=1", "good");
+      vrow("g", "26 passed · exit 0 → 입장 허가", "good");
+    }, 8600);
+
+    later(function(){
+      banner("ok","관문 ② 셀 0-5","첫 회귀 = 8-1 스모크의 세대교체 — 어제의 숫자를 믿기 전에, 그 문서부터 계약으로 재검증한다.");
+      $("g82b").classList.add("seat");
+      vrow("a", "jsonschema.validate(q81, QUALITY_REPORT_SCHEMA) ✓", "seat");
+      vrow("a", "BASELINE = metrics.after — 회귀석 착석", "seat");
+    }, 12200);
+
+    later(function(){
+      banner("ok","기준선","\"오늘 지켜야 할 어제의 숫자\": 0.933 · wrong 0 · unknown 1 — 소크 200턴이 이 숫자를 지켜야 한다.");
+      jline('→ 오늘의 기준선(BASELINE)으로 채택', "base");
+    }, 16200);
+
+    /* 2) 계보 소급: 같은 무늬 두 번 더 */
+    later(function(){
+      focusOn(["s74","s75"]);
+      $("doc").classList.remove("on");
+      banner("gen","계보 소급 ①","이 무늬는 처음이 아니다 — 7-4의 실측 리포트는 7-5 대본 생성기의 단일 출처였다.");
+      $("st74").classList.add("on"); $("g75b").classList.add("seat");
+      clearPanels("project_report_7_4.json");
+      jline('실측 상수: R <b>1140ms</b> · L <b>1400ms</b> · 예산 <b>1500ms</b>');
+      jline('→ 7-5 build_demo_script()의 <b>단일 출처</b> (6장면 파생)', "base");
+    }, 19600);
+
+    later(function(){
+      focusOn(["s75","s81"]);
+      banner("gen","계보 소급 ②","7-5의 리포트와 백로그 5건은 8-1의 작업 목록이 되어 — 전부 done으로 상환됐다.");
+      $("st75").classList.add("on"); $("g81b").classList.add("seat"); $("g81a").classList.add("pass");
+      clearPanels("demo_report_7_5.json");
+      jline('백로그 <b>b01~b05</b> 동봉 (5건)');
+      jline('→ 8-1에서 전부 <b>done</b> · 입장권 25 → 폴백 게이트 편입 <b>26</b>', "good");
+    }, 24200);
+
+    /* 3) 오늘의 발행: 셀 5-1 → 5-2 양방향 스모크 */
+    later(function(){
+      focusOn(["s82","s83"]);
+      banner("gen","셀 5-1","오늘의 차례다 — stability_report_8_2.json 발행.");
+      clearPanels("stability_report_8_2.json");
+      setDoc("stability_report_8_2.json", null);
+      docTo("s82", 4); $("doc").classList.add("on");
+      jline('"regression": { "tests": <b>39</b>, "exit_code": <b>0</b> }');
+      jline('"baseline_held": { "intent_acc": <b>0.933</b>, "soak_turns": <b>200</b>, "drift": <b>0</b> }', "good");
+      jline('"latency.llm.p95": <b>1646.7</b> (예산 초과 — b07의 근거)');
+      jline('"next_backlog": [<b>b06 · b07 · b08</b>]');
+    }, 28600);
+
+    later(function(){
+      banner("ok","셀 5-2 · 스모크 ①","정상 리포트 → 검증기 침묵 ✓");
+      vrow("g", "jsonschema.validate(ok_doc, SCHEMA) — 침묵 ✓", "good");
+    }, 33200);
+    later(function(){
+      banner("warn","셀 5-2 · 스모크 ②","일부러 오염시킨다 — p95 자리에 문자열 \"1646.7ms\". 검증기가 우는지 확인한다.");
+      setDoc("stability_report_8_2.json (오염)", "corrupt");
+      vrow("r", "'1646.7ms' is not of type 'number' — 반응 ✓", "bad");
+    }, 35400);
+    later(function(){
+      banner("ok","도장","스모크는 문서만이 아니라 검증기도 시험한다 — 양방향 통과. 발행 도장.");
+      setDoc("stability_report_8_2.json", "sealed");
+      $("st82").classList.add("on");
+    }, 38600);
+
+    /* 4) 미래로 */
+    later(function(){
+      banner("gen","다음 세대","문서가 다음 문 앞에 놓인다 — 최종 시연의 회귀석은 이미 예약됐다.");
+      docTo("s83", 4);
+      $("g83").classList.add("seat");
+    }, 41000);
+    later(function(){
+      focusOn([]);
+      $("finale").classList.add("on");
+      banner("gen","마무리","어제의 스모크가 오늘의 입장권 — 그리고 오늘의 스모크가 내일의 입장권이다.");
+      ["btnChain","btnSmoke"].forEach(function(b){ $(b).disabled=false; });
+      $("btnPlay").disabled=false; $("btnPlay").textContent="↻ 다시 재생";
+      $("lineage").classList.add("on"); $("btnChain").classList.add("active");
+    }, 43600);
+  }
+
+  /* ── 토글 ────────────────────────────────────────────── */
+  $("btnPlay").addEventListener("click", play);
+  $("btnChain").addEventListener("click", function(){
+    var l=$("lineage"); l.classList.toggle("on");
+    this.classList.toggle("active", l.classList.contains("on"));
+  });
+  var smokeAlt=false;
+  $("btnSmoke").addEventListener("click", function(){
+    smokeAlt=!smokeAlt;
+    this.classList.toggle("active", smokeAlt);
+    if(smokeAlt){
+      setDoc("stability_report_8_2.json (오염)", "corrupt");
+      banner("warn","양방향 스모크","오염본 재생 — p95에 \"1646.7ms\"(문자열). 검증기: 'is not of type number'. 침묵했다면 스키마를 의심하라.");
+    } else {
+      setDoc("stability_report_8_2.json", "sealed");
+      banner("ok","양방향 스모크","정상본 복귀 — 검증기 침묵 ✓. 반응해야 할 때 반응하고, 침묵해야 할 때 침묵한다.");
+    }
+  });
+
+  /* ── 모션 축소 환경 ───────────────────────────────────── */
+  function finalState(){
+    ["st74","st75","st81","st82"].forEach(function(s){ $(s).classList.add("on"); });
+    $("g82a").classList.add("pass"); $("g81a").classList.add("pass");
+    ["g75b","g81b","g82b","g83"].forEach(function(g){ $(g).classList.add("seat"); });
+    setDoc("stability_report_8_2.json", "sealed");
+    docTo("s83", 4); $("doc").classList.add("on");
+    clearPanels("stability_report_8_2.json");
+    jline('"regression": { "tests": <b>39</b>, "exit_code": <b>0</b> }');
+    jline('"baseline_held": { "intent_acc": <b>0.933</b>, "soak_turns": <b>200</b>, "drift": <b>0</b> }', "good");
+    jline('"next_backlog": [<b>b06 · b07 · b08</b>]');
+    vrow("g", "26 passed · exit 0 (입장권 0-4)", "good");
+    vrow("a", "QUALITY_REPORT_SCHEMA 재검증 → BASELINE 채택 (회귀석 0-5)", "seat");
+    vrow("g", "정상 → 침묵 ✓ / 오염 '1646.7ms' → 반응 ✓ (스모크 5-2)", "good");
+    $("finale").classList.add("on");
+    $("lineage").classList.add("on"); $("btnChain").classList.add("active");
+    ["btnChain","btnSmoke"].forEach(function(b){ $(b).disabled=false; });
+    banner("gen","정지 화면","발행 → 이동 → 회귀석: 같은 무늬 4세대 — 세대교체는 계속된다.");
+  }
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+    finalState();
+    $("btnPlay").textContent="정지 화면 모드 (모션 축소)"; $("btnPlay").disabled=true;
+    $("hint").textContent="모션 축소 설정이 감지되어 최종 상태를 바로 표시합니다";
+  }
+})();
+</script>
+</body>
+</html>

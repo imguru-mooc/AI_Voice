@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>조용한 오탐 — 초록 대시보드 뒤의 오발송 (8-2 · 셀 2-2)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --line:#334155;
+    --tx:#e2e8f0; --dim:#94a3b8; --mut:#64748b;
+    --grn:#34d399; --red:#f87171; --amb:#fbbf24; --blu:#60a5fa; --vio:#a78bfa;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--tx);
+    font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;}
+  body{display:flex; justify-content:center; padding:18px 10px 40px}
+  .wrap{width:100%; max-width:920px}
+  header h1{font-size:21px; letter-spacing:-.3px}
+  header h1 .accent{color:var(--red)}
+  header .sub{color:var(--dim); font-size:12.5px; margin-top:5px}
+  header .sub b{color:var(--amb); font-weight:600}
+
+  /* ── 무대 ─────────────────────────────── */
+  .stage{position:relative; margin-top:14px; background:var(--panel2);
+    border:1px solid var(--line); border-radius:14px; padding:14px 14px 12px; overflow:hidden}
+  .banner{min-height:40px; display:flex; align-items:center; gap:8px;
+    font-size:14px; color:var(--tx); padding:2px 4px 10px; transition:opacity .4s}
+  .banner .tag{flex:none; font-size:11px; padding:2px 8px; border-radius:99px;
+    border:1px solid var(--line); color:var(--dim); background:var(--panel)}
+  .banner.warn .tag{border-color:var(--red); color:var(--red)}
+  .banner.fix  .tag{border-color:var(--grn); color:var(--grn)}
+
+  .flow{display:flex; align-items:stretch; gap:0; margin-top:4px}
+  .lane{flex:1; display:flex; align-items:center; gap:0; position:relative}
+  .node{position:relative; flex:1; min-width:0; background:var(--panel);
+    border:1.5px solid var(--line); border-radius:11px; padding:9px 6px 8px;
+    text-align:center; transition:border-color .35s, box-shadow .35s, background .35s}
+  .node .ic{font-size:17px; line-height:1}
+  .node .nm{font-size:11.5px; margin-top:4px; color:var(--tx); white-space:nowrap}
+  .node .sb{font-size:9.5px; color:var(--mut); margin-top:2px; white-space:nowrap;
+    transition:color .35s}
+  .arrow{flex:none; width:22px; text-align:center; color:var(--mut); font-size:13px}
+  .node.pass{border-color:var(--grn); box-shadow:0 0 10px rgba(52,211,153,.28)}
+  .node.pass .sb{color:var(--grn)}
+  .node.crash{border-color:var(--red); background:#2a1420;
+    box-shadow:0 0 14px rgba(248,113,113,.4); animation:shake .5s}
+  .node.crash .sb{color:var(--red)}
+  .node.block{border-color:var(--amb); box-shadow:0 0 10px rgba(251,191,36,.35)}
+  .node.block .sb{color:var(--amb)}
+  .node.swap{border-color:var(--blu); box-shadow:0 0 12px rgba(96,165,250,.4)}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}
+    40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+
+  /* 이동 토큰 */
+  .token{position:absolute; top:-30px; left:0; z-index:5; font-size:11px;
+    padding:3px 9px; border-radius:99px; background:#0b1222; border:1.5px solid var(--vio);
+    color:var(--tx); white-space:nowrap; opacity:0;
+    transition:left 1.1s cubic-bezier(.4,0,.4,1), opacity .4s, border-color .4s, top .8s}
+  .token.on{opacity:1}
+  .token.bad{border-color:var(--red); color:var(--red)}
+  .token.amb{border-color:var(--amb); color:var(--amb)}
+
+  /* 하단 2단: 고객 화면 + 대시보드 */
+  .bottom{display:flex; gap:12px; margin-top:16px}
+  .phone,.dash{background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:10px 12px; min-height:118px; transition:border-color .4s, box-shadow .4s}
+  .phone{flex:5} .dash{flex:6}
+  .ptitle{font-size:11px; color:var(--dim); display:flex; align-items:center; gap:6px; margin-bottom:8px}
+  .bubble{max-width:96%; background:#243b55; border:1px solid #35507a; border-radius:12px 12px 12px 3px;
+    padding:8px 10px; font-size:12px; line-height:1.45; opacity:0; transform:translateY(6px);
+    transition:opacity .5s, transform .5s}
+  .bubble.on{opacity:1; transform:none}
+  .phone.alert{border-color:var(--red); box-shadow:0 0 0 1px var(--red), 0 0 18px rgba(248,113,113,.35);
+    animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 1px var(--red),0 0 10px rgba(248,113,113,.25)}
+    50%{box-shadow:0 0 0 1px var(--red),0 0 22px rgba(248,113,113,.5)}}
+  .phone .empty{font-size:11px; color:var(--mut); font-style:italic}
+  .dash .row{display:flex; align-items:center; gap:7px; font-size:11.5px; padding:3px 0;
+    opacity:0; transform:translateX(-6px); transition:opacity .45s, transform .45s;
+    font-family:ui-monospace,Consolas,monospace}
+  .dash .row.on{opacity:1; transform:none}
+  .dot{flex:none; width:8px; height:8px; border-radius:99px}
+  .dot.g{background:var(--grn)} .dot.r{background:var(--red)} .dot.a{background:var(--amb)}
+  .dash .row .t{color:var(--dim)} .dash .row b{color:var(--tx); font-weight:600}
+  .dash .row.hl b{color:var(--grn)}
+  .dash .row.err b{color:var(--red)}
+  .dash .row.gate b{color:var(--amb)}
+
+  /* 마무리 배지 */
+  .finale{display:none; margin-top:14px; gap:10px}
+  .finale.on{display:flex}
+  .fcard{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:11px;
+    padding:10px 12px; font-size:12px; line-height:1.55}
+  .fcard h4{font-size:12px; margin-bottom:5px}
+  .fcard.a h4{color:var(--amb)} .fcard.b h4{color:var(--red)} .fcard.c h4{color:var(--grn)}
+  .fcard .big{font-size:16px; font-weight:700; color:var(--grn)}
+  .fcard code{font-family:ui-monospace,Consolas,monospace; font-size:11px; color:var(--blu)}
+
+  /* 컨트롤 + 판정표 */
+  .ctrl{display:flex; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap}
+  button{font:inherit; font-size:12.5px; color:var(--tx); background:var(--panel);
+    border:1px solid var(--line); border-radius:9px; padding:7px 14px; cursor:pointer;
+    transition:border-color .2s, background .2s}
+  button:hover{border-color:var(--blu)}
+  button.primary{border-color:var(--grn); color:var(--grn)}
+  button[disabled]{opacity:.4; cursor:default}
+  button.tog.active{background:#12304a; border-color:var(--blu); color:var(--blu)}
+  .hint{font-size:11px; color:var(--mut)}
+
+  .verdict{display:none; margin-top:12px; background:var(--panel); border:1px solid var(--line);
+    border-radius:11px; padding:10px 12px; overflow-x:auto}
+  .verdict.on{display:block}
+  table{border-collapse:collapse; width:100%; font-size:11.5px}
+  th,td{padding:5px 8px; text-align:left; border-bottom:1px solid #26334a; white-space:nowrap}
+  th{color:var(--dim); font-weight:600; font-size:10.5px}
+  td.g{color:var(--grn)} td.r{color:var(--red)} td.a{color:var(--amb)}
+  tr.spot td{background:rgba(248,113,113,.07)}
+  .cap{font-size:10.5px; color:var(--mut); margin-top:7px}
+  .cap code{font-family:ui-monospace,Consolas,monospace; color:var(--blu)}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>조용한 오탐 <span class="accent">— 초록 대시보드 뒤의 오발송</span></h1>
+    <div class="sub">8-2 시스템 안정화 테스트 · 셀 2-2 → 2-4 &nbsp;|&nbsp;
+      실패는 두 얼굴로 온다: <b>시끄러운 죽음</b>은 traceback이라도 남기지만, <b>조용한 오탐</b>은 로그조차 정상이다.</div>
+  </header>
+
+  <div class="stage">
+    <div class="banner" id="banner"><span class="tag" id="btag">도입</span><span id="btxt">검문 없는 입구 — 문을 활짝 열었다.</span></div>
+
+    <div class="lane" id="lane">
+      <div class="token" id="token">"요금"×300 · 600자</div>
+
+      <div class="node" id="nGate"><div class="ic" id="gIc">🚪</div>
+        <div class="nm" id="gNm">입구 (검문 없음)</div><div class="sb" id="gSb">run_turn_text_naive</div></div>
+      <div class="arrow">→</div>
+      <div class="node" id="nCls"><div class="ic">🧠</div>
+        <div class="nm">classify</div><div class="sb" id="clsSb">규칙 v2</div></div>
+      <div class="arrow">→</div>
+      <div class="node" id="nPol"><div class="ic">📋</div>
+        <div class="nm">policy</div><div class="sb" id="polSb">DIALOG_PLAN</div></div>
+      <div class="arrow">→</div>
+      <div class="node" id="nTts"><div class="ic">🔊</div>
+        <div class="nm">TTS</div><div class="sb" id="ttsSb">16kHz·mono·f32</div></div>
+      <div class="arrow">→</div>
+      <div class="node" id="nRf"><div class="ic">🛡️</div>
+        <div class="nm">runner-final</div><div class="sb" id="rfSb">_gate 계약 검사</div></div>
+      <div class="arrow">→</div>
+      <div class="node" id="nCust"><div class="ic" id="custIc">📱</div>
+        <div class="nm" id="custNm">고객</div><div class="sb" id="custSb">발송 대기</div></div>
+    </div>
+
+    <div class="bottom">
+      <div class="phone" id="phone">
+        <div class="ptitle">📱 고객 화면</div>
+        <div class="empty" id="phEmpty">— 수신 없음 —</div>
+        <div class="bubble" id="phBubble">고객님, 최근 청구 내역을 확인해 안내해 드리겠습니다.</div>
+      </div>
+      <div class="dash" id="dash">
+        <div class="ptitle">🟢 운영 대시보드 (로그)</div>
+        <div class="row err" id="lg1"><span class="dot r"></span><span class="t">turn#7</span><b>TypeError: NoneType — 시끄러운 죽음</b></div>
+        <div class="row hl"  id="lg2"><span class="dot g"></span><span class="t">turn#5</span><b>정상 처리 · intent=billing · TTS ✓ · runner-final ✓</b></div>
+        <div class="row"     id="lg3"><span class="dot g"></span><span class="t">turn#5</span><b>발송 완료 · 청구 내역 조회 안내</b></div>
+        <div class="row gate" id="lg4"><span class="dot a"></span><span class="t">turn#5′</span><b>gate=too_long (600자 &gt; 200) → handoff · 발송 없음</b></div>
+        <div class="row err" id="lg5"><span class="dot r"></span><span class="t">turn#7′</span><b>TypeError: [input] 문자열이 아닌 입력: NoneType — 입구에서 raise</b></div>
+      </div>
+    </div>
+
+    <div class="finale" id="finale">
+      <div class="fcard a"><h4>갈래 A — 사용자 변형</h4>
+        빈·공백·잡음·초장문은 <b>고객의 행동</b>이다.<br>판정하지 않는다 → <b>handoff</b> (모르면 사람에게).</div>
+      <div class="fcard b"><h4>갈래 B — 호출 버그</h4>
+        <code>None</code>·정수는 <b>프로그래밍 오류</b>다.<br>입구에서 즉시, 발원지 표식 <code>[input]</code>을 달고 raise.</div>
+      <div class="fcard c"><h4>영구 편입</h4>
+        <code>test_stability.py</code> 13건 →<br><span class="big">26 → 39 passed</span> · 오늘의 발견을 내일도 지킨다.</div>
+    </div>
+  </div>
+
+  <div class="ctrl">
+    <button class="primary" id="btnPlay">▶ 재생</button>
+    <button class="tog" id="btnBefore" disabled>수리 전</button>
+    <button class="tog" id="btnAfter" disabled>수리 후</button>
+    <button class="tog" id="btnTable" disabled>8종 판정표</button>
+    <span class="hint" id="hint">약 45초 · 정지 화면에서 토글로 전/후를 비교할 수 있습니다</span>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <table>
+      <thead><tr><th>#</th><th>입력</th><th>수리 전 (검문 없음)</th><th>수리 후 (입구 계약)</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>빈 문자열 ""</td><td class="a">handoff (unknown)</td><td class="a">handoff · gate=empty</td></tr>
+        <tr><td>2</td><td>공백만</td><td class="a">handoff (unknown)</td><td class="a">handoff · gate=empty</td></tr>
+        <tr><td>3</td><td>자모 잡음 "ㅁㄴㅇㄹ ㅋㅋㅋ ㅠㅠ"</td><td class="a">handoff (unknown)</td><td class="a">handoff (unknown)</td></tr>
+        <tr><td>4</td><td>이모지만 "😀🙃😱"</td><td class="a">handoff (unknown)</td><td class="a">handoff (unknown)</td></tr>
+        <tr class="spot"><td>5</td><td>"요금"×300 · 600자 잡음</td><td class="r">⚠ billing 오탐 → 오발송</td><td class="a">handoff · gate=too_long</td></tr>
+        <tr><td>6</td><td>외국어 "Hello, my internet is down."</td><td class="a">handoff (unknown)</td><td class="a">handoff (unknown)</td></tr>
+        <tr><td>7</td><td>None (호출 버그)</td><td class="r">💥 TypeError (파이프라인 내부)</td><td class="r">🔔 raise [input] (입구)</td></tr>
+        <tr><td>8</td><td>정수 12345 (호출 버그)</td><td class="r">💥 TypeError (파이프라인 내부)</td><td class="r">🔔 raise [input] (입구)</td></tr>
+      </tbody>
+    </table>
+    <div class="cap">수리 전: 죽음 2 · 조용한 오탐 1 · handoff 5 = 8종. 수리 후: handoff 6 · <code>[input]</code> raise 2 = 8종 —
+      전건이 <b>예측된 두 갈래</b> 중 하나로 간다. billing 규칙 <code>any=["요금","청구","나왔","돈"]</code>이
+      600자 잡음의 "요금"에 매칭된 것이 오탐의 뿌리이며, 상한 <code>MAX_INPUT_CHARS=200</code>의 실측 근거는 백로그 b08.</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  /* ── 정본 정합 자가검증 (노트북 셀 2-2~2-5 실측값) ─────────── */
+  var A = {
+    fuzzTotal: 8, naiveCrash: 2, naiveSilent: 1, naiveHandoff: 5,
+    afterHandoff: 6, afterRaise: 2,
+    junkLen: "요금".repeat(300).length, maxChars: 200,
+    testsBefore: 26, stabAdded: 13, testsAfter: 39
+  };
+  function selfCheck(){
+    var ok = true;
+    ok = ok && (A.naiveCrash + A.naiveSilent + A.naiveHandoff === A.fuzzTotal);
+    ok = ok && (A.afterHandoff + A.afterRaise === A.fuzzTotal);
+    ok = ok && (A.junkLen === 600) && (A.junkLen > A.maxChars);
+    ok = ok && (A.testsBefore + A.stabAdded === A.testsAfter);
+    if(!ok){ console.error("[8-2 anim] 정본 정합 자가검증 실패", A); }
+    return ok;
+  }
+  selfCheck();
+
+  var $ = function(id){ return document.getElementById(id); };
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var timers = [];
+  function later(fn, ms){ timers.push(setTimeout(fn, ms)); }
+  function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+  var nodes = ["nGate","nCls","nPol","nTts","nRf","nCust"];
+  function resetNodes(){
+    nodes.forEach(function(n){ $(n).className = "node"; });
+    ["lg1","lg2","lg3","lg4","lg5"].forEach(function(n){ $(n).classList.remove("on"); });
+    $("phBubble").classList.remove("on");
+    $("phEmpty").style.display = "";
+    $("phone").classList.remove("alert");
+    $("finale").classList.remove("on");
+    var tk = $("token"); tk.classList.remove("on","bad","amb");
+    tk.style.left = "0px"; tk.style.top = "-30px";
+  }
+  function setGate(repaired){
+    $("gIc").textContent = repaired ? "🛂" : "🚪";
+    $("gNm").textContent = repaired ? "입구 계약" : "입구 (검문 없음)";
+    $("gSb").textContent = repaired
+      ? "isinstance·strip·≤" + A.maxChars + "자"
+      : "run_turn_text_naive";
+    $("nGate").classList.toggle("swap", !!repaired);
+  }
+  function banner(mode, tag, txt){
+    var b = $("banner"); b.className = "banner" + (mode ? " " + mode : "");
+    $("btag").textContent = tag; $("btxt").textContent = txt;
+  }
+  function tokenTo(nodeId){
+    var lane = $("lane").getBoundingClientRect();
+    var nd = $(nodeId).getBoundingClientRect();
+    var tk = $("token");
+    tk.style.left = (nd.left - lane.left + nd.width/2 - tk.offsetWidth/2) + "px";
+  }
+  function setToken(text, cls){
+    var tk = $("token");
+    tk.textContent = text;
+    tk.classList.remove("bad","amb");
+    if(cls) tk.classList.add(cls);
+  }
+
+  /* ── 정지 상태 3종 (토글용) ───────────────────────────── */
+  function stateBefore(){   // 수리 전 종착: 조용한 오탐 완료
+    clearTimers(); resetNodes(); setGate(false);
+    ["nGate","nCls","nPol","nTts","nRf","nCust"].forEach(function(n){ $(n).classList.add("pass"); });
+    $("clsSb").textContent = '"요금" 매칭 → billing';
+    $("polSb").textContent = "청구 내역 조회";
+    $("custSb").textContent = "발송 완료";
+    $("lg1").classList.add("on"); $("lg2").classList.add("on"); $("lg3").classList.add("on");
+    $("phEmpty").style.display = "none"; $("phBubble").classList.add("on");
+    $("phone").classList.add("alert");
+    banner("warn","수리 전","모든 게이트가 초록 — 그런데 600자 잡음이 billing으로 판정되어 고객에게 나갔다. 로그는 정상이다.");
+    setActive("btnBefore");
+  }
+  function stateAfter(){    // 수리 후 종착: 입구에서 두 갈래로 처리
+    clearTimers(); resetNodes(); setGate(true);
+    $("nGate").classList.add("block");
+    $("gSb").textContent = "too_long · [input] raise";
+    $("clsSb").textContent = "규칙 v2"; $("polSb").textContent = "DIALOG_PLAN";
+    $("custSb").textContent = "발송 없음";
+    $("lg4").classList.add("on"); $("lg5").classList.add("on");
+    banner("fix","수리 후","같은 8종 재투입 — 600자는 입구에서 handoff, None은 [input] 표식으로 시끄럽게. 고객 화면은 깨끗하다.");
+    setActive("btnAfter");
+  }
+  function stateFinale(){
+    $("finale").classList.add("on");
+    banner("fix","마무리","안정성의 정의: 예외 없음이 아니라, 모든 입력이 예측된 두 갈래 중 하나로 간다.");
+  }
+  function setActive(id){
+    ["btnBefore","btnAfter"].forEach(function(b){ $(b).classList.toggle("active", b === id); });
+  }
+
+  /* ── 자동 재생 시나리오 ───────────────────────────────── */
+  function play(){
+    clearTimers(); resetNodes(); setGate(false); setActive(null);
+    $("btnPlay").disabled = true;
+    ["btnBefore","btnAfter","btnTable"].forEach(function(b){ $(b).disabled = true; });
+    $("clsSb").textContent = "규칙 v2"; $("polSb").textContent = "DIALOG_PLAN";
+    $("custSb").textContent = "발송 대기";
+    banner("","도입","검문 없는 입구 — 문을 활짝 열었다. 이상 입력 8종이 줄을 선다.");
+    var tk = $("token");
+
+    /* 1) 시끄러운 죽음: None */
+    later(function(){
+      banner("warn","① 시끄러운 죽음","None(호출 버그)이 들어온다 — 검문이 없으니 파이프라인 안까지 들어간다.");
+      setToken("None (호출 버그)","bad");
+      tokenTo("nGate"); tk.classList.add("on"); tk.style.top = "6px";
+    }, 1600);
+    later(function(){ $("nGate").classList.add("pass"); tokenTo("nCls"); }, 3300);
+    later(function(){
+      $("nCls").classList.add("crash");
+      $("clsSb").textContent = "TypeError 💥";
+      tk.classList.remove("on");
+      $("lg1").classList.add("on");
+      banner("warn","① 시끄러운 죽음","classify 내부에서 TypeError — 시끄럽지만, 적어도 traceback이 남는다.");
+    }, 4900);
+
+    /* 2) 조용한 오탐: 600자 잡음 */
+    later(function(){
+      $("nCls").classList.remove("crash"); $("clsSb").textContent = "규칙 v2";
+      banner("warn","② 조용한 오탐","\"요금\"×300 — 600자 잡음이 들어온다. 이번엔 무슨 일이 벌어질까.");
+      setToken('"요금"×300 · 600자', null);
+      tk.style.top = "6px"; tokenTo("nGate"); tk.classList.add("on");
+    }, 7200);
+    later(function(){ $("nGate").classList.add("pass"); tokenTo("nCls"); }, 9000);
+    later(function(){
+      $("nCls").classList.add("pass");
+      $("clsSb").textContent = '"요금" 매칭 → billing';
+      tokenTo("nPol");
+    }, 10700);
+    later(function(){
+      $("nPol").classList.add("pass"); $("polSb").textContent = "청구 내역 조회";
+      tokenTo("nTts");
+    }, 12300);
+    later(function(){ $("nTts").classList.add("pass"); tokenTo("nRf"); }, 13900);
+    later(function(){
+      $("nRf").classList.add("pass"); $("rfSb").textContent = "계약 ✓ (16kHz·mono·f32)";
+      banner("warn","② 조용한 오탐","runner-final 게이트도 초록 — 게이트가 검사하는 것은 오디오 계약이지, 판정의 옳음이 아니다.");
+      tokenTo("nCust");
+    }, 15500);
+    later(function(){
+      $("nCust").classList.add("pass"); $("custSb").textContent = "발송 완료";
+      tk.classList.remove("on");
+      $("lg2").classList.add("on");
+    }, 17200);
+    later(function(){
+      $("lg3").classList.add("on");
+      $("phEmpty").style.display = "none"; $("phBubble").classList.add("on");
+    }, 18400);
+    later(function(){
+      $("phone").classList.add("alert");
+      banner("warn","섬뜩한 지점","대시보드는 전부 초록, 로그는 전부 정상 — 그런데 고객은 잘못된 청구 안내를 받았다. 아무도 모른다.");
+    }, 19800);
+
+    /* 3) 수리: 입구 계약 설치 */
+    later(function(){
+      $("phone").classList.remove("alert");
+      banner("fix","수리 (셀 2-3)","입구에 계약을 세운다 — 문자열 검사 · strip · 상한 " + A.maxChars + "자. 위반은 두 갈래로 나눈다.");
+      setGate(true);
+    }, 24200);
+
+    /* 4) 재투입 A: 600자 → 입구에서 handoff */
+    later(function(){
+      banner("fix","재판정 (셀 2-4)","같은 600자 잡음을 다시 넣는다.");
+      setToken('"요금"×300 · 600자', "amb");
+      tk.style.top = "6px"; tk.style.left = "0px"; tokenTo("nGate"); tk.classList.add("on");
+    }, 27200);
+    later(function(){
+      $("nGate").classList.add("block");
+      $("gSb").textContent = "too_long (600 > " + A.maxChars + ")";
+      tk.classList.remove("on");
+      $("lg4").classList.add("on");
+      banner("fix","갈래 A — 사용자 변형","입구에서 멈춘다. 판정하지 않는다 → handoff. 고객에게 오발송은 없다.");
+    }, 29200);
+
+    /* 5) 재투입 B: None → [input] raise */
+    later(function(){
+      banner("fix","재판정 (셀 2-4)","None도 다시 넣는다.");
+      setToken("None (호출 버그)","bad");
+      tk.style.top = "6px"; tk.style.left = "0px"; tokenTo("nGate"); tk.classList.add("on");
+    }, 32400);
+    later(function(){
+      $("nGate").classList.remove("block"); $("nGate").classList.add("crash");
+      $("gSb").textContent = "raise [input] TypeError";
+      tk.classList.remove("on");
+      $("lg5").classList.add("on");
+      banner("fix","갈래 B — 호출 버그","파이프라인 안이 아니라 입구에서, 발원지 표식 [input]을 달고 시끄럽게 터진다.");
+    }, 34400);
+
+    /* 6) 마무리 */
+    later(function(){
+      $("nGate").classList.remove("crash"); $("nGate").classList.add("swap");
+      $("gSb").textContent = "isinstance·strip·≤" + A.maxChars + "자";
+      $("custSb").textContent = "발송 없음";
+      stateFinale();
+      $("btnPlay").disabled = false; $("btnPlay").textContent = "↻ 다시 재생";
+      ["btnBefore","btnAfter","btnTable"].forEach(function(b){ $(b).disabled = false; });
+      setActive("btnAfter");
+    }, 38200);
+  }
+
+  /* ── 컨트롤 배선 ─────────────────────────────────────── */
+  $("btnPlay").addEventListener("click", play);
+  $("btnBefore").addEventListener("click", stateBefore);
+  $("btnAfter").addEventListener("click", function(){ stateAfter(); stateFinale(); });
+  $("btnTable").addEventListener("click", function(){
+    var v = $("verdict"); v.classList.toggle("on");
+    $("btnTable").classList.toggle("active", v.classList.contains("on"));
+  });
+
+  /* ── 모션 축소 환경: 애니메이션 생략, 결과 상태만 ───────── */
+  if(reduced){
+    stateAfter(); stateFinale();
+    $("verdict").classList.add("on"); $("btnTable").classList.add("active");
+    ["btnBefore","btnAfter","btnTable"].forEach(function(b){ $(b).disabled = false; });
+    $("btnPlay").textContent = "정지 화면 모드 (모션 축소)";
+    $("btnPlay").disabled = true;
+    $("hint").textContent = "모션 축소 설정이 감지되어 최종 상태를 바로 표시합니다";
+  }
+})();
+</script>
+</body>
+</html>
