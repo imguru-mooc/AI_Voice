@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>순서의 세금 — 카나리가 잡은 조용한 배포 사고 (8-3 셀 4-2)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#243449; --line:#334155;
+    --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+    --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --accent:#38bdf8; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--txt);
+    font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif}
+  .wrap{max-width:920px; margin:0 auto; padding:20px 14px 48px}
+  header h1{font-size:1.25rem; letter-spacing:-.01em}
+  header .sub{color:var(--dim); font-size:.85rem; margin-top:6px; line-height:1.55}
+  header .sub b{color:var(--accent); font-weight:600}
+  .stage{background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    margin-top:16px; padding:14px}
+  .actbar{display:flex; gap:8px; flex-wrap:wrap}
+  .act{font-size:.72rem; padding:4px 10px; border-radius:999px; border:1px solid var(--line);
+    color:var(--faint); background:var(--panel2); transition:all .3s}
+  .act.on{color:#0f172a; background:var(--accent); border-color:var(--accent); font-weight:700}
+  .act.done{color:var(--accent); border-color:var(--accent)}
+  #utt{margin:12px 2px 4px; font-size:1rem; line-height:1.6; min-height:2.2em}
+  #utt .uid{color:var(--faint); font-size:.78rem; margin-right:8px;
+    font-family:ui-monospace,Menlo,monospace}
+  #utt mark{background:transparent; color:var(--warn); font-weight:700;
+    border-bottom:2px solid var(--warn); padding:0 1px}
+  #utt mark.bad{color:var(--bad); border-color:var(--bad)}
+  #utt mark.ok{color:var(--ok); border-color:var(--ok)}
+  #caption{min-height:3.1em; margin:6px 2px 8px; font-size:.9rem; line-height:1.6; color:var(--dim)}
+  #caption b{color:var(--txt)}
+  #caption .k{color:var(--warn); font-weight:600}
+  #caption .g{color:var(--ok); font-weight:600}
+  #caption .r{color:var(--bad); font-weight:600}
+  #caption .v{color:var(--violet); font-weight:600}
+  svg{width:100%; height:auto; display:block}
+  .gatebox{fill:var(--panel2); stroke:var(--line); stroke-width:1.2; rx:9; transition:stroke .3s}
+  .gatebox.test{stroke:var(--accent); stroke-width:2}
+  .gatebox.hit-ok{stroke:var(--ok); stroke-width:2.4}
+  .gatebox.hit-bad{stroke:var(--bad); stroke-width:2.4}
+  .gatebox.skip{opacity:.55}
+  .gname{fill:var(--txt); font-size:13px; font-weight:700}
+  .gkeys{fill:var(--faint); font-size:10.5px}
+  .gkeys tspan.new{fill:var(--warn); font-weight:700}
+  .gorder{fill:var(--faint); font-size:10px}
+  .token{transition:transform .5s ease}
+  .verdict{font-size:12.5px; font-weight:700; opacity:0; transition:opacity .35s}
+  .lane-line{stroke:var(--line); stroke-width:1; stroke-dasharray:2 4}
+  .ghostnote{fill:var(--faint); font-size:10.5px; opacity:0; transition:opacity .4s}
+  /* 점수판 */
+  .score{display:flex; gap:12px; margin-top:10px; flex-wrap:wrap}
+  .sbox{flex:1; min-width:230px; background:var(--panel2); border:1px solid var(--line);
+    border-radius:12px; padding:11px 13px; transition:border-color .4s}
+  .sbox h3{font-size:.76rem; letter-spacing:.03em; color:var(--dim); margin-bottom:7px}
+  .sbox h3 code{color:var(--accent); font-family:ui-monospace,Menlo,monospace}
+  .srow{display:flex; justify-content:space-between; font-size:.85rem; padding:2.5px 0;
+    font-variant-numeric:tabular-nums}
+  .srow .n{font-weight:700}
+  .srow .n.ok{color:var(--ok)} .srow .n.bad{color:var(--bad)}
+  .srow .n.vio{color:var(--violet)} .srow .n.dim{color:var(--dim)}
+  .sbox.verdict-fail{border-color:var(--bad)}
+  .sbox.verdict-pass{border-color:var(--ok)}
+  .rollback{margin-top:12px; padding:11px 14px; border-radius:10px; background:#3b1f24;
+    border:1px solid var(--bad); font-size:.88rem; line-height:1.65; color:#fecaca;
+    opacity:0; transition:opacity .5s}
+  .rollback.show{opacity:1}
+  .rollback code{font-family:ui-monospace,Menlo,monospace; font-size:.8rem; color:var(--warn)}
+  .final{margin-top:12px; padding:12px 14px; border-left:3px solid var(--accent);
+    background:var(--panel2); border-radius:0 10px 10px 0; font-size:.92rem; line-height:1.65;
+    opacity:0; transition:opacity .5s}
+  .final.show{opacity:1}
+  .final b{color:var(--accent)}
+  .controls{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; align-items:center}
+  button{background:var(--panel2); color:var(--txt); border:1px solid var(--line);
+    border-radius:9px; padding:8px 14px; font-size:.84rem; cursor:pointer; font-family:inherit}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent); color:#0f172a; font-weight:700; border-color:var(--accent)}
+  button:disabled{opacity:.4; cursor:default}
+  .chips{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}
+  .chip{font-size:.74rem; padding:5px 11px; border-radius:999px; border:1px solid var(--line);
+    color:var(--dim); cursor:pointer; background:var(--panel2)}
+  .chip.on{color:#0f172a; background:var(--warn); border-color:var(--warn); font-weight:700}
+  #chipinfo{margin-top:9px; font-size:.82rem; color:var(--dim); line-height:1.65; min-height:2.6em}
+  #chipinfo code{color:var(--warn); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+  footer{margin-top:18px; color:var(--faint); font-size:.72rem; line-height:1.6}
+  @media (prefers-reduced-motion: reduce){
+    .token,.act,.gatebox,.verdict,.rollback,.final,.ghostnote{transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>순서의 세금 — 카나리가 잡은 조용한 배포 사고</h1>
+    <div class="sub">8-3 셀 4-2 · 후보 <b>v3-draft</b> = plan_change any += [싸게, 바꾸] ·
+      의도: v_007 잡기 · 결과: v_010이 앞 순서 규칙에 가로채여 <b>위험 오답</b> —
+      규칙 추가는 공짜가 아니고, 순서가 세금이다</div>
+  </header>
+
+  <div class="stage">
+    <div class="actbar">
+      <span class="act" id="act1">1막 · 현행 v2</span>
+      <span class="act" id="act2">2막 · 후보 v3-draft</span>
+      <span class="act" id="act3">3막 · 카나리 판정</span>
+    </div>
+
+    <div id="utt"><span class="uid"></span><span class="txt">재생을 누르면 시작합니다.</span></div>
+    <div id="caption">발화가 규칙 파이프라인을 위에서 아래로 통과합니다 — <b>첫 매칭이 판정</b>입니다.</div>
+
+    <svg id="chart" viewBox="0 0 880 372" role="img"
+         aria-label="규칙 5개 세로 파이프라인과 발화 토큰 이동, 매칭 판정 애니메이션">
+      <g id="gates"></g>
+      <g id="tokenG" class="token" transform="translate(700,-40)">
+        <rect x="-64" y="-15" width="128" height="30" rx="15"
+              fill="var(--accent)" opacity=".95"/>
+        <text id="tokenTxt" x="0" y="5" text-anchor="middle"
+              font-size="12.5" font-weight="700" fill="#0f172a">v_007</text>
+      </g>
+      <text id="verdictTxt" class="verdict" x="700" y="352" text-anchor="middle"></text>
+    </svg>
+
+    <div class="score">
+      <div class="sbox" id="sV2">
+        <h3>현행 <code>v2</code> — 골든 15건</h3>
+        <div class="srow"><span>정답</span><span class="n dim" id="v2c">—</span></div>
+        <div class="srow"><span>위험 오답 (wrong)</span><span class="n dim" id="v2w">—</span></div>
+        <div class="srow"><span>안전 미탐 (unknown→상담사)</span><span class="n dim" id="v2u">—</span></div>
+        <div class="srow"><span>정확도</span><span class="n dim" id="v2a">—</span></div>
+      </div>
+      <div class="sbox" id="sV3">
+        <h3>후보 <code>v3-draft</code> — 같은 15건</h3>
+        <div class="srow"><span>정답</span><span class="n dim" id="v3c">—</span></div>
+        <div class="srow"><span>위험 오답 (wrong)</span><span class="n dim" id="v3w">—</span></div>
+        <div class="srow"><span>안전 미탐 (unknown→상담사)</span><span class="n dim" id="v3u">—</span></div>
+        <div class="srow"><span>정확도</span><span class="n dim" id="v3a">—</span></div>
+      </div>
+    </div>
+
+    <div class="rollback" id="rollback">
+      <b>[deploy] 게이트 2 카나리 — 실패</b> (위험 오답 1건: <code>v_010:plan_change</code>)<br>
+      판정 기준은 정확도가 아니라 <b>wrong == 0 필수</b> (8-1 원칙: 위험 오답은 거래 불가).<br>
+      → 롤백. 정본 <code>intent_rules.json</code> 바이트 비교: <b>동일 ✓</b> —
+      실패한 배포의 성공 조건은 아무것도 바꾸지 않았음을 <b>증명</b>하는 것.
+    </div>
+
+    <div class="final" id="final">
+      안전 미탐 1건(상담사가 받아냄)을 지우려다 위험 오답 1건(고객이 틀린 답을 들음)을
+      만들면 <b>손해</b>입니다. 그리고 이 실패는 <b>b06 사례 +1</b> —
+      “규칙으로는 안 된다”의 실증이 쌓일수록 L 승격(+260ms)의 근거가 두꺼워집니다.
+      <b>직렬 원칙</b>: 규칙과 LLM은 대체재가 아니라 순서입니다.
+    </div>
+
+    <div class="controls">
+      <button class="primary" id="btnPlay">▶ 재생</button>
+      <button id="btnReplay" disabled>⟲ 처음부터</button>
+      <button id="btnV2" disabled>v2로 v_010 다시 보기</button>
+      <button id="btnV3" disabled>v3로 v_010 다시 보기</button>
+    </div>
+
+    <div class="chips">
+      <span class="chip" data-c="sameacc">acc가 같은데 왜 롤백?</span>
+      <span class="chip" data-c="reorder">순서를 바꾸면?</span>
+      <span class="chip" data-c="none">none: 선례 — billing의 “요금제”</span>
+      <span class="chip" data-c="b06">b06 · 직렬 원칙</span>
+      <span class="chip" data-c="byte">정본 바이트 동일</span>
+    </div>
+    <div id="chipinfo">게이트나 칩을 눌러 규칙·수치를 확인하세요. (애니메이션 종료 후)</div>
+  </div>
+
+  <footer>
+    수치 출처: 8_3_모니터링_배포_실습.ipynb 셀 4-2 실행값 (골든 15건 = utt_001~005 + v_001~010).
+    첫 매칭 판정(first-match) · none 제외 우선. 카나리가 없었다면 조용한 배포 사고였습니다.
+    단일 파일 · 오프라인 · 외부 의존 0.
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ===== 설계 상수 (정본 재현값 — 손대지 말 것) ===== */
+const RULES_V2 = [
+  {intent:"billing",        any:["요금","청구","나왔","돈"],                       none:["요금제"]},
+  {intent:"tech_support",   any:["인터넷","기사","와이파이","먹통","느려","점검"],  none:[]},
+  {intent:"loss_suspend",   any:["분실","정지","잃어버","폰"],                     none:[]},
+  {intent:"plan_change",    any:["결합","할인","요금제"],                          none:[]},
+  {intent:"payment_change", any:["자동이체","계좌","이체"],                        none:[]},
+];
+const NEW_KEYS = ["싸게","바꾸"];              // v3-draft: plan_change any += NEW_KEYS
+const RULES_V3 = RULES_V2.map((r,i)=> i===3 ? {intent:r.intent, any:r.any.concat(NEW_KEYS), none:r.none} : r);
+
+const GOLD = {
+  utt_001:["지난달 요금이 평소보다 두 배 넘게 나왔는데 왜 그런지 확인 좀 해주세요.","billing"],
+  utt_002:["인터넷이 어제부터 계속 끊기는데 기사 방문 예약할 수 있나요?","tech_support"],
+  utt_003:["휴대폰을 잃어버려서 정지 신청하려고요.","loss_suspend"],
+  utt_004:["가족 결합 할인으로 바꾸면 얼마나 저렴해지나요?","plan_change"],
+  utt_005:["자동이체 계좌를 변경하고 싶은데 어떻게 하나요?","payment_change"],
+  v_001:["청구서 금액이 이상해서요.","billing"],
+  v_002:["돈이 너무 많이 나왔어요, 왜죠?","billing"],
+  v_003:["와이파이가 먹통이에요.","tech_support"],
+  v_004:["속도가 너무 느려서 점검 받고 싶어요.","tech_support"],
+  v_005:["폰을 잃어버렸어요, 어떡하죠?","loss_suspend"],
+  v_006:["번호 정지 좀 풀어주세요.","loss_suspend"],
+  v_007:["옆집처럼 같이 쓰면 더 싸게 되는 거 있다던데요.","plan_change"],
+  v_008:["할인 되는 요금제로 바꾸고 싶어요.","plan_change"],
+  v_009:["카드 말고 계좌로 빠져나가게 해주세요.","payment_change"],
+  v_010:["이체 날짜를 바꾸고 싶은데요.","payment_change"],
+};
+
+/* 정본 판정식 그대로 — none 제외 → any 첫 매칭 */
+function classify(text, rules){
+  for (const r of rules){
+    if (r.none.some(k=>text.includes(k))) continue;
+    const hit = r.any.find(k=>text.includes(k));
+    if (hit !== undefined) return {intent:r.intent, key:hit};
+  }
+  return {intent:"unknown", key:null};
+}
+function evalSet(rules){
+  let c=0, wrong=[], unk=[];
+  for (const uid of Object.keys(GOLD).sort()){
+    const [t,g]=GOLD[uid], p=classify(t,rules);
+    if (p.intent==="unknown") unk.push(uid);
+    else if (p.intent!==g) wrong.push(uid+":"+p.intent);
+    else c++;
+  }
+  return {correct:c, wrong, unknown:unk, acc:(c/15)};
+}
+
+/* ===== 도메인 검증 블록 — 데이터가 노트북 실행값과 어긋나면 즉시 소리낸다 ===== */
+(function verify(){
+  const A=evalSet(RULES_V2), B=evalSet(RULES_V3);
+  const eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  if (!(A.correct===14 && A.wrong.length===0 && eq(A.unknown,["v_007"])))
+    throw new Error("v2 판정 불일치: "+JSON.stringify(A));
+  if (!(B.correct===14 && eq(B.wrong,["v_010:plan_change"]) && B.unknown.length===0))
+    throw new Error("v3 판정 불일치: "+JSON.stringify(B));
+  if (A.acc.toFixed(3)!=="0.933" || B.acc.toFixed(3)!=="0.933")
+    throw new Error("acc != 0.933");
+  if (classify(GOLD.v_007[0],RULES_V3).key!=="싸게") throw new Error("v_007 v3 키워드 != 싸게");
+  const p10=classify(GOLD.v_010[0],RULES_V3);
+  if (p10.intent!=="plan_change" || p10.key!=="바꾸") throw new Error("v_010 v3 가로채기 불일치");
+  if (classify(GOLD.v_010[0],RULES_V2).key!=="이체") throw new Error("v_010 v2 키워드 != 이체");
+  if (!GOLD.v_010[0].includes("이체")) throw new Error("v_010에 '이체' 부재");  // 도달 못한 매칭의 존재 증명
+})();
+
+/* ===== 게이트 레이아웃 ===== */
+const svgNS="http://www.w3.org/2000/svg";
+const $=id=>document.getElementById(id);
+const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const T=reduced?0:1;
+const G_X=40, G_W=560, G_H=48, G_GAP=14, G_Y0=26;
+const TOK_X=700;
+const gYc=i=>G_Y0+i*(G_H+G_GAP)+G_H/2;
+const gateEls=[], keyEls=[];
+(function buildGates(){
+  const g=$("gates");
+  RULES_V2.forEach((r,i)=>{
+    const y=G_Y0+i*(G_H+G_GAP);
+    const box=document.createElementNS(svgNS,"rect");
+    box.setAttribute("x",G_X); box.setAttribute("y",y);
+    box.setAttribute("width",G_W); box.setAttribute("height",G_H);
+    box.setAttribute("rx",9); box.setAttribute("class","gatebox");
+    box.dataset.idx=i; g.appendChild(box); gateEls.push(box);
+    const ord=document.createElementNS(svgNS,"text");
+    ord.setAttribute("x",G_X+14); ord.setAttribute("y",y+G_H/2+4);
+    ord.setAttribute("class","gorder"); ord.textContent=(i+1)+"위";
+    g.appendChild(ord);
+    const nm=document.createElementNS(svgNS,"text");
+    nm.setAttribute("x",G_X+44); nm.setAttribute("y",y+20);
+    nm.setAttribute("class","gname"); nm.textContent=r.intent;
+    g.appendChild(nm);
+    const ks=document.createElementNS(svgNS,"text");
+    ks.setAttribute("x",G_X+44); ks.setAttribute("y",y+37);
+    ks.setAttribute("class","gkeys"); g.appendChild(ks); keyEls.push(ks);
+    const lane=document.createElementNS(svgNS,"line");
+    lane.setAttribute("x1",TOK_X); lane.setAttribute("x2",TOK_X);
+    lane.setAttribute("y1",y-G_GAP+2); lane.setAttribute("y2",y-2);
+    lane.setAttribute("class","lane-line"); g.appendChild(lane);
+  });
+  const gn=document.createElementNS(svgNS,"text");
+  gn.setAttribute("id","ghostnote"); gn.setAttribute("class","ghostnote");
+  gn.setAttribute("x",G_X+44); gn.setAttribute("y",gYc(4)+G_H/2+15);
+  gn.textContent="…‘이체’가 여기서 기다리고 있었지만, 발화는 도달하지 못했다";
+  g.appendChild(gn);
+})();
+function renderKeys(ver){
+  RULES_V2.forEach((r,i)=>{
+    const el=keyEls[i];
+    el.textContent="";
+    const put=(t,cls)=>{
+      const s=document.createElementNS(svgNS,"tspan");
+      if (cls) s.setAttribute("class",cls);
+      s.textContent=t; el.appendChild(s);
+    };
+    put("any: "+r.any.join(" · "));
+    if (ver==="v3" && i===3) put("  + "+NEW_KEYS.join(" + "),"new");
+    if (r.none.length) put("   none: "+r.none.join(" · "));
+  });
+}
+renderKeys("v2");
+
+/* ===== 연출 유틸 ===== */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms*T));
+function tokenTo(y){ $("tokenG").setAttribute("transform","translate("+TOK_X+","+y+")"); }
+function tokenLabel(t){ $("tokenTxt").textContent=t; }
+function gateState(i,cls){
+  gateEls[i].setAttribute("class","gatebox"+(cls?" "+cls:""));
+}
+function resetGates(){ gateEls.forEach(g=>g.setAttribute("class","gatebox"));
+  $("ghostnote").style.opacity=0; }
+function showUtt(uid,text,markKey,markCls){
+  const u=$("utt");
+  u.querySelector(".uid").textContent=uid;
+  const span=u.querySelector(".txt");
+  if (markKey){
+    const idx=text.indexOf(markKey);
+    span.innerHTML=text.slice(0,idx)+'<mark class="'+(markCls||"")+'">'+markKey+"</mark>"
+      +text.slice(idx+markKey.length);
+  } else span.textContent=text;
+}
+function verdict(txt,color){
+  const v=$("verdictTxt");
+  v.textContent=txt; v.setAttribute("fill",color); v.style.opacity=1;
+}
+function cap(html){ $("caption").innerHTML=html; }
+function fillScore(pfx,s){
+  $(pfx+"c").textContent=s.correct;  $(pfx+"c").className="n ok";
+  $(pfx+"w").textContent=s.wrong.length;
+  $(pfx+"w").className="n "+(s.wrong.length?"bad":"ok");
+  $(pfx+"u").textContent=s.unknown.length;
+  $(pfx+"u").className="n "+(s.unknown.length?"vio":"ok");
+  $(pfx+"a").textContent=s.acc.toFixed(3); $(pfx+"a").className="n dim";
+}
+function actState(n){
+  ["act1","act2","act3"].forEach((id,i)=>{
+    const el=$(id);
+    el.classList.toggle("on",i===n);
+    el.classList.toggle("done",i<n);
+  });
+}
+
+/* 발화 1건을 파이프라인에 통과시키는 연출 */
+async function runUtterance(uid, rules, ver, opts){
+  const [text,gold]=GOLD[uid];
+  resetGates(); $("verdictTxt").style.opacity=0;
+  tokenLabel(uid); showUtt(uid,text,null);
+  tokenTo(-40); await sleep(350);
+  let done=false;
+  for (let i=0;i<rules.length && !done;i++){
+    const r=rules[i];
+    tokenTo(gYc(i)); await sleep(480);
+    gateState(i,"test"); await sleep(340);
+    if (r.none.some(k=>text.includes(k))){
+      gateState(i,"skip");
+      cap("none 키워드 매칭 — 이 규칙은 <b>건너뜁니다</b>."); await sleep(900);
+      continue;
+    }
+    const hit=r.any.find(k=>text.includes(k));
+    if (hit!==undefined){
+      done=true;
+      const correct=(r.intent===gold);
+      gateState(i, correct?"hit-ok":"hit-bad");
+      showUtt(uid,text,hit,correct?"ok":"bad");
+      if (correct){
+        verdict("→ "+r.intent+" · 정답  (키워드 ‘"+hit+"’)","var(--ok)");
+      } else {
+        verdict("→ "+r.intent+" · 위험 오답  (정답: "+gold+")","var(--bad)");
+        if (opts && opts.showGhost){
+          gateEls[4].setAttribute("class","gatebox skip");
+          $("ghostnote").style.opacity=1;
+        }
+      }
+      if (opts && opts.hitCap) cap(opts.hitCap);
+      await sleep(opts && opts.hitPause ? opts.hitPause : 1600);
+    } else {
+      gateState(i,"skip"); await sleep(340);
+    }
+  }
+  if (!done){
+    tokenTo(340);
+    verdict("→ unknown · 상담사 연결  (안전 미탐)","var(--violet)");
+    showUtt(uid,text,null);
+    if (opts && opts.missCap) cap(opts.missCap);
+    await sleep(opts && opts.hitPause ? opts.hitPause : 1600);
+  }
+}
+
+/* ===== 시나리오 ===== */
+let playing=false, finished=false;
+const S_V2=evalSet(RULES_V2), S_V3=evalSet(RULES_V3);
+
+async function play(){
+  if (playing) return; playing=true; finished=false;
+  ["btnPlay","btnReplay","btnV2","btnV3"].forEach(id=>$(id).disabled=true);
+  $("rollback").classList.remove("show"); $("final").classList.remove("show");
+  $("sV2").className="sbox"; $("sV3").className="sbox";
+  ["v2c","v2w","v2u","v2a","v3c","v3w","v3u","v3a"].forEach(id=>{
+    $(id).textContent="—"; $(id).className="n dim";});
+  renderKeys("v2");
+
+  /* 1막 — 현행 v2 */
+  actState(0);
+  cap("현행 <b>v2</b>. 판정은 <b>위에서 아래로, 첫 매칭</b>입니다 — 순서가 곧 우선순위.");
+  await sleep(1600);
+  await runUtterance("v_007",RULES_V2,"v2",{
+    missCap:'v_007은 다섯 게이트를 <b>전부 통과</b> — 키워드가 하나도 없습니다. <span class="v">unknown → 상담사</span>. 틀린 게 아니라 <b>모른다고 말한 것</b> — 안전 미탐 (b06).',
+    hitPause:2600});
+  await runUtterance("v_010",RULES_V2,"v2",{
+    hitCap:'v_010은 5위 게이트의 <span class="g">‘이체’</span>에 정확히 걸립니다 — <span class="g">payment_change 정답</span>.',
+    hitPause:2200});
+  fillScore("v2",S_V2);
+  cap("v2 성적: 정답 14 · <b>wrong 0</b> · unknown 1(v_007) · acc 0.933. 유일한 흠은 v_007 — 이걸 잡고 싶어집니다.");
+  await sleep(2600);
+
+  /* 2막 — 후보 v3-draft */
+  actState(1);
+  renderKeys("v3");
+  cap('후보 <b>v3-draft</b>: 4위 plan_change에 <span class="k">싸게 · 바꾸</span> 추가. 의도는 단 하나 — v_007 잡기.');
+  await sleep(2200);
+  await runUtterance("v_007",RULES_V3,"v3",{
+    hitCap:'성공! <span class="k">‘싸게’</span>가 plan_change에 걸립니다 — <span class="g">v_007 해결</span>. …여기서 멈추면 조용한 배포입니다. 카나리는 <b>나머지 14건도 전부</b> 다시 봅니다.',
+    hitPause:2800});
+  await runUtterance("v_010",RULES_V3,"v3",{
+    hitCap:'같은 발화, 다른 운명 — <span class="r">‘바꾸’</span>가 <b>4위</b>에서 가로챕니다. 5위의 ‘이체’에는 영영 도달하지 못합니다. <span class="r">plan_change 위험 오답</span> — 고객은 요금제 안내를 듣게 됩니다.',
+    hitPause:3200, showGhost:true});
+  fillScore("v3",S_V3);
+  await sleep(1200);
+
+  /* 3막 — 카나리 판정 */
+  actState(2);
+  cap("두 점수판의 acc는 <b>0.933으로 동일</b>합니다. 그러나 구성이 다릅니다 — 안전 미탐 1 ↔ <b>위험 오답 1</b>.");
+  $("sV3").classList.add("verdict-fail");
+  $("sV2").classList.add("verdict-pass");
+  await sleep(2800);
+  $("rollback").classList.add("show");
+  await sleep(2600);
+  $("final").classList.add("show");
+  cap("규칙 추가는 공짜가 아니고, <b>순서가 세금</b>입니다. 카나리가 없었다면 — 조용한 배포 사고였습니다.");
+
+  playing=false; finished=true;
+  $("btnReplay").disabled=false; $("btnV2").disabled=false; $("btnV3").disabled=false;
+  $("chipinfo").textContent="칩이나 게이트를 눌러 규칙·수치를 확인하세요. v_010 단건 재생 버튼도 열렸습니다.";
+}
+
+$("btnPlay").addEventListener("click",play);
+$("btnReplay").addEventListener("click",play);
+$("btnV2").addEventListener("click",async()=>{
+  if (!finished||playing) return; playing=true;
+  renderKeys("v2");
+  await runUtterance("v_010",RULES_V2,"v2",{
+    hitCap:'v2 — v_010은 <span class="g">‘이체’</span>로 payment_change 정답.',hitPause:2000});
+  playing=false;
+});
+$("btnV3").addEventListener("click",async()=>{
+  if (!finished||playing) return; playing=true;
+  renderKeys("v3");
+  await runUtterance("v_010",RULES_V3,"v3",{
+    hitCap:'v3 — <span class="r">‘바꾸’</span>가 4위에서 가로챕니다. 5위 ‘이체’는 도달 불가.',
+    hitPause:2400, showGhost:true});
+  playing=false;
+});
+
+const CHIPTXT={
+  sameacc:'두 버전 다 <code>acc 0.933</code> — 평균은 사고를 숨깁니다. 판정 기준은 <code>wrong == 0 필수</code>(8-1 원칙). 안전 미탐은 상담사가 받아내지만, 위험 오답은 고객이 틀린 답을 듣습니다. 같은 1건이라도 <b>실패의 방향</b>이 다릅니다.',
+  reorder:'실습 과제 ③의 흔한 시도 — payment_change를 plan_change <b>앞으로</b>. 이 골든 15건에서는 <code>wrong 0 · unknown 0 (acc 1.0)</code>으로 통과합니다. 단, <b>순서 변경도 배포</b>입니다: 카나리·회귀 전건 재판정을 다시 통과해야 하고, ‘바꾸’ 같은 광범위 동사는 미래 발화의 지뢰로 남습니다(→ b06).',
+  none:'순서의 세금을 이미 한 번 낸 흔적 — 8-1에서 billing이 “요금제”가 든 발화를 가로채자 <code>none: ["요금제"]</code> 제외 키워드로 해결했습니다(RULES_V2). any는 잡는 그물, none은 놓아주는 구멍 — 규칙 언어에는 두 방향이 다 필요합니다.',
+  b06:'v_007 계열 우회 표현은 키워드의 <b>구조적 한계</b>입니다. 오늘 실패가 b06 파일에 사례 +1로 쌓이고, “규칙으로는 안 된다”의 실증이 두꺼워질수록 L 승격(+260ms, 7-4 실측)의 근거가 됩니다. <b>직렬 원칙</b> — 규칙과 LLM은 대체재가 아니라 순서.',
+  byte:'롤백의 성공 조건은 <b>증명</b>입니다: 후보는 별도 파일(v3-draft)에만 존재했고, 정본 <code>intent_rules.json</code>은 배포 절차 전후 <b>바이트 비교로 동일</b>함을 확인했습니다. “아마 안 바뀌었을 것”은 검증이 아닙니다.'
+};
+document.querySelectorAll(".chip").forEach(ch=>{
+  ch.addEventListener("click",()=>{
+    if (!finished){ $("chipinfo").textContent="애니메이션 종료 후 열립니다."; return; }
+    document.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+    ch.classList.add("on");
+    $("chipinfo").innerHTML=CHIPTXT[ch.dataset.c];
+  });
+});
+gateEls.forEach(g=>{
+  g.style.cursor="pointer";
+  g.addEventListener("click",()=>{
+    if (!finished) return;
+    const i=+g.dataset.idx, r=RULES_V3[i];
+    $("chipinfo").innerHTML="<b>"+(i+1)+"위 · "+r.intent+"</b> — any: <code>"
+      +RULES_V2[i].any.join(", ")+"</code>"
+      +(i===3?' <span style="color:var(--warn)">(+ v3-draft: '+NEW_KEYS.join(", ")+")</span>":"")
+      +(r.none.length?" · none: <code>"+r.none.join(", ")+"</code>":"")
+      +" · 첫 매칭 판정이므로 아래 규칙보다 <b>항상 우선</b>합니다.";
+  });
+});
+</script>
+</body>
+</html>

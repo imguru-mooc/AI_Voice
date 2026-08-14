@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>백로그에서 경보로 — b07의 경보화 (8-3 셀 3-2)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#243449; --line:#334155;
+    --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+    --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --accent:#38bdf8;
+    --violet:#a78bfa;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--txt);
+    font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;}
+  .wrap{max-width:920px; margin:0 auto; padding:20px 14px 48px}
+  header h1{font-size:1.25rem; letter-spacing:-.01em}
+  header .sub{color:var(--dim); font-size:.85rem; margin-top:6px; line-height:1.55}
+  header .sub b{color:var(--accent); font-weight:600}
+  .stage{background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    margin-top:16px; padding:14px 14px 10px}
+  .actbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .act{font-size:.72rem; padding:4px 10px; border-radius:999px; border:1px solid var(--line);
+    color:var(--faint); background:var(--panel2); transition:all .3s}
+  .act.on{color:#0f172a; background:var(--accent); border-color:var(--accent); font-weight:700}
+  .act.done{color:var(--accent); border-color:var(--accent)}
+  #caption{min-height:3.2em; margin:12px 2px 6px; font-size:.92rem; line-height:1.6; color:var(--txt)}
+  #caption .k{color:var(--warn); font-weight:600}
+  #caption .g{color:var(--ok); font-weight:600}
+  #caption .r{color:var(--bad); font-weight:600}
+  svg{width:100%; height:auto; display:block}
+  .axis{stroke:var(--line); stroke-width:1}
+  .axlbl{fill:var(--faint); font-size:11px}
+  .budget{stroke:var(--bad); stroke-width:1.6; stroke-dasharray:6 5}
+  .budgetlbl{fill:var(--bad); font-size:11.5px; font-weight:700}
+  .bar{transition:height .45s ease, y .45s ease}
+  .plabel{font-size:10.5px; fill:var(--dim); text-anchor:middle; opacity:0}
+  .plabel.show{opacity:1}
+  .wlbl{font-size:11px; fill:var(--faint); text-anchor:middle}
+  .streakdot{transition:fill .3s}
+  .bell{opacity:0; font-size:17px}
+  .toastbox{position:relative; height:56px; margin-top:6px; overflow:hidden}
+  .toast{position:absolute; left:0; right:0; padding:9px 12px; border-radius:10px;
+    background:#3b1f24; border:1px solid var(--bad); color:#fecaca;
+    font-family:ui-monospace,'SFMono-Regular',Menlo,monospace; font-size:.8rem;
+    transform:translateY(70px); opacity:0; transition:transform .45s ease, opacity .45s}
+  .toast.show{transform:translateY(0); opacity:1}
+  .counter{display:flex; gap:14px; margin-top:10px; flex-wrap:wrap}
+  .cbox{flex:1; min-width:130px; background:var(--panel2); border:1px solid var(--line);
+    border-radius:10px; padding:9px 12px}
+  .cbox .lab{font-size:.68rem; color:var(--faint); letter-spacing:.03em}
+  .cbox .val{font-size:1.2rem; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums}
+  .cbox .val.ok{color:var(--ok)} .cbox .val.bad{color:var(--bad)} .cbox .val.dim{color:var(--dim)}
+  /* 3막: 카드 변신 */
+  .morph{display:flex; gap:14px; align-items:stretch; margin-top:14px; flex-wrap:wrap; opacity:0;
+    transition:opacity .6s}
+  .morph.show{opacity:1}
+  .card{flex:1; min-width:240px; border-radius:12px; padding:13px 15px; border:1px solid var(--line);
+    line-height:1.6; font-size:.86rem}
+  .card h3{font-size:.78rem; letter-spacing:.04em; margin-bottom:6px}
+  .card.backlog{background:var(--panel2); color:var(--dim)}
+  .card.backlog h3{color:var(--violet)}
+  .card.alert{background:#3b1f24; border-color:var(--bad); color:#fecaca}
+  .card.alert h3{color:var(--bad)}
+  .arrow{align-self:center; color:var(--accent); font-size:1.4rem; font-weight:700}
+  .final{margin-top:14px; padding:12px 14px; border-left:3px solid var(--accent);
+    background:var(--panel2); border-radius:0 10px 10px 0; font-size:.92rem; line-height:1.65;
+    opacity:0; transition:opacity .6s}
+  .final.show{opacity:1}
+  .final b{color:var(--accent)}
+  /* 컨트롤·칩 */
+  .controls{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; align-items:center}
+  button{background:var(--panel2); color:var(--txt); border:1px solid var(--line);
+    border-radius:9px; padding:8px 14px; font-size:.84rem; cursor:pointer; font-family:inherit}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent); color:#0f172a; font-weight:700; border-color:var(--accent)}
+  button:disabled{opacity:.4; cursor:default}
+  .chips{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}
+  .chip{font-size:.74rem; padding:5px 11px; border-radius:999px; border:1px solid var(--line);
+    color:var(--dim); cursor:pointer; background:var(--panel2)}
+  .chip.on{color:#0f172a; background:var(--warn); border-color:var(--warn); font-weight:700}
+  #chipinfo{margin-top:9px; font-size:.82rem; color:var(--dim); line-height:1.6; min-height:2.6em}
+  #chipinfo code{color:var(--warn); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+  footer{margin-top:18px; color:var(--faint); font-size:.72rem; line-height:1.6}
+  @media (prefers-reduced-motion: reduce){
+    .bar,.toast,.morph,.final,.act,.streakdot{transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>백로그에서 경보로 — b07의 경보화</h1>
+    <div class="sub">8-3 셀 3-2 · 규칙 <b>a01</b>: p95_ms &gt; 1500, <b>연속 2창</b> ·
+      SEED 42 재현값(창 20턴 × 10) · 8-2의 문장 “L 승격의 진짜 가격은 꼬리에서 청구된다”가
+      기계의 외침이 되는 순간</div>
+  </header>
+
+  <div class="stage">
+    <div class="actbar">
+      <span class="act" id="act1">1막 · 정상 구간 (R)</span>
+      <span class="act" id="act2">2막 · 드릴 — L 승격</span>
+      <span class="act" id="act3">3막 · 빚의 주인이 바뀌다</span>
+    </div>
+
+    <div id="caption">재생을 누르면 시작합니다.</div>
+
+    <svg id="chart" viewBox="0 0 880 330" role="img"
+         aria-label="창별 p95 막대와 예산선 1500ms, 경보 발화 애니메이션">
+      <!-- y축 눈금 -->
+      <g id="grid"></g>
+      <line class="budget" x1="60" x2="860" y1="0" y2="0" id="budgetline"/>
+      <text class="budgetlbl" x="64" y="0" id="budgetlbl">예산 1500 ms</text>
+      <g id="bars"></g>
+      <g id="dots"></g>
+      <line class="axis" x1="60" y1="262" x2="860" y2="262"/>
+    </svg>
+
+    <div class="toastbox"><div class="toast" id="toast"></div></div>
+
+    <div class="counter">
+      <div class="cbox"><div class="lab">구간</div><div class="val dim" id="cMode">—</div></div>
+      <div class="cbox"><div class="lab">예산 초과 창</div><div class="val dim" id="cOver">0 / 10</div></div>
+      <div class="cbox"><div class="lab">streak (연속 초과)</div><div class="val dim" id="cStreak">0</div></div>
+      <div class="cbox"><div class="lab">🔔 경보 발화</div><div class="val dim" id="cFired">0 건</div></div>
+    </div>
+
+    <div class="morph" id="morph">
+      <div class="card backlog">
+        <h3>어제 — 백로그 b07</h3>
+        “L p95 예산 초과 — 스트리밍 / 예산 재협상 필요.”<br>
+        사람이 <b>기억</b>하는 빚. 문서를 열어야 보이고, 잊으면 사라진다.
+      </div>
+      <div class="arrow">→</div>
+      <div class="card alert">
+        <h3>오늘 — [alert:a01]</h3>
+        같은 문장을 <b>기계가 운다</b>. 창이 두 번 연속 예산을 넘는 순간,
+        사람의 기억과 무관하게 발화한다.
+      </div>
+    </div>
+
+    <div class="final" id="final">
+      승격의 진짜 가격은 <b>꼬리(p95)</b>에서 청구된다 — 창 10개 중 9개가 예산 초과.
+      L로 가려면 <b>예산 재협상 또는 스트리밍(TTFA 단축)</b>이 먼저다. b07 원문 그대로.
+    </div>
+
+    <div class="controls">
+      <button class="primary" id="btnPlay">▶ 재생</button>
+      <button id="btnReplay" disabled>⟲ 처음부터</button>
+      <button id="btnToggle" disabled>R / L 겹쳐 보기</button>
+      <span style="color:var(--faint); font-size:.74rem" id="speedNote"></span>
+    </div>
+
+    <div class="chips">
+      <span class="chip" data-c="a01">a01 · p95 &gt; 1500 (연속 2)</span>
+      <span class="chip" data-c="a02">a02 · handoff &gt; 0.30</span>
+      <span class="chip" data-c="a03">a03 · error &gt; 0</span>
+      <span class="chip" data-c="dedup">왜 창 5~9는 안 울까?</span>
+      <span class="chip" data-c="near">창 2의 1490.0</span>
+    </div>
+    <div id="chipinfo">막대나 칩을 눌러 규칙·수치를 확인하세요. (애니메이션 종료 후)</div>
+  </div>
+
+  <footer>
+    수치 출처: 8_3_모니터링_배포_실습.ipynb 셀 2-1·3-1·3-2 실행값 (SEED 42, R→L 호출 순서).
+    조용한 경보 금지 — 발화는 [alert:id] 표식과 함께 크게. 죽이는 경보 금지 — raise가 아니라 로그다.
+    단일 파일 · 오프라인 · 외부 의존 0.
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ===== 설계 상수 (정본 재현값 — 손대지 말 것) ===== */
+const BUDGET = 1500, CONSECUTIVE = 2;
+const WIN_R = [1220.2,1478.8,1199.7,1418.0,1191.8,1218.9,1262.6,1206.1,1236.4,1254.3];
+const WIN_L = [1604.5,1766.5,1490.0,1572.7,1519.3,1596.1,1623.5,1721.4,1571.9,1695.8];
+const FIRED_L = [1, 4];               // 노트북 실행 로그와 동일해야 한다
+const FIRED_VALS = {1:1766.5, 4:1519.3};
+
+/* ===== 도메인 검증 블록 — 데이터가 로직과 어긋나면 즉시 소리낸다 ===== */
+(function verify(){
+  const fire = [];
+  let streak = 0;
+  for (let i = 0; i < WIN_L.length; i++){
+    streak = (WIN_L[i] > BUDGET) ? streak + 1 : 0;   // 정본 판정식 그대로
+    if (streak === CONSECUTIVE) fire.push(i);         // 정확 일치 시 1회 — 중복 억제
+  }
+  if (JSON.stringify(fire) !== JSON.stringify(FIRED_L))
+    throw new Error("a01 발화 창 불일치: " + JSON.stringify(fire));
+  if (!WIN_R.every(v => v <= BUDGET))
+    throw new Error("정상 구간에 예산 초과가 있다");
+  if (WIN_L.filter(v => v > BUDGET).length !== 9)
+    throw new Error("L 초과 창 수 != 9");
+  for (const w of FIRED_L)
+    if (WIN_L[w] !== FIRED_VALS[w]) throw new Error("발화 수치 불일치: 창 " + w);
+})();
+
+/* ===== 좌표계 ===== */
+const X0 = 60, XW = 800, Y_TOP = 18, Y_BASE = 262, VMIN = 1000, VMAX = 1850;
+const BW = 52, GAP = (XW - 10 * BW) / 10;
+const yOf = v => Y_BASE - (v - VMIN) / (VMAX - VMIN) * (Y_BASE - Y_TOP);
+const xOf = i => X0 + GAP / 2 + i * (BW + GAP);
+
+const $ = id => document.getElementById(id);
+const svgNS = "http://www.w3.org/2000/svg";
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const T = reduced ? 0 : 1;            // 시간 배율
+if (reduced) $("speedNote").textContent = "동작 축소 모드: 전환 없이 즉시 표시";
+
+/* 격자·예산선 */
+(function buildAxes(){
+  const g = $("grid");
+  [1000,1200,1400,1600,1800].forEach(v=>{
+    const y = yOf(v);
+    const ln = document.createElementNS(svgNS,"line");
+    ln.setAttribute("x1",X0); ln.setAttribute("x2",860);
+    ln.setAttribute("y1",y);  ln.setAttribute("y2",y);
+    ln.setAttribute("class","axis"); ln.setAttribute("opacity",".45");
+    g.appendChild(ln);
+    const t = document.createElementNS(svgNS,"text");
+    t.setAttribute("x",X0-8); t.setAttribute("y",y+4);
+    t.setAttribute("text-anchor","end"); t.setAttribute("class","axlbl");
+    t.textContent = v; g.appendChild(t);
+  });
+  const by = yOf(BUDGET);
+  $("budgetline").setAttribute("y1",by); $("budgetline").setAttribute("y2",by);
+  $("budgetlbl").setAttribute("y",by-7);
+})();
+
+/* 막대·라벨·streak 점·종 생성 */
+const bars=[], labels=[], bells=[], dotsArr=[];
+(function buildBars(){
+  const gb=$("bars"), gd=$("dots");
+  for (let i=0;i<10;i++){
+    const x=xOf(i);
+    const r=document.createElementNS(svgNS,"rect");
+    r.setAttribute("x",x); r.setAttribute("width",BW);
+    r.setAttribute("y",Y_BASE); r.setAttribute("height",0);
+    r.setAttribute("rx",4); r.setAttribute("class","bar");
+    r.setAttribute("fill","var(--accent)"); r.dataset.idx=i;
+    gb.appendChild(r); bars.push(r);
+    const t=document.createElementNS(svgNS,"text");
+    t.setAttribute("x",x+BW/2); t.setAttribute("y",Y_BASE-6);
+    t.setAttribute("class","plabel"); gb.appendChild(t); labels.push(t);
+    const w=document.createElementNS(svgNS,"text");
+    w.setAttribute("x",x+BW/2); w.setAttribute("y",Y_BASE+16);
+    w.setAttribute("class","wlbl"); w.textContent="창 "+i; gb.appendChild(w);
+    const bell=document.createElementNS(svgNS,"text");
+    bell.setAttribute("x",x+BW/2-9); bell.setAttribute("y",Y_TOP+14);
+    bell.setAttribute("class","bell"); bell.textContent="🔔"; gb.appendChild(bell);
+    bells.push(bell);
+    const row=[];
+    for (let d=0; d<CONSECUTIVE; d++){
+      const c=document.createElementNS(svgNS,"circle");
+      c.setAttribute("cx",x+BW/2-8+d*16); c.setAttribute("cy",Y_BASE+30);
+      c.setAttribute("r",4.5); c.setAttribute("class","streakdot");
+      c.setAttribute("fill","var(--line)");
+      gd.appendChild(c); row.push(c);
+    }
+    dotsArr.push(row);
+  }
+})();
+
+/* ===== 연출 유틸 ===== */
+const sleep = ms => new Promise(r=>setTimeout(r, ms*T));
+function setBar(i, v, mode){
+  const over = v > BUDGET;
+  bars[i].setAttribute("y", yOf(v));
+  bars[i].setAttribute("height", Y_BASE - yOf(v));
+  bars[i].setAttribute("fill",
+    mode==="R" ? (v>1400 ? "var(--warn)" : "var(--accent)")
+               : (over ? "var(--bad)" : "var(--warn)"));
+  labels[i].textContent = v.toFixed(1);
+  labels[i].setAttribute("y", yOf(v)-6);
+  labels[i].classList.add("show");
+}
+function clearBars(){
+  for (let i=0;i<10;i++){
+    bars[i].setAttribute("y",Y_BASE); bars[i].setAttribute("height",0);
+    labels[i].classList.remove("show");
+    bells[i].style.opacity=0;
+    dotsArr[i].forEach(c=>c.setAttribute("fill","var(--line)"));
+  }
+}
+function setStreakDots(i, streak){
+  const shown = Math.min(streak, CONSECUTIVE);
+  dotsArr[i].forEach((c,d)=>c.setAttribute("fill",
+    d < shown ? (shown===CONSECUTIVE ? "var(--bad)" : "var(--warn)") : "var(--line)"));
+}
+function cap(html){ $("caption").innerHTML = html; }
+function toast(msg){
+  const t=$("toast"); t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2600*T + 400);
+}
+function counters(mode, over, streak, fired){
+  $("cMode").textContent = mode;
+  $("cMode").className = "val " + (mode.startsWith("L") ? "bad" : "ok");
+  $("cOver").textContent = over + " / 10";
+  $("cOver").className = "val " + (over ? "bad" : "ok");
+  $("cStreak").textContent = streak;
+  $("cStreak").className = "val " + (streak>=CONSECUTIVE ? "bad" : streak ? "dim" : "ok");
+  $("cFired").textContent = fired + " 건";
+  $("cFired").className = "val " + (fired ? "bad" : "ok");
+}
+function actState(n){
+  ["act1","act2","act3"].forEach((id,i)=>{
+    const el=$(id);
+    el.classList.toggle("on", i===n);
+    el.classList.toggle("done", i<n);
+  });
+}
+
+/* ===== 시나리오 ===== */
+let playing=false, finished=false, overlayMode=false;
+
+async function play(){
+  if (playing) return; playing=true; finished=false;
+  $("btnPlay").disabled=true; $("btnReplay").disabled=true; $("btnToggle").disabled=true;
+  $("morph").classList.remove("show"); $("final").classList.remove("show");
+  clearBars(); counters("—",0,0,0);
+
+  /* 1막 — 정상 구간 R */
+  actState(0);
+  cap('규칙 엔진 <span class="g">R</span>로 200턴 · 20턴 창 10개. 경보의 기본값은 <b>침묵</b>입니다.');
+  let over=0;
+  for (let i=0;i<10;i++){
+    setBar(i, WIN_R[i], "R");
+    if (WIN_R[i] > BUDGET) over++;
+    counters("R (정상)", over, 0, 0);
+    if (i===1) cap('창 1 — <span class="k">1478.8</span>. 예산선에 바짝 붙지만 <b>넘지 않는 한 규칙은 침묵</b>합니다.');
+    if (i===3) cap('창 3 — <span class="k">1418.0</span>. 출렁임은 정상입니다. 사고는 <b>연속</b>에서 시작됩니다.');
+    await sleep(i===1||i===3 ? 1500 : 520);
+  }
+  cap('10창 전부 예산 안 — <span class="g">경보 0건</span>. 그리고 이 수치들은 8-2 리포트와 소수 첫째 자리까지 일치합니다 (SEED 42).');
+  await sleep(2400);
+
+  /* 2막 — 드릴: L 승격 */
+  actState(1);
+  clearBars();
+  cap('드릴 — <span class="r">dialog_engine을 L로 승격</span>했다고 가정하고, 같은 창을 다시 판정합니다. (+260ms의 청구서)');
+  await sleep(1800);
+  let streak=0, fired=0;
+  for (let i=0;i<10;i++){
+    const v=WIN_L[i], hit=v>BUDGET;
+    setBar(i, v, "L");
+    streak = hit ? streak+1 : 0;
+    setStreakDots(i, streak);
+    const overL = WIN_L.slice(0,i+1).filter(x=>x>BUDGET).length;
+
+    if (i===0){
+      counters("L (드릴)", overL, streak, fired);
+      cap('창 0 — <span class="r">1604.5</span>, 초과. 하지만 <b>침묵</b> — 한 창은 우연일 수 있습니다. streak ●○');
+      await sleep(2000);
+    } else if (streak===CONSECUTIVE){
+      fired++;
+      counters("L (드릴)", overL, streak, fired);
+      bells[i].style.opacity=1;
+      toast("🔔 [alert:a01] 창 "+i+" — p95_ms "+v.toFixed(1)+" (임계 1500, 연속 2창)");
+      cap('창 '+i+' — <span class="r">'+v.toFixed(1)+'</span>, <b>2창 연속</b>. streak ●● → <span class="r">발화</span>. 조용한 경보 금지 — [alert:id]를 달고 크게. 죽이는 경보 금지 — raise가 아니라 로그.');
+      await sleep(2800);
+    } else if (i===2){
+      counters("L (드릴)", overL, streak, fired);
+      cap('창 2 — <span class="k">1490.0</span>, 임계 <b>10.0ms 아래</b>. 초과가 끊겨 streak이 0으로 리셋됩니다. 꼬리는 이렇게 아슬아슬합니다.');
+      await sleep(2400);
+    } else if (i===5){
+      counters("L (드릴)", overL, streak, fired);
+      cap('창 5~9 — 계속 초과인데 <b>다시 울지 않습니다</b>. 발화는 streak이 2에 <b>도달하는 순간 한 번</b> — 같은 사고에 반복해 울면 경보는 소음이 됩니다.');
+      await sleep(2400);
+    } else {
+      counters("L (드릴)", overL, streak, fired);
+      await sleep(560);
+    }
+  }
+  cap('결과: 초과 <span class="r">9/10 창</span> · 발화 <span class="r">2건</span> (창 1 · 창 4) — 노트북 셀 3-2 로그 그대로.');
+  await sleep(2600);
+
+  /* 3막 — 카드 변신 */
+  actState(2);
+  $("morph").classList.add("show");
+  cap('어제의 <span class="k">b07</span>은 사람이 기억하는 빚, 오늘의 <span class="r">[alert:a01]</span>은 기계가 우는 빚입니다.');
+  await sleep(3000);
+  $("final").classList.add("show");
+
+  playing=false; finished=true;
+  $("btnPlay").disabled=true; $("btnReplay").disabled=false; $("btnToggle").disabled=false;
+  $("chipinfo").textContent = "칩을 눌러 규칙·수치를 확인하세요. R / L 겹쳐 보기도 열렸습니다.";
+}
+
+/* ===== 종료 후 인터랙션 ===== */
+$("btnPlay").addEventListener("click", play);
+$("btnReplay").addEventListener("click", ()=>{ overlayMode=false; play(); });
+
+$("btnToggle").addEventListener("click", ()=>{
+  if (!finished) return;
+  overlayMode = !overlayMode;
+  for (let i=0;i<10;i++){
+    if (overlayMode){
+      /* L을 반투명 배경으로, R을 전경으로 — 승격 비용의 갭 시각화 */
+      setBar(i, WIN_R[i], "R");
+      bars[i].setAttribute("opacity","1");
+      let ghost = document.getElementById("ghost"+i);
+      if (!ghost){
+        ghost = document.createElementNS(svgNS,"rect");
+        ghost.setAttribute("id","ghost"+i);
+        ghost.setAttribute("x", xOf(i)); ghost.setAttribute("width",BW);
+        ghost.setAttribute("rx",4); ghost.setAttribute("fill","var(--bad)");
+        ghost.setAttribute("opacity",".28");
+        $("bars").insertBefore(ghost, bars[i]);
+      }
+      ghost.setAttribute("y", yOf(WIN_L[i]));
+      ghost.setAttribute("height", Y_BASE - yOf(WIN_L[i]));
+      ghost.style.display="";
+      cap('겹쳐 보기 — 붉은 그림자가 <span class="r">L</span>, 앞 막대가 <span class="g">R</span>. 두 막대의 간격이 <b>+260ms 승격 비용이 꼬리에서 청구된 크기</b>입니다.');
+    } else {
+      const g=document.getElementById("ghost"+i);
+      if (g) g.style.display="none";
+      setBar(i, WIN_L[i], "L");
+      cap('드릴(L) 화면으로 복귀했습니다.');
+    }
+  }
+  $("btnToggle").textContent = overlayMode ? "드릴(L)만 보기" : "R / L 겹쳐 보기";
+});
+
+const CHIPTXT = {
+  a01: 'a01 — <code>p95_ms &gt; 1500 · consecutive 2</code> · why: “p95가 예산을 두 창 연속 넘으면 우연이 아니다 (b07의 경보화).” 규칙은 코드가 아니라 <code>alert_rules.json</code> 데이터 — 임계 수정에 배포가 필요 없습니다.',
+  a02: 'a02 — <code>handoff_rate &gt; 0.30 · consecutive 1</code>. 정상 구간 실측 최대 0.20이라 발화 0건. 상담사 연결이 갑자기 몰리면 규칙보다 먼저 세상이 바뀐 것입니다.',
+  a03: 'a03 — <code>error_rate &gt; 0 · consecutive 1</code>. 예측된 handoff는 에러가 아닙니다. 예측 밖 raise만 에러 — 한 건도 즉시 웁니다.',
+  dedup: '발화 조건이 <code>streak == 2</code> 정확 일치라서, 창 5~9처럼 초과가 이어지면 streak은 3,4,5…로 자라며 <b>다시 울지 않습니다</b>. 사고 시작점에 한 번 — 반복 알림은 새벽 3시의 팀을 소음에 길들입니다.',
+  near: '창 2 = 1490.0, 임계까지 10.0ms. 이 한 창이 streak을 리셋해 창 3의 초과가 다시 1부터 셉니다. 임계 근처의 출렁임(플래핑)이 심하면 연속 조건·히스테리시스를 조정합니다 — b11(임계 실데이터 보정)의 주제.'
+};
+document.querySelectorAll(".chip").forEach(ch=>{
+  ch.addEventListener("click", ()=>{
+    if (!finished){ $("chipinfo").textContent="애니메이션 종료 후 열립니다."; return; }
+    document.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+    ch.classList.add("on");
+    $("chipinfo").innerHTML = CHIPTXT[ch.dataset.c];
+  });
+});
+
+/* 막대 클릭 → 해당 창 수치 */
+bars.forEach(b=>{
+  b.style.cursor="pointer";
+  b.addEventListener("click", ()=>{
+    if (!finished) return;
+    const i=+b.dataset.idx;
+    $("chipinfo").innerHTML =
+      "창 "+i+" — R <code>"+WIN_R[i].toFixed(1)+"</code> / L <code>"+WIN_L[i].toFixed(1)+
+      "</code> · 갭 <code>+"+(WIN_L[i]-WIN_R[i]).toFixed(1)+"ms</code>" +
+      (FIRED_L.includes(i) ? ' · <span style="color:var(--bad)">🔔 a01 발화 창</span>' : "");
+  });
+});
+</script>
+</body>
+</html>
