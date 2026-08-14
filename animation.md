@@ -39,3 +39,9 @@
 - [오탐과 미탐, 두 가지 실패의 무게](https://imguru-mooc.github.io/AI_Voice/html/two_failures_weight_animation.html)
 - [키워드 납치](https://imguru-mooc.github.io/AI_Voice/html/keyword_hijack_animation.html)
 - [양방향 스모크와 승계 타임라인](https://imguru-mooc.github.io/AI_Voice/html/smoke_handover_animation.html)
+
+### 시스템 안정화
+- [세대교체](https://imguru-mooc.github.io/AI_Voice/html/1.세대교체.html)
+- [조용한 오탐](https://imguru-mooc.github.io/AI_Voice/html/2.조용한_오탐.html)
+- [200턴, 표류 0](https://imguru-mooc.github.io/AI_Voice/html/3.소크_표류0.html)
+- [p95 심판대](https://imguru-mooc.github.io/AI_Voice/html/4.p95_심판대.html)
