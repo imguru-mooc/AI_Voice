@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오염 주입 스모크 — 8-4 · 5부 리포트</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --line:#334155;
+  --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --ok:#34d399; --okbg:rgba(52,211,153,.12);
+  --bad:#f87171; --badbg:rgba(248,113,113,.14);
+  --warn:#fbbf24; --warnbg:rgba(251,191,36,.12);
+  --acc:#38bdf8; --accbg:rgba(56,189,248,.12);
+  --seal:#c084fc;
+  --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);
+  font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  padding:20px 14px 48px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:920px}
+header{text-align:center;margin-bottom:12px}
+h1{font-size:1.26rem}
+.sub{color:var(--dim);font-size:.84rem;margin-top:5px;line-height:1.55}
+.sub b{color:var(--acc)}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0 14px}
+button.ctl{background:var(--panel);border:1px solid var(--line);color:var(--txt);
+  padding:8px 15px;border-radius:8px;font-size:.84rem;cursor:pointer}
+button.ctl:hover{border-color:var(--acc)}
+button.ctl.tgl.on{border-color:var(--warn);color:var(--warn)}
+button.ctl:disabled{opacity:.45;cursor:default}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:780px){.grid{grid-template-columns:1fr}}
+.repcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.repcard h3{font-family:var(--mono);font-size:.76rem;color:var(--acc);margin-bottom:8px}
+.jr{font-family:var(--mono);font-size:.68rem;line-height:1.9;color:var(--dim)}
+.jr .k{color:var(--faint)}
+.jr .num{color:var(--txt)}
+.jr .fld{padding:1px 5px;border-radius:4px;transition:all .35s}
+.jr .fld.hot{background:var(--badbg);color:var(--bad);font-weight:700}
+.jr .cmt{color:var(--faint);font-size:.62rem}
+.smokes{display:flex;flex-direction:column;gap:9px}
+.sm{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:10px 13px;opacity:.42;transition:all .45s}
+.sm.act{opacity:1;border-color:var(--acc)}
+.sm.okS{opacity:1;border-color:var(--ok)} .sm.badS{opacity:1;border-color:var(--bad)}
+.sm.slp{opacity:1;border-color:var(--warn)}
+.sm h4{font-size:.8rem;display:flex;gap:8px;align-items:center;margin-bottom:5px}
+.sm .no{width:20px;height:20px;border-radius:50%;background:var(--panel2);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:.66rem;color:var(--dim);flex-shrink:0}
+.sm .body{font-size:.72rem;color:var(--faint);line-height:1.65}
+.sm .res{font-family:var(--mono);font-size:.7rem;margin-top:5px;padding:4px 8px;
+  border-radius:6px;border:1px dashed var(--line);color:var(--faint);transition:all .35s}
+.sm.okS .res{border-color:var(--ok);color:var(--ok)}
+.sm.badS .res{border-color:var(--bad);color:var(--bad)}
+.sm.slp .res{border-color:var(--warn);color:var(--warn)}
+.files{display:flex;flex-direction:column;gap:4px;margin-top:5px}
+.fscan{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.66rem;
+  color:var(--faint);padding:2px 7px;border-radius:5px;transition:all .3s}
+.fscan.scan{background:var(--accbg);color:var(--acc)}
+.fscan.clean{color:var(--ok)}
+.meta-assert{margin-top:8px;font-family:var(--mono);font-size:.68rem;color:var(--faint);
+  padding:5px 9px;border-radius:6px;border:1px dashed transparent;transition:all .4s}
+.meta-assert.fire{border-color:var(--bad);color:var(--bad);background:var(--badbg)}
+.chainrow{margin-top:14px;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px;overflow-x:auto}
+.chainrow h3{font-size:.78rem;color:var(--dim);margin-bottom:9px;text-align:center}
+.gen{display:flex;align-items:center;gap:6px;justify-content:center;min-width:640px}
+.gnode{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.68rem;
+  color:var(--faint);white-space:nowrap;transition:all .4s;background:var(--panel2)}
+.gnode.tick{border-color:var(--faint);color:var(--dim)}
+.gnode.today{border-color:var(--seal);color:var(--seal);font-weight:700;
+  box-shadow:0 0 10px rgba(192,132,252,.18)}
+.gnode.next{border-style:dashed}
+.gar{color:var(--faint);font-size:.8rem;transition:color .4s}
+.gar.lit{color:var(--seal)}
+.verdict{margin-top:12px;border-radius:10px;border:1px dashed var(--line);
+  padding:10px 13px;font-size:.8rem;line-height:1.65;color:var(--faint);transition:all .4s}
+.verdict.ok{border-color:var(--ok);color:var(--txt);background:var(--okbg)}
+.verdict.warnV{border-color:var(--warn);color:var(--txt);background:var(--warnbg)}
+.verdict b.g{color:var(--ok)} .verdict b.r{color:var(--bad)}
+.verdict b.y{color:var(--warn)} .verdict b.p{color:var(--seal)}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;
+  opacity:0;transition:opacity .6s;pointer-events:none}
+.chips.show{opacity:1;pointer-events:auto}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:99px;
+  padding:6px 13px;font-size:.74rem;color:var(--dim);cursor:pointer}
+.chip:hover{border-color:var(--acc)}
+.chip.open{border-color:var(--acc);color:var(--txt)}
+.chipbox{margin:10px auto 0;background:var(--panel);border:1px solid var(--acc);
+  border-radius:10px;padding:12px 14px;font-size:.78rem;line-height:1.7;color:var(--dim);display:none}
+.chipbox.show{display:block}
+.chipbox code{font-family:var(--mono);color:var(--acc);font-size:.73rem}
+.foot{margin-top:16px;text-align:center;color:var(--faint);font-size:.68rem;line-height:1.7}
+@media(prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>「오염 주입 스모크」</h1>
+  <div class="sub">8-4 · 5부 리포트 발행 — <b>지켰다는 말은 증거가 아니다</b>.
+    통과를 확인했으면 실패도 확인한다: 검증기가 <b>울리는 것</b>과 <b>안 울리는 것</b>, 둘 다 오늘의 검증 대상이다.</div>
+</header>
+
+<div class="controls">
+  <button class="ctl" id="btnPlay">▶ 재생</button>
+  <button class="ctl tgl" id="tglSleep">검증기 잠재우기 — 스키마에서 type 검사 제거</button>
+</div>
+
+<div class="grid">
+  <div class="repcard">
+    <h3>compliance_report_8_4.json — 오늘의 결산</h3>
+    <div class="jr">
+      <div><span class="k">"session"</span>: "8-4"</div>
+      <div><span class="k">"pii"</span>: {drill phone <span class="num">1</span> · acct <span class="num">1</span>, leak_found <span class="num">0</span>}</div>
+      <div><span class="k">"notice"</span>: {draft <span class="num">61</span>자/<span class="num">10.98</span>s → final <span class="num">28</span>자/<span class="fld" id="fld">"final_est_s": <span class="num">5.04</span></span>, cap <span class="num">6.0</span>}</div>
+      <div><span class="k">"consent"</span>: {blocked_without_consent <span class="num">true</span>}</div>
+      <div><span class="k">"license"</span>: {commercial · block <span class="num">1</span> · hold <span class="num">1</span> · pass <span class="num">3</span> · <span class="num">g04</span>}</div>
+      <div><span class="k">"docs"</span>: {system_card_8_4.md · sha <span class="num">8ffad8a68ecd</span>}</div>
+      <div><span class="k">"backlog"</span>: 이월 <span class="num">4</span>(b06·b09·b10·b11) + 신규 <span class="num">3</span>(b12·b13·b14)</div>
+      <div class="cmt" id="schemaLine"># 검증기: COMPLIANCE_REPORT_SCHEMA — final_est_s: {"type": "number"}</div>
+    </div>
+  </div>
+
+  <div class="smokes">
+    <div class="sm" id="sm1">
+      <h4><span class="no">①</span>정방향 — 정상 리포트를 넣는다</h4>
+      <div class="body">jsonschema.validate(ok_doc, SCHEMA)</div>
+      <div class="res" id="r1">— 대기 —</div>
+    </div>
+    <div class="sm" id="sm2">
+      <h4><span class="no">②</span>역방향 — 오염을 주입한다</h4>
+      <div class="body">final_est_s = <b style="font-family:var(--mono)">"5.04s"</b> — 숫자여야 할 곳에 단위 붙은 문자열</div>
+      <div class="res" id="r2">— 대기 —</div>
+      <div class="meta-assert" id="meta">assert smoke_fired, "오염 리포트가 통과했습니다 — 스키마를 의심하세요"</div>
+    </div>
+    <div class="sm" id="sm3">
+      <h4><span class="no">③</span>전수 검사 — 산출물 4종에 원문 PII가 없는가</h4>
+      <div class="body">grep "010-2345-6789" → 컴플라이언스 세션의 산출물에 PII가 남는 것만큼 부끄러운 일은 없다</div>
+      <div class="files">
+        <div class="fscan" id="f0"><span>masked_turns.jsonl</span><span class="hits">—</span></div>
+        <div class="fscan" id="f1"><span>system_card_8_4.md</span><span class="hits">—</span></div>
+        <div class="fscan" id="f2"><span>compliance_report_8_4.json</span><span class="hits">—</span></div>
+        <div class="fscan" id="f3"><span>decision_g04.json</span><span class="hits">—</span></div>
+      </div>
+      <div class="res" id="r3">— 대기 —</div>
+    </div>
+  </div>
+</div>
+
+<div class="chainrow">
+  <h3>세대교체 — 스모크는 다음 세션의 입장권이 된다</h3>
+  <div class="gen">
+    <span class="gnode" id="n0">8-2 스모크</span><span class="gar" id="a0">→</span>
+    <span class="gnode" id="n1">8-3 입장권</span><span class="gar" id="a1">→</span>
+    <span class="gnode" id="n2">8-3 스모크</span><span class="gar" id="a2">→</span>
+    <span class="gnode" id="n3">8-4 입장권 (오늘 0부)</span><span class="gar" id="a3">→</span>
+    <span class="gnode" id="n4">8-4 스모크 (지금)</span><span class="gar" id="a4">→</span>
+    <span class="gnode next" id="n5">8-5 입장권 · 최종 시연</span>
+  </div>
+</div>
+
+<div class="verdict" id="verdict">재생을 누르면 스모크 3종이 순서대로 진행됩니다.</div>
+
+<div class="chips" id="chips">
+  <span class="chip" data-c="c1">왜 양방향인가</span>
+  <span class="chip" data-c="c2">왜 하필 "5.04s"인가</span>
+  <span class="chip" data-c="c3">전수 PII 검사가 ③에 선 이유</span>
+  <span class="chip" data-c="c4">잠든 검증기와 메타 assert</span>
+</div>
+<div class="chipbox" id="boxc1">정상 통과만 확인하면 <b>잠들어 있는 검증기</b>도 통과시킵니다 — 아무것도 검사하지 않는 스키마가 가장 조용히 통과합니다. 그래서 스모크는 양방향입니다: ① 좋은 문서에 침묵하는가, ② 나쁜 문서에 우는가. 둘 중 하나만 확인한 검증기는 검증된 것이 아닙니다. 6장부터 이어 온 이 관례가 오늘도 리포트 발행의 마지막 관문입니다.</div>
+<div class="chipbox" id="boxc2">"5.04s"는 임의의 오염이 아니라 <b>가장 그럴듯한 실수</b>입니다 — 사람이 보고서를 손보다가 "읽기 좋게" 단위를 붙이는 순간, 숫자는 문자열이 됩니다. 다음 세션이 이 값으로 산술 비교(<code>final_est_s &lt;= cap_s</code>)를 하는 순간 무너집니다. 스키마의 <code>{"type": "number"}</code> 한 줄이 이 계열의 실수 전부를 경계에서 잡습니다 — 4부의 반올림(0.94)과 같은 병의 다른 증상입니다.</div>
+<div class="chipbox" id="boxc3">①·②가 <b>형식</b>(스키마)을 지켰다면 ③은 <b>내용</b>(PII)을 지킵니다. 오늘 드릴에서 원문 번호가 로그·카드·리포트·결정문 어디로도 새지 않았는지, 발행 직전에 산출물 4종을 전수 grep합니다. 1부 게이트가 실시간 경계라면 ③은 출고 검사 — 같은 번호(010-2345-6789)를 두 겹에서 지킵니다. 실측: 4종 모두 0건.</div>
+<div class="chipbox" id="boxc4">「검증기 잠재우기」 토글은 스키마에서 <code>type</code> 검사를 뺀 세계입니다. 오염 리포트가 <b>조용히 통과</b>하고 — 그 침묵을 노트북의 메타 assert(<code>assert smoke_fired</code>)가 잡습니다: "오염 리포트가 통과했습니다 — 스키마를 의심하세요." 검증기를 검증하는 한 줄. 침묵 통과는 축하가 아니라 의심의 신호라는 것이 오늘의 마지막 교훈입니다.</div>
+
+<div class="foot">실측 출처: 8_4 노트북 셀 5-1·5-2 실행값 — ValidationError 첫 줄 "'5.04s' is not of type 'number'" 실측 ·
+산출물 4종 PII 0건 · gates 수치 = compliance_report_8_4.json 원문 · 단일 파일 · 오프라인 · prefers-reduced-motion 대응</div>
+</div>
+
+<script>
+"use strict";
+var FILES=["masked_turns.jsonl","system_card_8_4.md","compliance_report_8_4.json","decision_g04.json"];
+var ERRLINE="'5.04s' is not of type 'number'"; // jsonschema 실측 첫 줄
+var sleep=false, playing=false, timers=[];
+var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var $=function(id){return document.getElementById(id)};
+function later(fn,ms){ if(reduced){fn();} else {timers.push(setTimeout(fn,ms));} }
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+function reset(){
+  clearTimers();
+  ["sm1","sm2","sm3"].forEach(function(id){ $(id).className="sm"; });
+  $("r1").textContent="— 대기 —"; $("r2").textContent="— 대기 —"; $("r3").textContent="— 대기 —";
+  $("meta").className="meta-assert";
+  $("fld").className="fld";
+  $("schemaLine").textContent = sleep
+    ? '# 검증기(잠듦): COMPLIANCE_REPORT_SCHEMA — final_est_s: {}  ← type 검사 제거'
+    : '# 검증기: COMPLIANCE_REPORT_SCHEMA — final_est_s: {"type": "number"}';
+  for(var i=0;i<4;i++){ var f=$("f"+i); f.className="fscan"; f.querySelector(".hits").textContent="—"; }
+  for(var j=0;j<=5;j++){ $("n"+j).classList.remove("tick","today"); }
+  for(var k=0;k<=4;k++){ $("a"+k).classList.remove("lit"); }
+  $("verdict").className="verdict"; $("verdict").textContent="스모크 진행 중…";
+  $("chips").classList.remove("show");
+  document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+  document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+}
+function phase1(){
+  $("sm1").classList.add("act");
+  later(function(){
+    $("sm1").classList.remove("act"); $("sm1").classList.add("okS");
+    $("r1").textContent="① 정상 리포트 → 검증기 침묵 ✓";
+  }, reduced?0:700);
+}
+function phase2(){
+  $("sm2").classList.add("act");
+  later(function(){ $("fld").classList.add("hot");
+    $("fld").innerHTML='"final_est_s": <span class="num" style="color:inherit">"5.04s"</span>'; },
+    reduced?0:350);
+  later(function(){
+    $("sm2").classList.remove("act");
+    if(sleep){
+      $("sm2").classList.add("slp");
+      $("r2").textContent="② 오염 리포트 → 검증기 침묵… (type 검사가 없다)";
+      later(function(){ $("meta").classList.add("fire");
+        $("meta").textContent='assert smoke_fired ✗ — "오염 리포트가 통과했습니다 — 스키마를 의심하세요"';
+      }, reduced?0:600);
+    } else {
+      $("sm2").classList.add("badS");
+      $("r2").textContent="② ValidationError: "+ERRLINE+" — 검증기 반응 ✓";
+    }
+  }, reduced?0:1100);
+}
+function phase3(){
+  $("sm3").classList.add("act");
+  var step=reduced?0:420;
+  FILES.forEach(function(_,i){
+    later(function(){ $("f"+i).classList.add("scan"); }, i*step);
+    later(function(){ var f=$("f"+i); f.classList.remove("scan"); f.classList.add("clean");
+      f.querySelector(".hits").textContent="0건 ✓"; }, i*step+(reduced?0:300));
+  });
+  later(function(){
+    $("sm3").classList.remove("act"); $("sm3").classList.add("okS");
+    $("r3").textContent="③ 산출물 4종 전수 검사 — 원문 PII 0건 ✓";
+  }, FILES.length*step+(reduced?0:350));
+}
+function phase4(){
+  var step=reduced?0:260;
+  [0,1,2,3,4].forEach(function(i){
+    later(function(){ $("n"+i).classList.add("tick"); if(i<5)$("a"+i).classList.add("lit"); }, i*step);
+  });
+  later(function(){ $("n4").classList.add("today"); $("n5").classList.add("today"); }, 5*step);
+  later(finish, 5*step+(reduced?0:400));
+}
+function finish(){
+  var v=$("verdict");
+  if(sleep){
+    v.classList.add("warnV");
+    v.innerHTML="<b class='y'>잠든 검증기의 침묵 통과</b> — 오염이 걸리지 않은 것은 리포트가 깨끗해서가 아니라 "+
+      "검증기가 자고 있었기 때문입니다. 그 침묵을 메타 assert가 잡았습니다: <b class='r'>검증기도 검증 대상</b>입니다. "+
+      "침묵 통과는 축하가 아니라 의심의 신호 — 스키마를 깨우고 다시 발행하십시오.";
+  } else {
+    v.classList.add("ok");
+    v.innerHTML="<b class='g'>스모크 3종 통과</b> — 좋은 문서에 침묵 ✓ · 나쁜 문서에 반응 ✓ · 산출물 PII 0건 ✓. "+
+      "compliance_report_8_4.json 발행. 8-3의 스모크가 오늘 0부의 입장권이 됐듯, "+
+      "이 리포트는 <b class='p'>8-5 최종 시연·총정리의 입장권</b>입니다 — 세대교체는 계속됩니다.";
+  }
+  $("chips").classList.add("show");
+  playing=false; $("btnPlay").disabled=false;
+  $("btnPlay").textContent="↺ 다시 보기";
+}
+function play(){
+  if(playing) return;
+  playing=true; $("btnPlay").disabled=true;
+  reset();
+  later(phase1, 200);
+  later(phase2, reduced?0:1300);
+  later(phase3, reduced?0:3100);
+  later(phase4, reduced?0:5400);
+}
+$("btnPlay").addEventListener("click", play);
+$("tglSleep").addEventListener("click", function(){
+  sleep=!sleep; $("tglSleep").classList.toggle("on", sleep);
+  if(!playing) play();
+});
+document.querySelectorAll(".chip").forEach(function(ch){
+  ch.addEventListener("click", function(){
+    var box=$("box"+ch.getAttribute("data-c"));
+    var was=box.classList.contains("show");
+    document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+    document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+    if(!was){box.classList.add("show");ch.classList.add("open");}
+  });
+});
+// 도메인 자기검증
+(function(){
+  console.assert(FILES.length===4,"산출물 4종");
+  console.assert(ERRLINE.indexOf("5.04s")>=0 && ERRLINE.indexOf("number")>=0,"오류 문구");
+})();
+play();
+</script>
+</body>
+</html>

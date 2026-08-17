@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>승계 검증 이중문 — 8-4 · 0부 입장권</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --line:#334155;
+  --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --ok:#34d399; --okbg:rgba(52,211,153,.12);
+  --bad:#f87171; --badbg:rgba(248,113,113,.12);
+  --warn:#fbbf24; --acc:#38bdf8; --new:#c084fc;
+  --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);
+  font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  padding:20px 14px 48px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:980px}
+header{text-align:center;margin-bottom:14px}
+h1{font-size:1.28rem;letter-spacing:.02em}
+.sub{color:var(--dim);font-size:.84rem;margin-top:5px;line-height:1.5}
+.sub b{color:var(--acc);font-weight:600}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0 16px}
+button.ctl{background:var(--panel);border:1px solid var(--line);color:var(--txt);
+  padding:8px 16px;border-radius:8px;font-size:.85rem;cursor:pointer;transition:border-color .2s}
+button.ctl:hover{border-color:var(--acc)}
+button.ctl.tgl.on{border-color:var(--bad);color:var(--bad)}
+button.ctl:disabled{opacity:.45;cursor:default}
+.stage{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.stage{grid-template-columns:1fr}}
+.gate{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:14px;transition:border-color .5s, box-shadow .5s}
+.gate.pass{border-color:var(--ok);box-shadow:0 0 14px rgba(52,211,153,.15)}
+.gate.fail{border-color:var(--bad);box-shadow:0 0 14px rgba(248,113,113,.18)}
+.gate h2{font-size:.95rem;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.tag{font-size:.66rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--dim)}
+.gate .why{color:var(--faint);font-size:.74rem;margin-bottom:10px;line-height:1.5}
+.doc{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  padding:10px;font-family:var(--mono);font-size:.72rem}
+.doc .fn{color:var(--acc);margin-bottom:8px;font-size:.74rem}
+.krow{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:4px 6px;border-radius:5px;opacity:.34;transition:opacity .35s, background .35s}
+.krow.on{opacity:1;background:var(--okbg)}
+.krow.bad{opacity:1;background:var(--badbg)}
+.krow .k{color:var(--dim);white-space:nowrap}
+.krow .v{color:var(--txt);text-align:right}
+.krow.on .mk{color:var(--ok)} .krow.bad .mk{color:var(--bad)}
+.mk{width:14px;display:inline-block;text-align:center;color:var(--faint)}
+.stamp{margin-top:10px;text-align:center;font-size:.8rem;padding:7px;border-radius:7px;
+  border:1px dashed var(--line);color:var(--faint);transition:all .4s}
+.stamp.ok{border-color:var(--ok);color:var(--ok);background:var(--okbg)}
+.stamp.bad{border-color:var(--bad);color:var(--bad);background:var(--badbg)}
+.cats{display:flex;flex-direction:column;gap:6px}
+.cat{display:flex;align-items:center;gap:8px;font-size:.74rem}
+.cat .nm{width:118px;color:var(--dim);flex-shrink:0}
+.cat .nm .nb{color:var(--new);font-size:.62rem;border:1px solid var(--new);
+  border-radius:4px;padding:0 4px;margin-left:4px}
+.cells{display:flex;gap:3px;flex-wrap:wrap}
+.cell{width:15px;height:15px;border-radius:3px;background:var(--panel2);
+  border:1px solid var(--line);transition:background .25s, border-color .25s}
+.cell.on{background:var(--ok);border-color:var(--ok)}
+.cell.new{border-color:var(--new)}
+.cell.new.on{background:var(--new);border-color:var(--new)}
+.cell.bad{background:var(--bad);border-color:var(--bad)}
+.sub-run{margin-top:10px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;padding:9px 10px;font-family:var(--mono);font-size:.7rem;
+  color:var(--faint);line-height:1.7;opacity:.4;transition:opacity .4s}
+.sub-run.on{opacity:1}
+.sub-run .cmd{color:var(--dim)}
+.sub-run .res{font-size:.82rem;font-weight:700;color:var(--faint);transition:color .4s}
+.sub-run .res.ok{color:var(--ok)} .sub-run .res.bad{color:var(--bad)}
+.door{grid-column:1/-1;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:14px;text-align:center;transition:border-color .6s}
+@media(max-width:760px){.door{grid-column:auto}}
+.door.open{border-color:var(--ok)}
+.door.shut{border-color:var(--bad)}
+.door .lock{font-size:1.5rem;display:block;margin-bottom:4px}
+.door .msg{font-size:.86rem;color:var(--dim);line-height:1.6}
+.door.open .msg b{color:var(--ok)} .door.shut .msg b{color:var(--bad)}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px;
+  opacity:0;transition:opacity .6s;pointer-events:none}
+.chips.show{opacity:1;pointer-events:auto}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:99px;
+  padding:6px 13px;font-size:.74rem;color:var(--dim);cursor:pointer;transition:border-color .2s}
+.chip:hover{border-color:var(--acc)}
+.chip.open{border-color:var(--acc);color:var(--txt)}
+.chipbox{max-width:760px;margin:10px auto 0;background:var(--panel);border:1px solid var(--acc);
+  border-radius:10px;padding:12px 14px;font-size:.78rem;line-height:1.7;color:var(--dim);display:none}
+.chipbox.show{display:block}
+.chipbox code{font-family:var(--mono);color:var(--acc);font-size:.74rem}
+.foot{margin-top:18px;text-align:center;color:var(--faint);font-size:.68rem;line-height:1.7}
+@media(prefers-reduced-motion:reduce){
+  *{transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>「승계 검증 이중문」</h1>
+  <div class="sub">8-4 컴플라이언스 &amp; 문서화 · 0부 입장권 —
+    <b>어제의 exit 0은 오늘의 증거가 아니다</b>. 문서와 코드, 두 장을 모두 지금 이 자리에서 재판정한다.</div>
+</header>
+
+<div class="controls">
+  <button class="ctl" id="btnPlay">▶ 재생</button>
+  <button class="ctl tgl" id="tglDoc">오염 주입 A — baseline 키 제거</button>
+  <button class="ctl tgl" id="tglCode">오염 주입 B — 회귀 1건 실패</button>
+</div>
+
+<div class="stage">
+  <section class="gate" id="gateDoc">
+    <h2>입장권 1/2 · 문서 <span class="tag">스키마 재검증</span></h2>
+    <div class="why">리포트도 계약이다(8-1) — 어제 발행됐다는 사실이 아니라, 오늘 스키마를 통과한다는 사실이 증거.</div>
+    <div class="doc">
+      <div class="fn">deploy_report_8_3.json → jsonschema.validate(·, SCHEMA)</div>
+      <div class="krow" data-k="0"><span><span class="mk">·</span><span class="k">session</span></span><span class="v">"8-3"</span></div>
+      <div class="krow" data-k="1"><span><span class="mk">·</span><span class="k">baseline</span></span><span class="v">intent_acc 0.933 · wrong 0</span></div>
+      <div class="krow" data-k="2"><span><span class="mk">·</span><span class="k">metrics</span></span><span class="v">p95 R 1260.2 · L 1646.7 / 예산 1500</span></div>
+      <div class="krow" data-k="3"><span><span class="mk">·</span><span class="k">observability</span></span><span class="v">traces 206 (원문 미기록)</span></div>
+      <div class="krow" data-k="4"><span><span class="mk">·</span><span class="k">alert_drill</span></span><span class="v">a01 · 2창 발화</span></div>
+      <div class="krow" data-k="5"><span><span class="mk">·</span><span class="k">canary</span></span><span class="v">v3-draft · wrong 1 → rollback</span></div>
+      <div class="krow" data-k="6"><span><span class="mk">·</span><span class="k">input_cap</span></span><span class="v">200 (제안 130 대기)</span></div>
+      <div class="krow" data-k="7"><span><span class="mk">·</span><span class="k">backlog</span></span><span class="v">b06 · b09 · b10 · b11</span></div>
+    </div>
+    <div class="stamp" id="stampDoc">대기 중</div>
+  </section>
+
+  <section class="gate" id="gateCode">
+    <h2>입장권 2/2 · 코드 <span class="tag">회귀 25건 재판정</span></h2>
+    <div class="why">회귀 묶음이 <em>지금 이 자리에서</em> exit 0인가 — 서브프로세스 재판정, <code style="font-family:var(--mono)">pytest.main()</code> 금지(6-5 교훈).</div>
+    <div class="cats" id="cats"></div>
+    <div class="sub-run" id="subRun">
+      <div class="cmd">$ rm __pycache__/* ; python -m pytest -q test_project.py</div>
+      <div class="res" id="resLine">— 대기 중 —</div>
+    </div>
+    <div class="stamp" id="stampCode">대기 중</div>
+  </section>
+
+  <section class="door" id="door">
+    <span class="lock" id="lockIcon">🔒</span>
+    <div class="msg" id="doorMsg">두 관문이 모두 열려야 8-4를 시작할 수 있습니다.</div>
+  </section>
+</div>
+
+<div class="chips" id="chips">
+  <span class="chip" data-c="c1">산술: 15+2+1+2+3+1+1 = 25</span>
+  <span class="chip" data-c="c2">신설 25번째 — 발원지 표식</span>
+  <span class="chip" data-c="c3">왜 서브프로세스인가 (6-5)</span>
+  <span class="chip" data-c="c4">왜 두 장인가</span>
+</div>
+<div class="chipbox" id="boxc1">골든 분류 <code>15</code>(parametrize, 안전 미탐 허용·위험 오답 금지) + TTS 계약 <code>2</code> + 폴백 게이트 <code>1</code>(b01 상환) + 러너 <code>2</code> + 입구 계약 <code>3</code>(empty·too_long·non-str) + unknown handoff <code>1</code> + 발원지 표식 <code>1</code> = <code>25</code>. 노트북 셀 0-3의 "25 passed"와 자릿수까지 같은 구성입니다.</div>
+<div class="chipbox" id="boxc2">25번째 회귀는 8-4에서 신설된 <code>test_gate_error_names_origin</code> — 폴백 경로 계약 위반이 <code>[fallback]</code> 발원지 표식을 달고 울리는지 확인합니다. 7-5 사각지대 → 8-1 게이트 → 8-3 가시화로 이어진 서사가, 이제 "표식이 정확한가"까지 회귀로 잠깁니다.</div>
+<div class="chipbox" id="boxc3">6-5에서 <code>pytest.main()</code>을 같은 프로세스에서 부르면 모듈 캐시가 오염돼 수정 전 코드로 판정되는 사건이 있었습니다. 그래서 입장권은 항상 <code>__pycache__</code>를 비우고 <code>python -m pytest</code> 서브프로세스로 재판정하며, 신뢰하는 것은 출력 문자열이 아니라 <b>exit 규약</b>입니다.</div>
+<div class="chipbox" id="boxc4">문서 관문은 "8-3이 무엇을 남겼는가"(상태), 코드 관문은 "엔진이 지금도 약속을 지키는가"(행동)를 봅니다. 어느 한 장만으로는 부족합니다 — 리포트가 멀쩡해도 엔진이 바뀌었을 수 있고, 테스트가 통과해도 승계 문서가 오염됐을 수 있습니다. 오염 주입 A·B 토글로 각각을 확인해 보십시오.</div>
+
+<div class="foot">수치 출처: 8_4_컴플라이언스_문서화_실습.ipynb 셀 0-2·0-3 실행값 (deploy_report_8_3.json = 8-3 발행본) ·
+단일 파일 · 오프라인 · prefers-reduced-motion 대응</div>
+</div>
+
+<script>
+"use strict";
+var CATS=[
+  {nm:"골든 분류", n:15, isNew:false},
+  {nm:"TTS 계약", n:2, isNew:false},
+  {nm:"폴백 게이트", n:1, isNew:false},
+  {nm:"러너", n:2, isNew:false},
+  {nm:"입구 계약", n:3, isNew:false},
+  {nm:"unknown", n:1, isNew:false},
+  {nm:"발원지 표식", n:1, isNew:true}
+];
+var TOTAL=CATS.reduce(function(s,c){return s+c.n},0); // 25
+
+var catsEl=document.getElementById("cats"), cells=[];
+CATS.forEach(function(c){
+  var row=document.createElement("div"); row.className="cat";
+  var nm=document.createElement("span"); nm.className="nm";
+  nm.innerHTML=c.nm+" "+c.n+(c.isNew?'<span class="nb">신설</span>':'');
+  var box=document.createElement("span"); box.className="cells";
+  for(var i=0;i<c.n;i++){
+    var d=document.createElement("span");
+    d.className="cell"+(c.isNew?" new":"");
+    box.appendChild(d); cells.push(d);
+  }
+  row.appendChild(nm); row.appendChild(box); catsEl.appendChild(row);
+});
+
+var krows=[].slice.call(document.querySelectorAll(".krow"));
+var gateDoc=document.getElementById("gateDoc"), gateCode=document.getElementById("gateCode");
+var stampDoc=document.getElementById("stampDoc"), stampCode=document.getElementById("stampCode");
+var subRun=document.getElementById("subRun"), resLine=document.getElementById("resLine");
+var door=document.getElementById("door"), lockIcon=document.getElementById("lockIcon");
+var doorMsg=document.getElementById("doorMsg");
+var chips=document.getElementById("chips");
+var btnPlay=document.getElementById("btnPlay");
+var tglDoc=document.getElementById("tglDoc"), tglCode=document.getElementById("tglCode");
+var corruptDoc=false, corruptCode=false, timers=[], playing=false;
+var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function later(fn,ms){ if(reduced){fn();} else {timers.push(setTimeout(fn,ms));} }
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+function reset(){
+  clearTimers();
+  krows.forEach(function(r){r.classList.remove("on","bad");});
+  cells.forEach(function(d){d.classList.remove("on","bad");});
+  [gateDoc,gateCode].forEach(function(g){g.classList.remove("pass","fail");});
+  [stampDoc,stampCode].forEach(function(s){s.className="stamp";s.textContent="대기 중";});
+  subRun.classList.remove("on"); resLine.className="res"; resLine.textContent="— 대기 중 —";
+  door.className="door"; lockIcon.textContent="🔒";
+  doorMsg.innerHTML="두 관문이 모두 열려야 8-4를 시작할 수 있습니다.";
+  chips.classList.remove("show");
+  document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+  document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+}
+
+function finishDoor(){
+  var okDoc=!corruptDoc, okCode=!corruptCode;
+  if(okDoc&&okCode){
+    door.classList.add("open"); lockIcon.textContent="🔓";
+    doorMsg.innerHTML="<b>입장권 2장 확보</b> — 8-4 컴플라이언스 &amp; 문서화를 시작합니다.<br>오늘의 질문: 지켰다는 말을 어떻게 증명하는가?";
+  } else {
+    door.classList.add("shut"); lockIcon.textContent="⛔";
+    doorMsg.innerHTML= okDoc
+      ? "<b>입장 거부</b> — 엔진이 계약을 위반한 상태로는 오늘을 시작할 수 없습니다. 실패 테스트명으로 발원지를 추적하십시오."
+      : "<b>입장 거부</b> — 승계 문서가 계약을 위반했습니다. 8-3 리포트를 복구하기 전에는 어떤 셀도 실행하지 않습니다.";
+  }
+  chips.classList.add("show");
+  playing=false; btnPlay.disabled=false;
+  btnPlay.textContent="↺ 다시 보기";
+}
+
+function runDocGate(next){
+  var step=140, badIdx=1; // baseline
+  krows.forEach(function(r,i){
+    later(function(){
+      if(corruptDoc && i===badIdx){
+        r.classList.add("bad");
+        r.querySelector(".v").textContent="(키 제거됨 — required 위반)";
+        r.querySelector(".mk").textContent="✗";
+        stampDoc.classList.add("bad");
+        stampDoc.textContent="✗ ValidationError: 'baseline' is a required property";
+        gateDoc.classList.add("fail");
+      } else if(!(corruptDoc && i>badIdx)){
+        r.classList.add("on");
+        r.querySelector(".mk").textContent="✓";
+      }
+    }, i*step);
+  });
+  later(function(){
+    if(!corruptDoc){
+      stampDoc.classList.add("ok");
+      stampDoc.textContent="✓ 스키마 검증 통과 — 필수 키 8/8 (리포트도 계약이다)";
+      gateDoc.classList.add("pass");
+    }
+    next();
+  }, krows.length*step+320);
+}
+
+function runCodeGate(next){
+  later(function(){subRun.classList.add("on");},0);
+  var step= reduced?0:70, failAt= corruptCode? 11 : -1; // v_007류 1건 실패 가정
+  cells.forEach(function(d,i){
+    later(function(){
+      if(i===failAt){ d.classList.add("bad"); }
+      else { d.classList.add("on"); }
+    }, 250+i*step);
+  });
+  later(function(){
+    if(corruptCode){
+      resLine.classList.add("bad");
+      resLine.textContent="1 failed, 24 passed  |  exit 1";
+      stampCode.classList.add("bad");
+      stampCode.textContent="✗ 입장권 실패 — 오늘 자료가 첫 사고를 잡은 것입니다 (축하할 일)";
+      gateCode.classList.add("fail");
+    } else {
+      resLine.classList.add("ok");
+      resLine.textContent="25 passed  |  exit 0";
+      stampCode.classList.add("ok");
+      stampCode.textContent="✓ 회귀 재판정 통과 — 엔진은 지금도 계약을 지킨다";
+      gateCode.classList.add("pass");
+    }
+    next();
+  }, 250+TOTAL*step+380);
+}
+
+function play(){
+  if(playing) return;
+  playing=true; btnPlay.disabled=true;
+  reset();
+  runDocGate(function(){
+    later(function(){ runCodeGate(function(){ later(finishDoor, 400); }); }, 300);
+  });
+}
+
+btnPlay.addEventListener("click", play);
+tglDoc.addEventListener("click", function(){
+  corruptDoc=!corruptDoc; tglDoc.classList.toggle("on", corruptDoc);
+  if(!playing) play();
+});
+tglCode.addEventListener("click", function(){
+  corruptCode=!corruptCode; tglCode.classList.toggle("on", corruptCode);
+  if(!playing) play();
+});
+document.querySelectorAll(".chip").forEach(function(ch){
+  ch.addEventListener("click", function(){
+    var id="box"+ch.getAttribute("data-c");
+    var box=document.getElementById(id);
+    var was=box.classList.contains("show");
+    document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+    document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+    if(!was){ box.classList.add("show"); ch.classList.add("open"); }
+  });
+});
+
+// 도메인 자기검증 — 수치는 설계 정본과 어긋나면 콘솔에 크게 알린다
+(function(){
+  console.assert(TOTAL===25, "회귀 합계 25 불일치: "+TOTAL);
+  console.assert(cells.length===25, "셀 수 25 불일치");
+  console.assert(krows.length===8, "스키마 필수 키 8 불일치: "+krows.length);
+})();
+
+play();
+</script>
+</body>
+</html>

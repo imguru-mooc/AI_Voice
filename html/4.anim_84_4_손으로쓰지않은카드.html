@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>손으로 쓰지 않은 카드 — 8-4 · 4부 문서화</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --line:#334155;
+  --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --ok:#34d399; --okbg:rgba(52,211,153,.12);
+  --bad:#f87171; --badbg:rgba(248,113,113,.14);
+  --warn:#fbbf24; --acc:#38bdf8; --accbg:rgba(56,189,248,.14);
+  --seal:#c084fc; --sealbg:rgba(192,132,252,.13);
+  --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);
+  font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  padding:20px 14px 48px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:960px}
+header{text-align:center;margin-bottom:12px}
+h1{font-size:1.26rem}
+.sub{color:var(--dim);font-size:.84rem;margin-top:5px;line-height:1.55}
+.sub b{color:var(--acc)}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0 14px}
+button.ctl{background:var(--panel);border:1px solid var(--line);color:var(--txt);
+  padding:8px 15px;border-radius:8px;font-size:.84rem;cursor:pointer}
+button.ctl:hover{border-color:var(--acc)}
+button.ctl.tgl.on{border-color:var(--bad);color:var(--bad)}
+button.ctl:disabled{opacity:.45;cursor:default}
+.stage{display:grid;grid-template-columns:1fr 1.25fr;gap:14px}
+@media(max-width:780px){.stage{grid-template-columns:1fr}}
+.col h2{font-size:.82rem;color:var(--dim);font-weight:600;margin-bottom:8px;text-align:center}
+.src{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:10px 12px;margin-bottom:10px}
+.src h3{font-family:var(--mono);font-size:.72rem;color:var(--acc);margin-bottom:7px}
+.sv{display:flex;justify-content:space-between;gap:8px;font-size:.72rem;
+  padding:3px 6px;border-radius:5px;color:var(--dim);transition:background .3s,color .3s}
+.sv .val{font-family:var(--mono);color:var(--faint)}
+.sv.lit{background:var(--accbg);color:var(--txt)} .sv.lit .val{color:var(--acc);font-weight:700}
+.sv.used{opacity:.75} .sv.used .val{color:var(--ok)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;transition:border-color .5s}
+.card.sealed{border-color:var(--seal)}
+.card.broken{border-color:var(--bad)}
+.card h3{font-family:var(--mono);font-size:.76rem;color:var(--txt);margin-bottom:8px;
+  display:flex;align-items:center;gap:8px}
+.card h3 .gen{font-size:.62rem;color:var(--faint);border:1px solid var(--line);
+  border-radius:5px;padding:1px 6px;font-family:inherit}
+.sec{margin-bottom:7px}
+.sec .sh{font-family:var(--mono);font-size:.68rem;color:var(--faint);margin-bottom:3px}
+.slot{font-family:var(--mono);font-size:.7rem;line-height:1.75;color:var(--faint);
+  padding:2px 7px;border-radius:5px;border:1px dashed var(--line);margin-bottom:3px;
+  transition:all .35s;min-height:1.6em}
+.slot .ph{opacity:.5}
+.slot.fill{border-style:solid;border-color:var(--line);color:var(--dim)}
+.slot.fill b{color:var(--txt);font-weight:600}
+.slot.lit{border-color:var(--acc);background:var(--accbg)}
+.slot.edit{border-color:var(--bad);background:var(--badbg);color:var(--bad)}
+.slot.edit b{color:var(--bad)}
+.assert{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+  padding:9px 11px;margin-top:9px;font-family:var(--mono);font-size:.7rem;line-height:1.9;
+  opacity:.4;transition:opacity .4s}
+.assert.on{opacity:1}
+.assert .t{color:var(--faint);transition:color .3s}
+.assert .t.ok{color:var(--ok)} .assert .t.bad{color:var(--bad);font-weight:700}
+.sealrow{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;
+  opacity:0;transition:opacity .5s}
+.sealrow.show{opacity:1}
+.stampS{border:2px solid var(--seal);color:var(--seal);border-radius:8px;
+  padding:5px 11px;font-family:var(--mono);font-size:.74rem;font-weight:700;
+  transform:rotate(-3deg);background:var(--sealbg);transition:all .4s}
+.stampS.bad{border-color:var(--bad);color:var(--bad);background:var(--badbg)}
+.chain{font-size:1rem;color:var(--seal);transition:color .4s}
+.chain.cut{color:var(--bad)}
+.repbox{border:1px solid var(--line);border-radius:8px;padding:5px 10px;
+  font-family:var(--mono);font-size:.66rem;color:var(--dim);transition:border-color .4s}
+.repbox b{color:var(--seal)} .repbox.bad{border-color:var(--bad)} .repbox.bad b{color:var(--bad)}
+.verdict{margin-top:12px;border-radius:10px;border:1px dashed var(--line);
+  padding:10px 13px;font-size:.8rem;line-height:1.65;color:var(--faint);transition:all .4s}
+.verdict.ok{border-color:var(--seal);color:var(--txt);background:var(--sealbg)}
+.verdict.bad{border-color:var(--bad);color:var(--txt);background:var(--badbg)}
+.verdict b.p{color:var(--seal)} .verdict b.r{color:var(--bad)} .verdict b.g{color:var(--ok)}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;
+  opacity:0;transition:opacity .6s;pointer-events:none}
+.chips.show{opacity:1;pointer-events:auto}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:99px;
+  padding:6px 13px;font-size:.74rem;color:var(--dim);cursor:pointer}
+.chip:hover{border-color:var(--acc)}
+.chip.open{border-color:var(--acc);color:var(--txt)}
+.chipbox{margin:10px auto 0;background:var(--panel);border:1px solid var(--acc);
+  border-radius:10px;padding:12px 14px;font-size:.78rem;line-height:1.7;color:var(--dim);display:none}
+.chipbox.show{display:block}
+.chipbox code{font-family:var(--mono);color:var(--acc);font-size:.73rem}
+.foot{margin-top:16px;text-align:center;color:var(--faint);font-size:.68rem;line-height:1.7}
+@media(prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>「손으로 쓰지 않은 카드」</h1>
+  <div class="sub">8-4 · 4부 문서화 — <b>정본은 하나, 문서는 코드로</b>.
+    카드의 모든 수치는 정본에서 파생되고, 파생 직후 대조되고, sha256으로 봉인된다.</div>
+</header>
+
+<div class="controls">
+  <button class="ctl" id="btnPlay">▶ 재생</button>
+  <button class="ctl tgl" id="tglEdit">손 편집 주입 — 0.933을 0.94로 반올림</button>
+</div>
+
+<div class="stage">
+  <div class="col">
+    <h2>정본 (원천 2계열)</h2>
+    <div class="src">
+      <h3>deploy_report_8_3.json — 승계 문서</h3>
+      <div class="sv" id="s_bud"><span>예산</span><span class="val">1500ms</span></div>
+      <div class="sv" id="s_acc"><span>baseline</span><span class="val">0.933 · wrong 0</span></div>
+      <div class="sv" id="s_p95"><span>p95</span><span class="val">R 1260.2 · L 1646.7</span></div>
+      <div class="sv" id="s_obs"><span>관측</span><span class="val">traces 206 · a01 2창</span></div>
+      <div class="sv" id="s_can"><span>카나리</span><span class="val">v3-draft wrong 1 → rollback</span></div>
+      <div class="sv" id="s_bkl"><span>백로그</span><span class="val">b06 · b09 · b10 · b11</span></div>
+    </div>
+    <div class="src">
+      <h3>오늘의 게이트 실행값 — 셀 1~3부</h3>
+      <div class="sv" id="s_pii"><span>PII 드릴</span><span class="val">phone 1 · acct 1 · 유출 0</span></div>
+      <div class="sv" id="s_not"><span>고지</span><span class="val">28자 / 5.04s ≤ 6.0s</span></div>
+      <div class="sv" id="s_con"><span>동의</span><span class="val">무동의 저장 차단 ✓</span></div>
+      <div class="sv" id="s_lic"><span>감사 2</span><span class="val">block 1 · hold 1 · pass 3 · g04</span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h2>파생 문서</h2>
+    <div class="card" id="card">
+      <h3>system_card_8_4.md <span class="gen">build_system_card() 생성 · 35행</span></h3>
+      <div class="sec"><div class="sh">## 1. 개요</div>
+        <div class="slot" id="t_bud"><span class="ph">— 예산 —</span></div></div>
+      <div class="sec"><div class="sh">## 2. 성능 (출처: quality/stability 계보 → deploy_report_8_3)</div>
+        <div class="slot" id="t_acc"><span class="ph">— 기준선 —</span></div>
+        <div class="slot" id="t_p95"><span class="ph">— p95 —</span></div></div>
+      <div class="sec"><div class="sh">## 3. 운영 (출처: deploy_report_8_3)</div>
+        <div class="slot" id="t_obs"><span class="ph">— 관측·경보 —</span></div>
+        <div class="slot" id="t_can"><span class="ph">— 카나리 —</span></div></div>
+      <div class="sec"><div class="sh">## 4. 컴플라이언스 게이트 (출처: 본 세션 실행 결과)</div>
+        <div class="slot" id="t_pii"><span class="ph">— PII —</span></div>
+        <div class="slot" id="t_not"><span class="ph">— 고지 —</span></div>
+        <div class="slot" id="t_con"><span class="ph">— 동의 —</span></div></div>
+      <div class="sec"><div class="sh">## 5. 라이선스 (출처: license_manifest + 감사 2)</div>
+        <div class="slot" id="t_lic"><span class="ph">— 판정·결정 —</span></div></div>
+      <div class="sec"><div class="sh">## 6. 알려진 한계 (백로그)</div>
+        <div class="slot" id="t_bkl"><span class="ph">— 이월·신규 —</span></div></div>
+
+      <div class="assert" id="assertBox">
+        <div>파생 직후 문자열 대조 — assert token in card</div>
+        <span class="t" id="a0">"0.933" ·</span>
+        <span class="t" id="a1">"1260.2" ·</span>
+        <span class="t" id="a2">"206" ·</span>
+        <span class="t" id="a3">"5.04"</span>
+      </div>
+
+      <div class="sealrow" id="sealrow">
+        <span class="stampS" id="stamp">sha256:8ffad8a68ecd</span>
+        <span class="chain" id="chain">⛓</span>
+        <span class="repbox" id="repbox">compliance_report_8_4.json → docs.sha256_12 = <b>8ffad8a68ecd</b></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="verdict" id="verdict">재생을 누르면 정본의 수치가 카드로 파생됩니다.</div>
+
+<div class="chips" id="chips">
+  <span class="chip" data-c="c1">왜 손으로 못 쓰게 하는가 (7-2)</span>
+  <span class="chip" data-c="c2">대조 4건의 선정 기준</span>
+  <span class="chip" data-c="c3">sha 12자리 봉인의 의미</span>
+  <span class="chip" data-c="c4">수정하고 싶다면</span>
+</div>
+<div class="chipbox" id="boxc1">7-2에서 손 사본이 정본과 어긋나는 사고를 봤습니다. 문서도 같습니다 — 감사 대응·고객사 실사·인수인계에서 카드의 숫자가 리포트와 다르면, 그 문서는 증거가 아니라 <b>의심의 근거</b>가 됩니다. 그래서 <code>build_system_card()</code>가 정본 dict에서 <code>str()</code> 연결로 카드를 생성하고(.format 금지 — 5-G 사건), 카드 하단에 "생성: 코드 파생 — 손 편집 금지"를 박아 둡니다.</div>
+<div class="chipbox" id="boxc2">대조 토큰 4건 — <code>0.933</code>(성능) · <code>1260.2</code>(지연) · <code>206</code>(관측) · <code>5.04</code>(오늘의 게이트) — 은 카드의 4개 원천 계열을 하나씩 대표합니다. 전수 대조가 아니라 <b>계열별 표본 대조</b>인 이유: 생성 코드 자체가 정본 dict를 읽으므로 전수 일치는 구조가 보장하고, assert는 "그 구조가 오늘도 살아 있는가"를 확인하는 카나리아입니다.</div>
+<div class="chipbox" id="boxc3">봉인은 두 곳에 같은 값으로 남습니다 — 카드를 만든 직후의 <code>sha256[:12]</code>가 <code>compliance_report_8_4.json</code>의 <code>docs.sha256_12</code>에 기록됩니다. 나중에 누가 카드를 열어 보고 "이게 그때 그 카드인가?"를 물으면, 재해시 한 번으로 답이 나옵니다. 8-3 카나리의 "정본 바이트 동일 증명"과 같은 원리 — <b>변하지 않았음을 증명하는 것</b>이 문서 신뢰의 절반입니다.</div>
+<div class="chipbox" id="boxc4">카드를 고치고 싶다면 경로는 하나입니다: <b>정본을 고치고 재생성</b>. 정본(deploy_report·게이트 결과)이 바뀌면 카드가 다시 파생되고, 새 sha가 리포트에 다시 결속됩니다. 손 편집은 대조 assert(토큰 소실)와 sha 불일치(봉인 파열) 두 겹에서 반드시 걸립니다 — 과제 3이 팀 리포트(EXAMPLE_MODE=False)로 이 재생성을 직접 해 보는 실습입니다.</div>
+
+<div class="foot">실측 출처: 8_4 노트북 셀 4-1 실행값 — system_card_8_4.md 35행 · sha256:8ffad8a68ecd(리포트 결속 일치 검증) ·
+오염본 sha d15ebecdc0fd도 실제 계산값(0.933→0.94 치환본) · 단일 파일 · 오프라인 · prefers-reduced-motion 대응</div>
+</div>
+
+<script>
+"use strict";
+// ── 실측 정본 ──────────────────────────────────────────────
+var SHA_OK="8ffad8a68ecd";           // sha256(system_card_8_4.md)[:12] — 리포트 결속값과 일치
+var SHA_MOD="d15ebecdc0fd";          // 0.933→0.94 손 편집본의 실제 sha256[:12]
+var FLOWS=[ // [원천 id, 슬롯 id, 슬롯 내용 HTML]
+  ["s_bud","t_bud",'파이프라인: ASR → NLU(규칙 v2) → 정책 → TTS · 왕복 예산 <b>1500</b>ms'],
+  ["s_acc","t_acc",'의도 정확도 <b>0.933</b> · 위험 오답 <b>0</b>건 (안전 미탐 1건은 백로그 b06)'],
+  ["s_p95","t_p95",'p95: 규칙 <b>1260.2</b>ms (예산 내) · LLM <b>1646.7</b>ms (초과 — 승격 보류, a01 감시)'],
+  ["s_obs","t_obs",'트레이스 <b>206</b>행 (원문 미기록) · 경보 드릴 a01 <b>2</b>창 발화'],
+  ["s_can","t_can",'카나리 v3-draft: 위험 오답 <b>1</b>건 → <b>rollback</b>'],
+  ["s_pii","t_pii",'PII: 드릴 탐지 phone <b>1</b>·acct <b>1</b> · 로그 원문 유출 <b>0</b>건 (한계는 b12)'],
+  ["s_not","t_not",'고지: <b>28</b>자 / 추정 <b>5.04</b>s ≤ 상한 6.0s · 필수 요소(AI·녹음) 포함'],
+  ["s_con","t_con",'동의: 무동의 저장 차단 확인 (저장만 차단, 상담 지속)'],
+  ["s_lic","t_lic",'[block] EXAONE(NC) · [hold] OpenAudio · [pass] ×3 · 결정 <b>g04</b>: Mi:dm 단일화'],
+  ["s_bkl","t_bkl",'이월 b06·b09·b10·b11 + 신규 b12(재현율)·b13(열람·삭제)·b14(규정 워치)']
+];
+var TOKENS=["0.933","1260.2","206","5.04"];
+
+var corrupt=false, playing=false, timers=[];
+var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var $=function(id){return document.getElementById(id)};
+function later(fn,ms){ if(reduced){fn();} else {timers.push(setTimeout(fn,ms));} }
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+function reset(){
+  clearTimers();
+  FLOWS.forEach(function(f){
+    $(f[0]).className="sv";
+    var s=$(f[1]); s.className="slot"; s.innerHTML='<span class="ph">—</span>';
+  });
+  ["a0","a1","a2","a3"].forEach(function(id){ $(id).className="t"; });
+  $("assertBox").classList.remove("on");
+  $("sealrow").classList.remove("show");
+  $("stamp").className="stampS"; $("stamp").textContent="sha256:"+SHA_OK;
+  $("chain").className="chain"; $("repbox").className="repbox";
+  $("card").className="card";
+  $("verdict").className="verdict"; $("verdict").textContent="정본에서 카드로 파생 중…";
+  $("chips").classList.remove("show");
+  document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+  document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+}
+function derive(i){
+  var f=FLOWS[i], sv=$(f[0]), sl=$(f[1]);
+  sv.classList.add("lit"); sl.classList.add("lit","fill");
+  sl.innerHTML=f[2];
+  later(function(){ sv.classList.remove("lit"); sv.classList.add("used");
+                    sl.classList.remove("lit"); }, reduced?0:330);
+}
+function handEdit(){
+  var sl=$("t_acc");
+  sl.classList.add("edit");
+  sl.innerHTML='의도 정확도 <b>0.94</b> · 위험 오답 <b>0</b>건 <span style="font-size:.62rem">← 손 편집: "보고서니까 반올림"</span>';
+}
+function runAsserts(){
+  $("assertBox").classList.add("on");
+  var step=reduced?0:300;
+  TOKENS.forEach(function(tk,i){
+    later(function(){
+      var el=$("a"+i);
+      if(corrupt && tk==="0.933"){ el.classList.add("bad"); el.textContent='"0.933" ✗'; }
+      else { el.classList.add("ok"); }
+    }, i*step);
+  });
+}
+function seal(){
+  $("sealrow").classList.add("show");
+  if(corrupt){
+    $("stamp").classList.add("bad");
+    $("stamp").textContent="sha256:"+SHA_MOD;
+    $("chain").classList.add("cut"); $("chain").textContent="⛓✂";
+    $("repbox").classList.add("bad");
+    $("card").classList.add("broken");
+    var v=$("verdict"); v.classList.add("bad");
+    v.innerHTML="<b class='r'>이중 검거</b> — ① 대조 assert: 토큰 <b class='r'>\"0.933\" 소실</b> (카드-정본 불일치) "+
+      "② 봉인 파열: 재해시 <b class='r'>"+SHA_MOD+"</b> ≠ 결속값 "+SHA_OK+". "+
+      "반올림 한 번에 문서는 증거 자격을 잃습니다. 수정 경로는 하나 — <b>정본 수정 후 재생성</b>.";
+  } else {
+    $("card").classList.add("sealed");
+    var v2=$("verdict"); v2.classList.add("ok");
+    v2.innerHTML="<b class='p'>발행 완료</b> — 카드 35행, 수치 전건 정본 파생. 대조 4건 <b class='g'>✓</b> · "+
+      "sha256:<b class='p'>"+SHA_OK+"</b>이 compliance_report_8_4.json에 결속. "+
+      "이제 \"그때 그 카드\"인지는 사람의 기억이 아니라 <b>재해시 한 번</b>이 답합니다.";
+  }
+  $("chips").classList.add("show");
+  playing=false; $("btnPlay").disabled=false;
+  $("btnPlay").textContent="↺ 다시 보기";
+}
+function play(){
+  if(playing) return;
+  playing=true; $("btnPlay").disabled=true;
+  reset();
+  var step=reduced?0:380;
+  FLOWS.forEach(function(_,i){ later(function(){ derive(i); }, 250+i*step); });
+  var t0=250+FLOWS.length*step+200;
+  if(corrupt){ later(handEdit, t0); t0+=reduced?0:700; }
+  later(runAsserts, t0);
+  later(seal, t0+(reduced?0:TOKENS.length*300+500));
+}
+$("btnPlay").addEventListener("click", play);
+$("tglEdit").addEventListener("click", function(){
+  corrupt=!corrupt; $("tglEdit").classList.toggle("on", corrupt);
+  if(!playing) play();
+});
+document.querySelectorAll(".chip").forEach(function(ch){
+  ch.addEventListener("click", function(){
+    var box=$("box"+ch.getAttribute("data-c"));
+    var was=box.classList.contains("show");
+    document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+    document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+    if(!was){box.classList.add("show");ch.classList.add("open");}
+  });
+});
+// 도메인 자기검증
+(function(){
+  console.assert(FLOWS.length===10,"파생 흐름 10건");
+  console.assert(SHA_OK.length===12 && SHA_MOD.length===12 && SHA_OK!==SHA_MOD,"sha 12자리·상이");
+  TOKENS.forEach(function(tk){
+    console.assert(FLOWS.some(function(f){return f[2].indexOf(tk)>=0;}),"토큰 미표시: "+tk);
+  });
+})();
+play();
+</script>
+</body>
+</html>

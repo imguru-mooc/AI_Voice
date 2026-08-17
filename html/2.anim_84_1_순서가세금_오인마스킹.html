@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>순서가 세금 · 오인 마스킹 — 8-4 · 1부 PII 게이트</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --line:#334155;
+  --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --ok:#34d399; --okbg:rgba(52,211,153,.12);
+  --bad:#f87171; --badbg:rgba(248,113,113,.12);
+  --warn:#fbbf24; --warnbg:rgba(251,191,36,.12);
+  --acc:#38bdf8;
+  --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);
+  font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  padding:20px 14px 48px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:880px}
+header{text-align:center;margin-bottom:12px}
+h1{font-size:1.26rem}
+.sub{color:var(--dim);font-size:.84rem;margin-top:5px;line-height:1.55}
+.sub b{color:var(--acc);font-weight:600}
+.tabs{display:flex;gap:8px;justify-content:center;margin:14px 0 10px}
+.tab{background:var(--panel);border:1px solid var(--line);color:var(--dim);
+  padding:8px 18px;border-radius:9px;font-size:.86rem;cursor:pointer;transition:all .2s}
+.tab.act{border-color:var(--acc);color:var(--txt);background:var(--panel2)}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+button.ctl{background:var(--panel);border:1px solid var(--line);color:var(--txt);
+  padding:8px 15px;border-radius:8px;font-size:.84rem;cursor:pointer;transition:border-color .2s}
+button.ctl:hover{border-color:var(--acc)}
+button.ctl.tgl.on{border-color:var(--bad);color:var(--bad)}
+button.ctl:disabled{opacity:.45;cursor:default}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:11px}
+.card h3{font-size:.8rem;color:var(--dim);font-weight:600;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.tagB{font-size:.64rem;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--faint)}
+.utt{font-family:var(--mono);font-size:.86rem;line-height:2;word-break:break-all}
+.tok{padding:2px 4px;border-radius:5px;transition:all .35s}
+.tok.raw{background:var(--warnbg);color:var(--warn);border:1px solid transparent}
+.tok.good{background:var(--okbg);color:var(--ok)}
+.tok.mis{background:var(--badbg);color:var(--bad);text-decoration:underline wavy}
+.tok.left{background:var(--warnbg);color:var(--warn);border:1px dashed var(--warn)}
+.gates{display:flex;flex-direction:column;gap:8px}
+.g{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+  padding:9px 12px;display:flex;align-items:center;gap:10px;font-size:.78rem;
+  opacity:.42;transition:all .4s}
+.g.act{opacity:1;border-color:var(--acc);box-shadow:0 0 10px rgba(56,189,248,.12)}
+.g.done{opacity:1}
+.g.done.hit{border-color:var(--ok)} .g.done.mishit{border-color:var(--bad)}
+.g .ord{width:22px;height:22px;border-radius:50%;background:var(--panel);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;color:var(--dim);flex-shrink:0}
+.g .nm{width:88px;flex-shrink:0}
+.g .pat{font-family:var(--mono);font-size:.66rem;color:var(--faint);flex:1;word-break:break-all}
+.g .cnt{font-family:var(--mono);font-size:.76rem;color:var(--faint);white-space:nowrap;transition:color .3s}
+.g.done.hit .cnt{color:var(--ok);font-weight:700}
+.g.done.mishit .cnt{color:var(--bad);font-weight:700}
+.verdict{border-radius:10px;border:1px dashed var(--line);padding:10px 13px;
+  font-size:.8rem;line-height:1.65;color:var(--faint);transition:all .4s;margin-bottom:11px}
+.verdict.ok{border-color:var(--ok);color:var(--txt);background:var(--okbg)}
+.verdict.bad{border-color:var(--bad);color:var(--txt);background:var(--badbg)}
+.verdict b.g2{color:var(--ok)} .verdict b.r2{color:var(--bad)} .verdict b.y2{color:var(--warn)}
+.meta{display:flex;gap:8px;flex-wrap:wrap;font-size:.72rem;margin-top:8px}
+.pill{border:1px solid var(--line);border-radius:99px;padding:3px 10px;color:var(--dim);
+  opacity:0;transition:opacity .4s}
+.pill.show{opacity:1}
+.pill.ok{border-color:var(--ok);color:var(--ok)}
+.pill.bad{border-color:var(--bad);color:var(--bad)}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;
+  opacity:0;transition:opacity .6s;pointer-events:none}
+.chips.show{opacity:1;pointer-events:auto}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:99px;
+  padding:6px 13px;font-size:.74rem;color:var(--dim);cursor:pointer}
+.chip:hover{border-color:var(--acc)}
+.chip.open{border-color:var(--acc);color:var(--txt)}
+.chipbox{margin:10px auto 0;background:var(--panel);border:1px solid var(--acc);
+  border-radius:10px;padding:12px 14px;font-size:.78rem;line-height:1.7;color:var(--dim);display:none}
+.chipbox.show{display:block}
+.chipbox code{font-family:var(--mono);color:var(--acc);font-size:.73rem}
+.foot{margin-top:16px;text-align:center;color:var(--faint);font-size:.68rem;line-height:1.7}
+.hide{display:none !important}
+@media(prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1 id="ttl">「순서가 세금, 정규식 편」</h1>
+  <div class="sub" id="subT">8-4 · 1부 PII 마스킹 게이트 — <b>패턴은 순서가 있는 데이터다</b>.
+    구체적인 패턴이 먼저 서지 않으면, 느슨한 패턴이 남의 번호를 제 이름으로 가린다.</div>
+</header>
+
+<div class="tabs">
+  <button class="tab act" id="tabA">A · 순서가 세금</button>
+  <button class="tab" id="tabB">B · 오인 마스킹 (과제 1 실측)</button>
+</div>
+
+<div class="controls">
+  <button class="ctl" id="btnPlay">▶ 재생</button>
+  <button class="ctl tgl" id="tglRev">게이트 순서 뒤집기 — 계좌 패턴 먼저</button>
+</div>
+
+<div class="card">
+  <h3>입력 발화 <span class="tagB" id="uttTag">드릴 · 1-2</span></h3>
+  <div class="utt" id="utt"></div>
+</div>
+
+<div class="card">
+  <h3>compliance.py · mask_pii — 게이트 통과 순서</h3>
+  <div class="gates" id="gates"></div>
+</div>
+
+<div class="card">
+  <h3>masked_turns.jsonl — 로그에 남는 것</h3>
+  <div class="utt" id="logLine" style="font-size:.8rem;color:var(--dim)">— 대기 중 —</div>
+  <div class="meta">
+    <span class="pill" id="pIntent"></span>
+    <span class="pill" id="pCounts"></span>
+    <span class="pill" id="pLeak"></span>
+  </div>
+</div>
+
+<div class="verdict" id="verdict">재생을 누르면 마스킹이 게이트를 순서대로 지납니다.</div>
+
+<div class="chips" id="chips">
+  <span class="chip" data-c="c1">왜 주민→전화→계좌 순인가</span>
+  <span class="chip" data-c="c2">느슨한 패턴의 뒷자리 효과</span>
+  <span class="chip" data-c="c3">붙여쓰기 01023456789는?</span>
+  <span class="chip" data-c="c4">한계의 정직 라벨 → b12</span>
+</div>
+<div class="chipbox" id="boxc1">계좌 패턴 <code>\d{2,3}[-\s]?\d{2,4}[-\s]?\d{4,7}</code>은 전화번호 형태(010-2345-6789)도 삼킬 수 있습니다. 그래서 더 구체적인 패턴 — 주민(<code>[1-4]</code> 성별 자리 고정) → 전화(<code>01[016789]</code> 접두 고정) — 이 먼저 서고, 가장 느슨한 계좌가 마지막에 섭니다. 8-3 카나리에서 배운 "규칙 추가는 공짜가 아니고 순서가 세금"이 정규식에 그대로 재등장한 것입니다.</div>
+<div class="chipbox" id="boxc2">느슨한 패턴이 <b>뒤에</b> 서 있으면 좋은 일도 합니다: 앞 게이트가 놓친 숫자 꼬리를 마지막에 주워 담아 유출을 막습니다(탭 B의 acct 1이 그 사례). 그러나 <b>앞에</b> 서면 남의 자리를 잘못된 이름으로 덮습니다(탭 A 역순의 acct 2). 같은 패턴이 순서에 따라 안전망도 되고 사고도 됩니다 — 순서가 곧 의미입니다.</div>
+<div class="chipbox" id="boxc3">과제 1의 다른 변형 <code>01023456789</code>(붙여쓰기)는 현행 전화 패턴에 <b>탐지됩니다</b> — <code>[-\s]?</code>가 구분자 0회 매칭을 허용하기 때문입니다(실측: phone 1). 놓치는 것은 표기 변형 중에서도 숫자가 문자로 바뀌는 종류(공일공)입니다. 채점 대상은 탐지 여부 암기가 아니라, 입력·기대·실제·원인 패턴을 재현 가능하게 기록했는가입니다.</div>
+<div class="chipbox" id="boxc4">정규식 마스킹은 표기 변형(한글 숫자, 중간 공백 변칙, OCR 오탈자)에 재현율 한계가 있습니다. 이 한계를 조용히 덮지 않고 노트북에 정직 라벨로 명시했고, 재현율 <b>실측</b>은 백로그 <code>b12</code>로 승격했습니다 — 패턴을 고치는 것보다 놓침을 기록하는 것이 오늘의 과제입니다.</div>
+
+<div class="foot" id="foot">실측 출처: 8_4 노트북 셀 1-1·1-2 (mask_pii 실행값 — 정순 phone 1·acct 1 / 역순 acct 2 / 공일공 변형 acct 1) ·
+단일 파일 · 오프라인 · prefers-reduced-motion 대응</div>
+</div>
+
+<script>
+"use strict";
+// ── 실측 정본 (노트북 실행값과 자릿수까지 동일) ─────────────────
+var GATES=[
+  {id:"rrn",  nm:"① 주민번호", pat:"\\d{6}[-\\s]?[1-4]\\d{6}", tok:"<주민번호>"},
+  {id:"phone",nm:"② 전화번호", pat:"01[016789][-\\s]?\\d{3,4}[-\\s]?\\d{4}", tok:"<전화번호>"},
+  {id:"acct", nm:"③ 계좌번호", pat:"\\d{2,3}[-\\s]?\\d{2,4}[-\\s]?\\d{4,7}", tok:"<계좌번호>"}
+];
+// 탭 A 드릴 발화 — 세그먼트: [평문, PII(phone), 평문, PII(acct), 평문]
+var A_SEG=[
+  {t:"요금이 왜 이렇게 많이 나왔나요? 제 번호는 ",k:"plain"},
+  {t:"010-2345-6789",k:"phone"},
+  {t:"이고 계좌는 ",k:"plain"},
+  {t:"110-234-567890",k:"acct"},
+  {t:"입니다.",k:"plain"}
+];
+// 실측 결과표
+var A_FWD={order:["rrn","phone","acct"], counts:{rrn:0,phone:1,acct:1},
+  map:{phone:{tok:"<전화번호>",cls:"good"}, acct:{tok:"<계좌번호>",cls:"good"}},
+  gate:{rrn:"hit0", phone:"hit", acct:"hit"}};
+var A_REV={order:["acct","rrn","phone"], counts:{acct:2,rrn:0,phone:0},
+  map:{phone:{tok:"<계좌번호>",cls:"mis"}, acct:{tok:"<계좌번호>",cls:"good"}},
+  gate:{acct:"mishit", rrn:"hit0", phone:"hit0"}};
+// 탭 B 과제 변형 — 실측: rrn 0 · phone 0 · acct 1 → "공일공-<계좌번호>"
+var B_SEG=[
+  {t:"요금 문의드려요. 제 번호는 ",k:"plain"},
+  {t:"공일공-",k:"left"},
+  {t:"2345-6789",k:"acct"},
+  {t:" 입니다.",k:"plain"}
+];
+var B_RES={order:["rrn","phone","acct"], counts:{rrn:0,phone:0,acct:1},
+  map:{acct:{tok:"<계좌번호>",cls:"mis"}},
+  gate:{rrn:"hit0", phone:"miss", acct:"mishit"}};
+
+var mode="A", rev=false, playing=false, timers=[];
+var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var $=function(id){return document.getElementById(id)};
+function later(fn,ms){ if(reduced){fn();} else {timers.push(setTimeout(fn,ms));} }
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+function segHTML(segs){
+  return segs.map(function(s,i){
+    if(s.k==="plain") return "<span>"+s.t+"</span>";
+    return '<span class="tok raw" data-seg="'+i+'">'+s.t+"</span>";
+  }).join("");
+}
+function buildGates(order){
+  var g=$("gates"); g.innerHTML="";
+  order.forEach(function(id,i){
+    var spec=GATES.filter(function(x){return x.id===id})[0];
+    var d=document.createElement("div");
+    d.className="g"; d.id="g_"+id;
+    d.innerHTML='<span class="ord">'+(i+1)+'</span><span class="nm">'+spec.nm.slice(2)+
+      '</span><span class="pat">'+spec.pat+' → '+spec.tok+
+      '</span><span class="cnt" id="cnt_'+id+'">— </span>';
+    g.appendChild(d);
+  });
+}
+function reset(){
+  clearTimers();
+  var segs = mode==="A"? A_SEG : B_SEG;
+  var res  = mode==="A"? (rev? A_REV:A_FWD) : B_RES;
+  $("utt").innerHTML=segHTML(segs);
+  buildGates(res.order);
+  $("logLine").textContent="— 대기 중 —";
+  ["pIntent","pCounts","pLeak"].forEach(function(id){
+    var p=$(id); p.className="pill"; p.textContent="";
+  });
+  $("verdict").className="verdict";
+  $("verdict").textContent="게이트를 순서대로 지나는 중…";
+  $("chips").classList.remove("show");
+  document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+  document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+}
+function applyGate(id,res,segs){
+  var g=$("g_"+id); g.classList.remove("act"); g.classList.add("done");
+  var kind=res.gate[id], cnt=res.counts[id];
+  if(kind==="hit"||kind==="mishit"){ g.classList.add(kind==="hit"?"hit":"mishit"); }
+  $("cnt_"+id).textContent=cnt+"건";
+  // 세그먼트 치환
+  segs.forEach(function(s,i){
+    if(s.k==="plain"||s.k==="left") return;
+    var el=document.querySelector('[data-seg="'+i+'"]');
+    if(!el || !el.classList.contains("raw")) return;
+    var m=res.map[s.k];
+    if(!m) return;
+    // 이 게이트가 이 세그먼트를 치환하는가: 정순이면 자기 이름 게이트, 역순 acct-first면 acct가 둘 다
+    var owner = (m.tok==="<계좌번호>") ? "acct" : s.k;
+    if(owner!==id) return;
+    el.classList.remove("raw"); el.classList.add(m.cls);
+    el.textContent=m.tok;
+  });
+}
+function finish(){
+  var res  = mode==="A"? (rev? A_REV:A_FWD) : B_RES;
+  var segs = mode==="A"? A_SEG : B_SEG;
+  // 로그 라인
+  var masked = segs.map(function(s){
+    if(s.k==="plain") return s.t;
+    if(s.k==="left") return s.t;
+    var m=res.map[s.k]; return m? m.tok : s.t;
+  }).join("");
+  $("logLine").textContent='{"text_masked": "'+masked+'", "pii_counts": '+
+    JSON.stringify(res.counts)+', "intent": "billing"}';
+  var pI=$("pIntent"); pI.classList.add("show","ok");
+  pI.textContent="상담 처리: billing → 요금 내역 조회 (정상 — 게이트는 상담을 다치게 하지 않는다)";
+  var pC=$("pCounts"); pC.classList.add("show");
+  pC.textContent="pii_counts: rrn "+ (res.counts.rrn||0) +" · phone "+ (res.counts.phone||0) +" · acct "+ (res.counts.acct||0);
+  var pL=$("pLeak");
+  if(mode==="A"&&!rev){
+    pL.classList.add("show","ok"); pL.textContent="로그 전수검사: 원문 번호 0건 ✓";
+    var v=$("verdict"); v.classList.add("ok");
+    v.innerHTML="<b class='g2'>정순 통과</b> — 전화는 <b class='g2'>&lt;전화번호&gt;</b>, 계좌는 <b class='g2'>&lt;계좌번호&gt;</b>. "+
+      "라벨이 정확해야 유형별 집계(pii_counts)가 감사 증거가 됩니다. 8-3에서 사람이 지키던 '원문 미기록'을 오늘부터 기계가 지킵니다.";
+  } else if(mode==="A"&&rev){
+    pL.classList.add("show","bad"); pL.textContent="원문 유출 0건 — 그러나 라벨 오염 1건";
+    var v2=$("verdict"); v2.classList.add("bad");
+    v2.innerHTML="<b class='r2'>역순의 세금</b> — 계좌 패턴이 먼저 서자 전화번호까지 <b class='r2'>&lt;계좌번호&gt;</b>로 삼켰습니다(acct 2). "+
+      "숫자는 가려졌지만 집계가 거짓말을 합니다: phone 0 · acct 2. 잘못된 라벨의 감사 자료는 증거가 아니라 오염입니다. "+
+      "패턴은 순서가 있는 데이터 — 구체적인 것이 먼저 섭니다.";
+  } else {
+    pL.classList.add("show","bad"); pL.textContent="원문 잔존: '공일공-' (문자 표기) + 오인 라벨 1건";
+    var v3=$("verdict"); v3.classList.add("bad");
+    v3.innerHTML="<b class='y2'>과제 1 실측</b> — <b class='y2'>공일공-</b>2345-6789는 전화 게이트를 <b class='r2'>미탐</b>으로 통과했고, "+
+      "마지막에 선 계좌 패턴이 숫자 꼬리를 <b class='r2'>&lt;계좌번호&gt;</b>로 오인 마스킹했습니다(acct 1). "+
+      "우연히 가려졌지만 ① '공일공-'은 원문으로 남았고 ② 라벨이 틀렸습니다. "+
+      "<b>느슨한 패턴이 뒤에 서 있으면 앞 패턴의 미탐을 잘못된 이름으로 덮는다</b> — 이 문장을 발견한 팀이 만점입니다(→ b12).";
+  }
+  $("chips").classList.add("show");
+  playing=false; $("btnPlay").disabled=false;
+  $("btnPlay").textContent="↺ 다시 보기";
+}
+function play(){
+  if(playing) return;
+  playing=true; $("btnPlay").disabled=true;
+  reset();
+  var res  = mode==="A"? (rev? A_REV:A_FWD) : B_RES;
+  var segs = mode==="A"? A_SEG : B_SEG;
+  var step= reduced?0:850;
+  res.order.forEach(function(id,i){
+    later(function(){ $("g_"+id).classList.add("act"); }, 300+i*step);
+    later(function(){ applyGate(id,res,segs); }, 300+i*step+520);
+  });
+  later(finish, 300+res.order.length*step+500);
+}
+function setMode(m){
+  mode=m;
+  $("tabA").classList.toggle("act",m==="A");
+  $("tabB").classList.toggle("act",m==="B");
+  $("tglRev").classList.toggle("hide",m==="B");
+  if(m==="A"){
+    $("ttl").textContent="「순서가 세금, 정규식 편」";
+    $("subT").innerHTML="8-4 · 1부 PII 마스킹 게이트 — <b>패턴은 순서가 있는 데이터다</b>. 구체적인 패턴이 먼저 서지 않으면, 느슨한 패턴이 남의 번호를 제 이름으로 가린다.";
+    $("uttTag").textContent="드릴 · 셀 1-2";
+  } else {
+    $("ttl").textContent="「오인 마스킹」";
+    $("subT").innerHTML="8-4 · 1부 과제 1 실측 — <b>느슨한 패턴이 뒤에 서면, 앞 패턴의 미탐을 잘못된 이름으로 덮는다</b>. 가려졌다고 탐지된 것이 아니다.";
+    $("uttTag").textContent="과제 1 변형 · 공일공 표기";
+  }
+  play();
+}
+$("btnPlay").addEventListener("click",play);
+$("tglRev").addEventListener("click",function(){
+  rev=!rev; $("tglRev").classList.toggle("on",rev);
+  if(!playing) play();
+});
+$("tabA").addEventListener("click",function(){ if(mode!=="A"){rev=false;$("tglRev").classList.remove("on");setMode("A");} });
+$("tabB").addEventListener("click",function(){ if(mode!=="B"){setMode("B");} });
+document.querySelectorAll(".chip").forEach(function(ch){
+  ch.addEventListener("click",function(){
+    var box=$("box"+ch.getAttribute("data-c"));
+    var was=box.classList.contains("show");
+    document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+    document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+    if(!was){box.classList.add("show");ch.classList.add("open");}
+  });
+});
+// 도메인 자기검증 — 산술 교차 확인
+(function(){
+  console.assert(A_FWD.counts.phone+A_FWD.counts.acct+A_FWD.counts.rrn===2,"정순 합계 2");
+  console.assert(A_REV.counts.acct===2 && A_REV.counts.phone===0,"역순 acct 2");
+  console.assert(B_RES.counts.acct===1 && B_RES.counts.phone===0,"탭B acct 1 phone 0");
+})();
+play();
+</script>
+</body>
+</html>

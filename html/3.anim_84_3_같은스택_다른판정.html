@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>같은 스택, 다른 판정 — 8-4 · 3부 라이선스 감사</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --line:#334155;
+  --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --ok:#34d399; --okbg:rgba(52,211,153,.12);
+  --bad:#f87171; --badbg:rgba(248,113,113,.14);
+  --warn:#fbbf24; --warnbg:rgba(251,191,36,.12);
+  --hold:#fb923c; --holdbg:rgba(251,146,60,.13);
+  --acc:#38bdf8;
+  --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);
+  font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  padding:20px 14px 48px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:900px}
+header{text-align:center;margin-bottom:12px}
+h1{font-size:1.26rem}
+.sub{color:var(--dim);font-size:.84rem;margin-top:5px;line-height:1.55}
+.sub b{color:var(--acc)}
+.switchbar{display:flex;justify-content:center;align-items:center;gap:12px;margin:14px 0}
+.swlbl{font-size:.85rem;color:var(--faint);transition:color .3s}
+.swlbl.act{color:var(--txt);font-weight:700}
+.sw{width:74px;height:34px;border-radius:99px;background:var(--panel);
+  border:1px solid var(--line);position:relative;cursor:pointer;transition:border-color .3s}
+.sw .knob{position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;
+  background:var(--ok);transition:left .35s, background .35s}
+.sw.com{border-color:var(--bad)} .sw.com .knob{left:43px;background:var(--bad)}
+.codeNote{text-align:center;font-size:.76rem;color:var(--faint);margin-bottom:12px;
+  font-family:var(--mono)}
+.codeNote b{color:var(--warn);font-weight:600}
+.controls{display:flex;gap:8px;justify-content:center;margin-bottom:14px}
+button.ctl{background:var(--panel);border:1px solid var(--line);color:var(--txt);
+  padding:8px 15px;border-radius:8px;font-size:.84rem;cursor:pointer}
+button.ctl:hover{border-color:var(--acc)}
+button.ctl:disabled{opacity:.45;cursor:default}
+.stack{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.mrow{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:10px 13px;display:flex;align-items:center;gap:11px;
+  transition:border-color .45s, background .45s, transform .5s, order 0s;
+  opacity:.4}
+.mrow.on{opacity:1}
+.mrow .badge{width:74px;text-align:center;font-size:.74rem;font-weight:700;
+  padding:5px 0;border-radius:7px;border:1px solid var(--line);color:var(--faint);
+  flex-shrink:0;transition:all .4s}
+.mrow.s-pass .badge{border-color:var(--ok);color:var(--ok);background:var(--okbg)}
+.mrow.s-warn .badge{border-color:var(--warn);color:var(--warn);background:var(--warnbg)}
+.mrow.s-hold .badge{border-color:var(--hold);color:var(--hold);background:var(--holdbg)}
+.mrow.s-block .badge{border-color:var(--bad);color:var(--bad);background:var(--badbg)}
+.mrow.s-block{border-color:var(--bad)} .mrow.s-hold{border-color:var(--hold)}
+.mrow .body{flex:1;min-width:0}
+.mrow .nm{font-size:.86rem;font-weight:600}
+.mrow .nm .role{font-size:.68rem;color:var(--faint);font-weight:400;margin-left:6px}
+.mrow .lic{font-family:var(--mono);font-size:.68rem;color:var(--dim);margin-top:2px}
+.mrow .note{font-size:.7rem;color:var(--faint);margin-top:3px;line-height:1.5;
+  max-height:0;overflow:hidden;transition:max-height .45s}
+.mrow.noted .note{max-height:3.2em}
+.mrow.s-block .note{color:var(--bad)} .mrow.s-hold .note{color:var(--hold)}
+.mrow.s-warn .note{color:var(--warn)}
+.repo{display:none;gap:6px;margin-top:5px;font-family:var(--mono);font-size:.64rem}
+.mrow.s-hold .repo{display:flex;flex-wrap:wrap}
+.repo span{border:1px solid var(--hold);border-radius:5px;padding:2px 7px;color:var(--hold)}
+.repo .ne{border-color:var(--faint);color:var(--faint)}
+.tally{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:11px 14px;text-align:center;font-size:.9rem;margin-bottom:11px;
+  transition:border-color .4s}
+.tally .n{font-family:var(--mono);font-weight:700}
+.tally .b{color:var(--bad)} .tally .h{color:var(--hold)}
+.tally .w{color:var(--warn)} .tally .p{color:var(--ok)}
+.tally.comT{border-color:var(--bad)}
+.tally .cap{display:block;font-size:.7rem;color:var(--faint);margin-top:4px}
+.g04{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:13px 15px;font-size:.8rem;line-height:1.7;color:var(--dim);
+  opacity:0;transform:translateY(8px);transition:all .55s;pointer-events:none}
+.g04.show{opacity:1;transform:none;border-color:var(--acc);pointer-events:auto}
+.g04 h3{font-size:.84rem;color:var(--txt);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.g04 .stampG{margin-left:auto;font-size:.68rem;border:1.5px solid var(--acc);color:var(--acc);
+  border-radius:6px;padding:2px 8px;transform:rotate(-4deg)}
+.g04 .row{margin-top:4px}
+.g04 .k{color:var(--faint);display:inline-block;width:78px}
+.g04 .v b{color:var(--txt)}
+.g04 code{font-family:var(--mono);color:var(--acc);font-size:.72rem}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px;
+  opacity:0;transition:opacity .6s;pointer-events:none}
+.chips.show{opacity:1;pointer-events:auto}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:99px;
+  padding:6px 13px;font-size:.74rem;color:var(--dim);cursor:pointer}
+.chip:hover{border-color:var(--acc)}
+.chip.open{border-color:var(--acc);color:var(--txt)}
+.chipbox{margin:10px auto 0;background:var(--panel);border:1px solid var(--acc);
+  border-radius:10px;padding:12px 14px;font-size:.78rem;line-height:1.7;color:var(--dim);display:none}
+.chipbox.show{display:block}
+.chipbox code{font-family:var(--mono);color:var(--acc);font-size:.73rem}
+.foot{margin-top:16px;text-align:center;color:var(--faint);font-size:.68rem;line-height:1.7}
+@media(prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>「같은 스택, 다른 판정」</h1>
+  <div class="sub">8-4 · 3부 라이선스 감사 — <b>라이선스는 파이프라인 전체를 물들인다</b>(7-1 Gate 3의 완성).
+    manifest는 그대로, 스위치 하나로 판정이 뒤집힌다.</div>
+</header>
+
+<div class="switchbar">
+  <span class="swlbl act" id="lblPoc">internal_poc</span>
+  <div class="sw" id="sw"><div class="knob"></div></div>
+  <span class="swlbl" id="lblCom">commercial</span>
+</div>
+<div class="codeNote">audit_licenses(manifest, deploy_intent, today) — <b>코드는 한 줄도 안 바뀌었다. 바뀐 것은 배포 의도.</b></div>
+
+<div class="controls"><button class="ctl" id="btnPlay">▶ 재생</button></div>
+
+<div class="stack" id="stack"></div>
+
+<div class="tally" id="tally">— 감사 대기 중 —</div>
+
+<div class="g04" id="g04">
+  <h3>결정 g04 — 감사는 표로 끝나지 않는다 <span class="stampG">기록됨 · 2026-08-14</span></h3>
+  <div class="row"><span class="k">질문</span><span class="v">상업 전환 시 LLM 후보(EXAONE-4.0-1.2B)를 어떻게 처리하는가</span></div>
+  <div class="row"><span class="k">선택</span><span class="v"><b>후보군에서 제외 — 정본(Mi:dm 2.0 Mini, MIT)으로 단일화</b></span></div>
+  <div class="row"><span class="k">근거(111자)</span><span class="v">NC 라이선스는 상업 배포를 차단하며, 별도 계약은 비용·일정 미확정. 정본 LLM이 기준선(0.933/wrong 0)을 이미 충족하므로 후보 유지의 실익이 없다. <b>재도입 조건: 상업 계약 체결 시.</b></span></div>
+  <div class="row"><span class="k">주체</span><span class="v">운영 담당(수강생 기입) · <code>decision_g04.json</code> → 시스템 카드 5절로 파생</span></div>
+</div>
+
+<div class="chips" id="chips">
+  <span class="chip" data-c="c1">분류 4유형 — MAU 조건은 어디에</span>
+  <span class="chip" data-c="c2">왜 hold인가 — 저장소별 상이</span>
+  <span class="chip" data-c="c3">확인일도 데이터다</span>
+  <span class="chip" data-c="c4">block 우선 정렬의 이유</span>
+</div>
+<div class="chipbox" id="boxc1">과정에서 확립한 분류 4유형: <b>무조건</b>(Apache/MIT) · <b>MAU 조건</b>(SEED — 1천만 MAU 미만 무료) · <b>비상업 NC</b>(EXAONE) · <b>저장소별 상이</b>(Fish Audio). 오늘 manifest 5종에는 MAU 조건 항목이 없어 화면에 등장하지 않지만, 감사기는 <code>mau_conditional</code> 분기를 이미 갖고 있습니다 — 팀 manifest에 SEED가 들어오면 warn(임계 초과 전 재검토)으로 잡힙니다. 과제 2가 바로 그 실습입니다.</div>
+<div class="chipbox" id="boxc2">OpenAudio S1-mini는 GitHub <code>v2.0.0</code>과 PyPI <code>v0.1.0</code>의 라이선스 원문이 다릅니다(4주차 실측). 라이선스는 모델 카드가 아니라 <b>설치 경로의 저장소 원문</b>이 사양이므로, 어느 경로로 설치되는지 확정되기 전에는 pass도 block도 아닌 <b>hold</b> — 판정을 보류하고 사람을 부릅니다. 상업 전환에서만 hold로 승격되는 이유는, PoC에서는 이 불확실성이 경고로 충분하지만 상업에서는 계약 리스크이기 때문입니다.</div>
+<div class="chipbox" id="boxc3">manifest의 각 항목에는 <code>checked: "2026-08-14"</code>가 함께 적힙니다. 라이선스는 저장소가 바뀌면 함께 바뀝니다 — 유통기한이 있는 데이터입니다. 감사기는 확인일이 오늘과 다르면 "확인일 경과 — 재확인 권장"을 노트에 덧붙입니다. 규정 마감일(b14)과 같은 원리: <b>날짜도 데이터다.</b></div>
+<div class="chipbox" id="boxc4">감사 결과는 block → hold → warn → pass 순으로 정렬됩니다. 8-3 경보의 원칙과 같습니다 — 가장 큰 리스크가 맨 위에서 크게 말해야 합니다. 표 아래에 결정(g04)이 따라붙는 것은 7-5 g03 형식의 승계: <b>감사표는 상태를 말하고, 결정 기록은 행동을 말한다.</b> 근거는 20자 이상 assert — 실측 111자로 통과했습니다.</div>
+
+<div class="foot">실측 출처: 8_4 노트북 셀 3-1·3-2 실행값 — PoC: warn 2 · pass 3 / 상업: block 1 · hold 1 · pass 3 ·
+g04 근거 111자 · 노트 자구는 system_card_8_4.md 5절과 동일 · 단일 파일 · 오프라인 · prefers-reduced-motion 대응</div>
+</div>
+
+<script>
+"use strict";
+// ── 실측 정본: license_manifest.json 5종 + audit_licenses 판정 (노트북 셀 3-1) ──
+var M=[
+  {nm:"EXAONE-4.0-1.2B", role:"LLM(후보)", lic:"EXAONE 라이선스(NC)",
+   poc:{s:"warn", note:"PoC는 가능하나 상업 전환 시 차단 예정"},
+   com:{s:"block", note:"비상업(NC) 라이선스 — 상업 배포 불가, 별도 계약 필요"}},
+  {nm:"OpenAudio S1-mini", role:"TTS(후보)", lic:"저장소별 상이",
+   poc:{s:"warn", note:"배포 저장소마다 라이선스가 다름 — 설치 경로의 원문 재확인 필수"},
+   com:{s:"hold", note:"배포 저장소마다 라이선스가 다름 — 설치 경로의 원문 재확인 필수"}},
+  {nm:"faster-whisper", role:"ASR(정본)", lic:"MIT",
+   poc:{s:"pass", note:""}, com:{s:"pass", note:""}},
+  {nm:"Mi:dm 2.0 Mini", role:"LLM(정본)", lic:"MIT",
+   poc:{s:"pass", note:""}, com:{s:"pass", note:""}},
+  {nm:"Kokoro", role:"TTS(정본)", lic:"Apache-2.0",
+   poc:{s:"pass", note:""}, com:{s:"pass", note:""}}
+];
+var MARK={pass:"✓ pass", warn:"△ warn", hold:"⏸ hold", block:"✗ block"};
+var ORDER={block:0, hold:1, warn:2, pass:3};
+// manifest 원 순서(파일 순): fw, midm, exaone, kokoro, oa → PoC 화면도 이 순서로
+var POC_ORDER=[2,3,0,4,1]; // stack 배열 인덱스 기준 표시 순서
+
+var mode="poc", playing=false, timers=[];
+var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var $=function(id){return document.getElementById(id)};
+function later(fn,ms){ if(reduced){fn();} else {timers.push(setTimeout(fn,ms));} }
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+// 행 생성
+var stack=$("stack"), rows=[];
+M.forEach(function(m,i){
+  var d=document.createElement("div"); d.className="mrow"; d.id="m"+i;
+  d.innerHTML='<span class="badge" id="b'+i+'">·</span>'+
+    '<span class="body"><span class="nm">'+m.nm+'<span class="role">'+m.role+'</span></span>'+
+    '<div class="lic">'+m.lic+' · checked 2026-08-14</div>'+
+    '<div class="note" id="n'+i+'"></div>'+
+    '<div class="repo"><span>GitHub v2.0.0</span><span class="ne">≠</span><span>PyPI v0.1.0</span></div>'+
+    '</span>';
+  stack.appendChild(d); rows.push(d);
+});
+
+function setOrder(orderIdx){ // orderIdx: 표시순서로 나열한 stack 인덱스 배열
+  orderIdx.forEach(function(si,pos){ rows[si].style.order=pos; });
+}
+function judge(i, res, withNote){
+  var r=rows[i];
+  r.className="mrow on s-"+res.s+(res.note&&withNote?" noted":"");
+  $("b"+i).textContent=MARK[res.s];
+  $("n"+i).textContent=res.note;
+}
+function tallyOf(key){
+  var c={block:0,hold:0,warn:0,pass:0};
+  M.forEach(function(m){c[m[key].s]++;});
+  return c;
+}
+function showTally(key){
+  var c=tallyOf(key), t=$("tally");
+  if(key==="poc"){
+    t.classList.remove("comT");
+    t.innerHTML='감사 1 — 배포 의도: 내부 PoC → <span class="n w">warn '+c.warn+
+      '</span> · <span class="n p">pass '+c.pass+'</span>'+
+      '<span class="cap">경고는 있지만 길은 열려 있다 — 단, 상업 전환 시 차단 예정이 이미 예고돼 있다.</span>';
+  } else {
+    t.classList.add("comT");
+    t.innerHTML='감사 2 — 배포 의도: 상업 서비스 → <span class="n b">block '+c.block+
+      '</span> · <span class="n h">hold '+c.hold+'</span> · <span class="n p">pass '+c.pass+'</span>'+
+      '<span class="cap">같은 manifest, 같은 코드 — 판정만 뒤집혔다. block이 하나라도 있으면 표는 결정으로 이어져야 한다.</span>';
+  }
+}
+function renderPoc(animate){
+  setOrder(POC_ORDER);
+  $("g04").classList.remove("show");
+  var step=animate&&!reduced?260:0;
+  POC_ORDER.forEach(function(si,pos){
+    later(function(){ judge(si, M[si].poc, true); }, 200+pos*step);
+  });
+  later(function(){ showTally("poc"); doneCycle(); }, 200+POC_ORDER.length*step+250);
+}
+function renderCom(animate){
+  // 1) 뱃지 반전 (제자리) → 2) block 우선 정렬 재배치 → 3) 집계 → 4) g04 도장
+  var flipStep=animate&&!reduced?420:0;
+  [0,1].forEach(function(si,k){ // EXAONE, OpenAudio 순 반전이 드라마
+    later(function(){ judge(si, M[si].com, true); }, 250+k*flipStep);
+  });
+  [2,3,4].forEach(function(si){ later(function(){ judge(si, M[si].com, true); }, 250); });
+  later(function(){
+    var sorted=M.map(function(m,i){return i;}).sort(function(a,b){
+      return ORDER[M[a].com.s]-ORDER[M[b].com.s] || a-b;
+    });
+    setOrder(sorted);
+  }, 250+2*flipStep+300);
+  later(function(){ showTally("com"); }, 250+2*flipStep+650);
+  later(function(){ $("g04").classList.add("show"); doneCycle(); }, 250+2*flipStep+1050);
+}
+function doneCycle(){
+  $("chips").classList.add("show");
+  playing=false; $("btnPlay").disabled=false;
+  $("btnPlay").textContent="↺ 다시 보기";
+}
+function resetUI(){
+  clearTimers();
+  rows.forEach(function(r,i){ r.className="mrow"; $("b"+i).textContent="·"; });
+  $("tally").className="tally"; $("tally").textContent="— 감사 중 —";
+  $("g04").classList.remove("show");
+}
+function setMode(m, animate){
+  mode=m;
+  $("sw").classList.toggle("com", m==="com");
+  $("lblPoc").classList.toggle("act", m==="poc");
+  $("lblCom").classList.toggle("act", m==="com");
+  resetUI();
+  if(m==="poc") renderPoc(animate); else renderCom(animate);
+}
+function play(){ // 전체 시나리오: PoC 감사 → 잠시 후 자동 상업 전환
+  if(playing) return;
+  playing=true; $("btnPlay").disabled=true;
+  $("chips").classList.remove("show");
+  document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+  document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+  setMode("poc", true);
+  later(function(){ playing=true; $("btnPlay").disabled=true; setMode("com", true); },
+        reduced?0:3400);
+}
+$("btnPlay").addEventListener("click", play);
+$("sw").addEventListener("click", function(){
+  if(playing) return;
+  setMode(mode==="poc"?"com":"poc", true);
+});
+document.querySelectorAll(".chip").forEach(function(ch){
+  ch.addEventListener("click", function(){
+    var box=$("box"+ch.getAttribute("data-c"));
+    var was=box.classList.contains("show");
+    document.querySelectorAll(".chipbox").forEach(function(b){b.classList.remove("show");});
+    document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("open");});
+    if(!was){box.classList.add("show");ch.classList.add("open");}
+  });
+});
+// 도메인 자기검증 — 집계는 표시용 상수가 아니라 판정표에서 파생
+(function(){
+  var p=tallyOf("poc"), c=tallyOf("com");
+  console.assert(p.warn===2&&p.pass===3&&p.block===0&&p.hold===0,"PoC 집계",p);
+  console.assert(c.block===1&&c.hold===1&&c.warn===0&&c.pass===3,"상업 집계",c);
+  console.assert(M.length===5,"manifest 5종");
+})();
+play();
+</script>
+</body>
+</html>
