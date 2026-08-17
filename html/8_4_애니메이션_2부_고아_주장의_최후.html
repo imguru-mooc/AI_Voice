@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고아 주장의 최후</title>
+<style>
+:root{--bg:#0f172a;--panel:#1e293b;--panel2:#16213b;--line:#334155;--tx:#e2e8f0;
+--mut:#94a3b8;--blue:#60a5fa;--green:#4ade80;--amber:#fbbf24;--red:#f87171;
+--violet:#c4b5fd;--dim:#475569}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--tx);
+font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+font-size:15px;line-height:1.55}
+.wrap{max-width:980px;margin:0 auto;padding:22px 18px 40px}
+header h1{font-size:21px;letter-spacing:-.3px}
+header .sub{color:var(--mut);font-size:13.5px;margin-top:5px}
+header .tag{display:inline-block;font-size:11.5px;color:var(--bg);
+background:var(--amber);border-radius:4px;padding:1px 8px;margin-right:8px;
+font-weight:700;vertical-align:2px}
+.stage{margin-top:16px;background:var(--panel2);border:1px solid var(--line);
+border-radius:12px;padding:18px;min-height:340px;position:relative;overflow:hidden}
+.caption{margin-top:12px;min-height:46px;background:var(--panel);
+border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:8px;
+padding:10px 14px;font-size:14.5px;color:var(--tx)}
+.caption b{color:var(--amber)}
+.controls{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{background:var(--panel);color:var(--tx);border:1px solid var(--line);
+border-radius:8px;padding:7px 14px;font-size:14px;cursor:pointer;font-family:inherit}
+button:hover{border-color:var(--blue)}
+button.primary{background:#1d4ed8;border-color:#1d4ed8;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.chips button{padding:4px 10px;font-size:12.5px;color:var(--mut)}
+.chips button.cur{color:var(--bg);background:var(--blue);border-color:var(--blue);
+font-weight:700}
+.foot{margin-top:14px;color:var(--dim);font-size:12px}
+.rm-note{display:none;color:var(--amber);font-size:12.5px;margin-top:8px}
+/* 공용 위젯 */
+.hid{opacity:0;visibility:hidden}
+.ap{opacity:1;visibility:visible;transition:opacity .45s ease}
+.noanim .ap,.noanim *{transition:none !important;animation:none !important}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:6px;
+padding:3px 9px;font-size:12.5px;background:var(--panel);color:var(--mut);margin:2px}
+.chip.ok{border-color:var(--green);color:var(--green)}
+.chip.warn{border-color:var(--amber);color:var(--amber)}
+.chip.bad{border-color:var(--red);color:var(--red)}
+.mono{font-family:ui-monospace,'D2Coding',Consolas,monospace;font-size:12.5px}
+.pulse{animation:pu 1.1s ease-in-out infinite}
+@keyframes pu{0%,100%{filter:brightness(1)}50%{filter:brightness(1.6)}}
+.shake{animation:sh .5s ease}
+@keyframes sh{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}
+75%{transform:translateX(5px)}}
+@media (prefers-reduced-motion: reduce){
+ .ap,.pulse,.shake{transition:none !important;animation:none !important}}
+
+.a2grid{display:grid;grid-template-columns:215px 1fr 250px;gap:12px}
+.keybox{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+padding:8px 10px}
+.keybox h3,.deckbox h3{font-size:12.5px;color:var(--mut);margin-bottom:6px}
+.lkey{font-size:12px;padding:2px 7px;border:1px solid var(--line);border-radius:5px;
+margin:2px 0;color:var(--mut)}
+.lkey.hit{border-color:var(--green);color:var(--green);font-weight:700}
+.lkey.miss{border-color:var(--red);color:var(--red);font-weight:700}
+.gate{background:var(--panel);border:2px solid var(--blue);border-radius:10px;
+padding:10px 12px;text-align:center}
+.gate .nm{font-weight:800;font-size:14.5px}
+.gate .rule{font-size:11.5px;color:var(--mut);margin-top:3px}
+.gate.rej{border-color:var(--red)}
+.claim{margin-top:10px;background:#0b1226;border:1px solid var(--line);
+border-radius:8px;padding:9px 11px;font-size:13px;min-height:76px}
+.claim .cid{color:var(--violet);font-weight:700;margin-right:6px}
+.claim .ev{margin-top:5px;font-size:11.5px;color:var(--mut)}
+.claim.ok{border-color:var(--green)} .claim.bad{border-color:var(--red)}
+.amsg{margin-top:8px;font-size:12.3px;color:var(--red);min-height:34px}
+.deckbox{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+padding:8px 10px}
+.slot{font-size:12px;border:1px dashed var(--line);border-radius:6px;
+padding:3px 8px;margin:3px 0;color:var(--dim)}
+.slot.fill{border-style:solid;border-color:var(--green);color:var(--tx)}
+.slot .sec{float:right;color:var(--mut)}
+.gauge{margin-top:8px}
+.gauge .bar{height:14px;background:#0b1226;border:1px solid var(--line);
+border-radius:7px;overflow:hidden;position:relative}
+.gauge .fill{height:100%;width:0;background:linear-gradient(90deg,#1d4ed8,#4ade80);
+transition:width .6s ease}
+.gauge .lb{font-size:11.5px;color:var(--mut);margin-top:3px}
+.rate{margin-top:8px;font-size:12.5px}
+.rate b{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1><span class="tag">2부</span>고아 주장의 최후</h1>
+  <div class="sub">셀 2-1 build_final_deck 결선 강제 · 셀 2-2 드릴 — 근거 없는 주장은 무대에 오르기 전에 죽는다</div>
+</header>
+<div class="stage" id="stage">
+
+<div class="a2grid">
+ <div class="keybox"><h3>LEDGER (1부 대장)</h3>
+<div class="lkey mono" id="k_budget_ms">budget_ms</div>
+<div class="lkey mono" id="k_contract_sr">contract_sr</div>
+<div class="lkey mono" id="k_intent_acc">intent_acc</div>
+<div class="lkey mono" id="k_wrong">wrong</div>
+<div class="lkey mono" id="k_gate_tests">gate_tests</div>
+<div class="lkey mono" id="k_traces">traces</div>
+<div class="lkey mono" id="k_alert_drill_windows">alert_drill_windows</div>
+<div class="lkey mono" id="k_canary_decision">canary_decision</div>
+<div class="lkey mono" id="k_input_cap_proposed">input_cap_proposed</div>
+ </div>
+ <div>
+  <div class="gate" id="gate"><div class="nm mono">build_final_deck()</div>
+   <div class="rule">규칙: 슬라이드마다 evidence &ge; 1 · 근거 키는 대장에만 ·
+   초 합계 &le; 600s</div></div>
+  <div class="claim" id="claim"><span style="color:var(--dim)">대기 중 —
+   주장 카드가 이 관문을 하나씩 통과합니다.</span></div>
+  <div class="amsg mono" id="amsg"></div>
+ </div>
+ <div class="deckbox"><h3>DECK (통과한 슬라이드)</h3>
+<div class="slot" id="slot1">s1 문제와 예산<span class="sec">60s</span></div>
+<div class="slot" id="slot2">s2 계약 아키텍처<span class="sec">90s</span></div>
+<div class="slot" id="slot3">s3 품질<span class="sec">90s</span></div>
+<div class="slot" id="slot4">s4 안정성<span class="sec">60s</span></div>
+<div class="slot" id="slot5">s5 관측<span class="sec">90s</span></div>
+<div class="slot" id="slot6">s6 사고와 상환<span class="sec">90s</span></div>
+<div class="slot" id="slot7">s7 인계<span class="sec">60s</span></div>
+  <div class="gauge"><div class="bar"><div class="fill" id="gfill"></div></div>
+   <div class="lb"><span id="gsec">0</span>s / 600s
+    <span id="gslack" style="float:right"></span></div></div>
+  <div class="rate st hid" id="rateBox">근거 결선율 <b>1.0</b> · 합계
+   <b>540s</b> (여유 60s)</div>
+ </div>
+</div>
+
+</div>
+<div class="caption" id="cap"></div>
+<div class="controls">
+  <button id="btnPlay" class="primary">&#9654; 재생</button>
+  <button id="btnReset">&#8634; 처음부터</button>
+  <div class="chips" id="chips"></div>
+</div>
+<div class="rm-note">시스템의 동작 줄이기 설정이 감지되어 최종 화면으로 표시합니다.
+단계 칩으로 각 장면을 넘겨볼 수 있습니다.</div>
+<div class="foot">8-4 「최종 발표 및 피드백」 · 모든 수치는 노트북 실행값과 일치 ·
+오프라인 단일 파일 · 7장 · 결선율 1.0 · 540s / 600s</div>
+</div>
+<script>
+
+var DATA={budget_s:600, total_s:540, slides:7, rate:1.0,
+ secs:[60,90,90,60,90,90,60],
+ orphanMsg:"[deck] 고아 주장 거부 \u2014 근거 없는 슬라이드: s8",
+ fakeMsg:"[deck] 대장에 없는 근거 키: intent_acc_optimistic (슬라이드 s9)"};
+console.assert(DATA.secs.reduce(function(a,b){return a+b;},0)===DATA.total_s,"sum");
+console.assert(DATA.total_s<=DATA.budget_s,"budget");
+console.assert(DATA.secs.length===DATA.slides,"n");
+
+</script>
+<script>
+
+function KEYSOFF(){ ['k_budget_ms','k_contract_sr','k_intent_acc','k_wrong','k_gate_tests','k_traces','k_alert_drill_windows','k_canary_decision','k_input_cap_proposed'].forEach(function(k){
+  A.cls(k,'hit',false); A.cls(k,'miss',false); }); }
+var GS=0;
+function GAUGE(v){ GS=v; A.$('gfill').style.width=(v/6)+'%'; A.txt('gsec',v);
+  A.txt('gslack', v>0 ? ('여유 '+(600-v)+'s') : ''); }
+window.RESET=function(){ KEYSOFF(); GS=0; GAUGE(0); A.txt('gslack','');
+ A.cls('claim','ok',false); A.cls('claim','bad',false); A.cls('gate','rej',false);
+ A.txt('amsg','');
+ A.html('claim',"<span style='color:var(--dim)'>대기 중 \u2014 주장 카드가 이 관문을 하나씩 통과합니다.</span>"); }
+var STEPS=[
+ {n:'규칙',d:3000,c:'7-5 <b>build_demo_script</b>의 후계 — 새 규칙 하나가 붙었습니다: '
+  +'모든 슬라이드는 최소 1개의 <b>evidence(대장 키)</b>를 가져야 합니다.',
+  on:function(){}},
+ {n:'s1 통과',d:2900,c:'<b>s1</b> — 주장 속 1500은 손으로 적은 게 아니라 대장 키 <b>budget_ms</b>의 값이 치환된 것입니다. 결선(結線) 성공, 60s 적립.',on:function(){
+ KEYSOFF(); ['k_budget_ms'].forEach(function(k){A.cls(k,'hit',true);});
+ A.cls('claim','bad',false); A.cls('claim','ok',true); A.cls('gate','rej',false);
+ A.html('claim',"<span class='cid'>s1</span><b>문제와 예산</b><br>한국어 콜센터 5대 의도를 왕복 <b>1500</b>ms 예산 안에서 처리한다<div class='ev'>evidence: budget_ms</div>");
+ A.txt('amsg','');
+ A.cls('slot1','fill',true); GAUGE(60);
+}},
+ {n:'s2 통과',d:2900,c:'<b>s2</b> — contract_sr 16000이 결선됩니다. 발표 중 출처 질문이 오면 evidence의 출처 문자열을 그대로 읽으면 됩니다.',on:function(){
+ KEYSOFF(); ['k_contract_sr'].forEach(function(k){A.cls(k,'hit',true);});
+ A.cls('claim','bad',false); A.cls('claim','ok',true); A.cls('gate','rej',false);
+ A.html('claim',"<span class='cid'>s2</span><b>계약 아키텍처</b><br>모든 단계는 <b>16000</b>Hz mono float32 계약 게이트로 연결된다<div class='ev'>evidence: contract_sr</div>");
+ A.txt('amsg','');
+ A.cls('slot2','fill',true); GAUGE(150);
+}},
+ {n:'s3 통과',d:2900,c:'<b>s3</b> — 근거 키 <b>두 개</b>(intent_acc·wrong)가 동시에 결선됩니다. 0.933은 1부에서 재계산으로 등재된 바로 그 행입니다.',on:function(){
+ KEYSOFF(); ['k_intent_acc','k_wrong'].forEach(function(k){A.cls(k,'hit',true);});
+ A.cls('claim','bad',false); A.cls('claim','ok',true); A.cls('gate','rej',false);
+ A.html('claim',"<span class='cid'>s3</span><b>품질</b><br>골든셋 15건 정확도 <b>0.933</b> · 위험 오답 <b>0</b>건 — 오늘 재계산값<div class='ev'>evidence: intent_acc · wrong</div>");
+ A.txt('amsg','');
+ A.cls('slot3','fill',true); GAUGE(240);
+}},
+ {n:'s4 통과',d:2900,c:'<b>s4</b> — 회귀 25건 exit 0. 입장권(셀 0-3)의 재판정 결과가 그대로 슬라이드 근거가 됩니다.',on:function(){
+ KEYSOFF(); ['k_gate_tests'].forEach(function(k){A.cls(k,'hit',true);});
+ A.cls('claim','bad',false); A.cls('claim','ok',true); A.cls('gate','rej',false);
+ A.html('claim',"<span class='cid'>s4</span><b>안정성</b><br>회귀 <b>25</b>건 exit 0 — 어제의 기록이 아니라 오늘의 재판정<div class='ev'>evidence: gate_tests</div>");
+ A.txt('amsg','');
+ A.cls('slot4','fill',true); GAUGE(300);
+}},
+ {n:'s5 통과',d:2900,c:'<b>s5</b> — 관측 주장: 트레이스 206행 · 경보 2창. 두 키 결선, 90s 적립.',on:function(){
+ KEYSOFF(); ['k_traces','k_alert_drill_windows'].forEach(function(k){A.cls(k,'hit',true);});
+ A.cls('claim','bad',false); A.cls('claim','ok',true); A.cls('gate','rej',false);
+ A.html('claim',"<span class='cid'>s5</span><b>관측</b><br>트레이스 <b>206</b>행 · 경보 드릴 <b>2</b>창 발화 · 원문 미기록<div class='ev'>evidence: traces · alert_drill_windows</div>");
+ A.txt('amsg','');
+ A.cls('slot5','fill',true); GAUGE(390);
+}},
+ {n:'s6 통과',d:2900,c:'<b>s6</b> — 사고 서사: rollback은 감출 실패담이 아니라 <b>게이트의 성공 사례</b>로 발표됩니다.',on:function(){
+ KEYSOFF(); ['k_canary_decision'].forEach(function(k){A.cls(k,'hit',true);});
+ A.cls('claim','bad',false); A.cls('claim','ok',true); A.cls('gate','rej',false);
+ A.html('claim',"<span class='cid'>s6</span><b>사고와 상환</b><br>카나리 판정 <b>rollback</b> 1건 — 실패한 배포가 게이트의 성공 사례가 됐다<div class='ev'>evidence: canary_decision</div>");
+ A.txt('amsg','');
+ A.cls('slot6','fill',true); GAUGE(480);
+}},
+ {n:'s7 통과',d:2900,c:'<b>s7</b> — 마지막 슬라이드까지 결선. 합계 540s — 예산 600s의 안쪽입니다. 시간도 계약입니다.',on:function(){
+ KEYSOFF(); ['k_input_cap_proposed'].forEach(function(k){A.cls(k,'hit',true);});
+ A.cls('claim','bad',false); A.cls('claim','ok',true); A.cls('gate','rej',false);
+ A.html('claim',"<span class='cid'>s7</span><b>인계</b><br>미해결 백로그 4건 + 미적용 제안 <b>130</b>자 — 끝이 아니라 인계<div class='ev'>evidence: input_cap_proposed</div>");
+ A.txt('amsg','');
+ A.cls('slot7','fill',true); GAUGE(540);
+}},
+ {n:'드릴① 고아',d:4200,c:'드릴 ① — 근거 없는 주장 <b>"실사용자 만족도 95%"</b>가 '
+  +'끼어듭니다. 대장에 결선할 키가 없습니다. 생성기가 무대 대신 여기서 거부합니다.',
+  on:function(){ KEYSOFF(); A.cls('claim','ok',false); A.cls('claim','bad',true);
+   A.cls('gate','rej',true); A.cls('claim','shake',true);
+   A.html('claim',"<span class='cid'>s8</span><b>만족도</b><br>실사용자 만족도 95%를 달성했다"
+    +"<div class='ev'>evidence: (없음)</div>");
+   A.txt('amsg','AssertionError: '+DATA.orphanMsg); }},
+ {n:'드릴② 대장 밖',d:4200,c:'드릴 ② — <b>대장에 없는 수치</b>를 가리키는 주장. '
+  +'intent_acc_optimistic이라는 키는 대장 어디에도 없습니다. 부풀린 숫자도 같은 문에서 죽습니다.',
+  on:function(){ KEYSOFF();
+   var m=document.createElement('div'); m.className='lkey mono miss st ap';
+   m.id='k_miss'; m.textContent='intent_acc_optimistic ?';
+   if(!A.$('k_miss')) A.$('k_input_cap_proposed').after(m);
+   A.cls('claim','ok',false); A.cls('claim','bad',true); A.cls('gate','rej',true);
+   A.html('claim',"<span class='cid'>s9</span><b>품질(부풀림)</b><br>정확도 {intent_acc_optimistic}를 달성했다"
+    +"<div class='ev'>evidence: intent_acc_optimistic</div>");
+   A.txt('amsg','AssertionError: '+DATA.fakeMsg); }},
+ {n:'결선율 1.0',d:3600,c:'정본 대본 7장 확정 — <b>결선율 1.0 · 540s &le; 600s</b>. '
+  +'0.95라고 말하고 싶으면 먼저 0.95를 만들 것: 대장이 발표의 사실 검증기입니다.',
+  on:function(){ var m=A.$('k_miss'); if(m) m.remove();
+   KEYSOFF(); A.cls('claim','bad',false); A.cls('gate','rej',false); A.txt('amsg','');
+   A.html('claim',"<b>7장 전부 통과</b><div class='ev'>고아 주장 차단 \u2713 · 대장 밖 수치 차단 \u2713</div>");
+   for(var i=1;i<=7;i++){A.cls('slot'+i,'fill',true);} GAUGE(540);
+   A.show('rateBox'); }}
+];
+
+</script>
+<script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id);};
+var stage=$('stage'), cap=$('cap'), chipsBox=$('chips');
+var btnPlay=$('btnPlay'), btnReset=$('btnReset');
+var idx=-1, timer=null, playing=false;
+var RM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function show(id){var e=$(id); if(e){e.classList.remove('hid'); e.classList.add('ap');}}
+function hide(id){var e=$(id); if(e){e.classList.add('hid'); e.classList.remove('ap');}}
+function txt(id,s){var e=$(id); if(e){e.textContent=s;}}
+function html(id,s){var e=$(id); if(e){e.innerHTML=s;}}
+function cls(id,c,on){var e=$(id); if(e){e.classList[on?'add':'remove'](c);}}
+window.A={show:show,hide:hide,txt:txt,html:html,cls:cls,$:$};
+
+function resetDom(){
+  document.querySelectorAll('.st').forEach(function(e){
+    e.classList.add('hid'); e.classList.remove('ap','pulse','shake','on','off','bad2','ok2');});
+  if(window.RESET) window.RESET();
+}
+function apply(i, instant){
+  if(instant) document.body.classList.add('noanim');
+  resetDom();
+  for(var k=0;k<=i;k++){ STEPS[k].on(); }
+  cap.innerHTML = i>=0 ? STEPS[i].c : '&#9654; 재생을 누르면 시작합니다.';
+  updChips(i);
+  if(instant){ void document.body.offsetHeight;
+    document.body.classList.remove('noanim'); }
+}
+function updChips(i){
+  var bs=chipsBox.querySelectorAll('button');
+  bs.forEach(function(b,k){ b.classList[k===i?'add':'remove']('cur'); });
+}
+function stop(){ playing=false; if(timer){clearTimeout(timer); timer=null;}
+  btnPlay.textContent='\u25B6 재생'; }
+function stepTo(i){ stop(); idx=i; apply(i,true); }
+function playFrom(i){
+  playing=true; btnPlay.textContent='\u23F8 일시정지';
+  function next(){
+    if(!playing) return;
+    idx++;
+    if(idx>=STEPS.length){ stop(); idx=STEPS.length-1; return; }
+    apply(idx,false);
+    timer=setTimeout(next, STEPS[idx].d);
+  }
+  if(i<idx||idx<0){ idx=i-1; } // 재생 위치 정렬
+  next();
+}
+btnPlay.addEventListener('click',function(){
+  if(playing){ stop(); }
+  else{
+    if(idx>=STEPS.length-1) idx=-1;
+    playFrom(idx+1);
+  }
+});
+btnReset.addEventListener('click',function(){ stop(); idx=-1; apply(-1,true); });
+STEPS.forEach(function(s,k){
+  var b=document.createElement('button');
+  b.textContent=(k+1); b.title=s.n||('단계 '+(k+1));
+  b.addEventListener('click',function(){ stepTo(k); });
+  chipsBox.appendChild(b);
+});
+if(RM){
+  document.querySelectorAll('.rm-note').forEach(function(e){e.style.display='block';});
+  idx=STEPS.length-1; apply(idx,true);
+}else{
+  apply(-1,true);
+}
+})();
+</script>
+</body>
+</html>
