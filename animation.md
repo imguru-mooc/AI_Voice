@@ -49,3 +49,10 @@
 ### 모니터링 배포
 - [백로그에서 경보로](https://imguru-mooc.github.io/AI_Voice/html/anim_8_3_backlog_to_alert.html)
 - [순서의 세금](https://imguru-mooc.github.io/AI_Voice/html/anim_8_3_order_tax.html)
+
+### 컴플라이언스 문서화
+- [이중문](https://imguru-mooc.github.io/AI_Voice/html/1.anim_84_0_이중문.html)
+- [순서가 세금 오인 마스킹](https://imguru-mooc.github.io/AI_Voice/html/2.anim_84_1_순서가세금_오인마스킹.html)
+- [같은 스택 다른 판정](https://imguru-mooc.github.io/AI_Voice/html/3.anim_84_3_같은스택_다른판정.html)
+- [손으로 쓰지 않은 카드](https://imguru-mooc.github.io/AI_Voice/html/4.anim_84_4_손으로쓰지않은카드.html)
+- [오염 주입 주모크](https://imguru-mooc.github.io/AI_Voice/html/5.anim_84_5_오염주입스모크.html)
