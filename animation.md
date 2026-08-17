@@ -56,3 +56,10 @@
 - [같은 스택 다른 판정](https://imguru-mooc.github.io/AI_Voice/html/3.anim_84_3_같은스택_다른판정.html)
 - [손으로 쓰지 않은 카드](https://imguru-mooc.github.io/AI_Voice/html/4.anim_84_4_손으로쓰지않은카드.html)
 - [오염 주입 주모크](https://imguru-mooc.github.io/AI_Voice/html/5.anim_84_5_오염주입스모크.html)
+
+### 최종 발표 피드백
+- [출처 3색 대장](https://imguru-mooc.github.io/AI_Voice/html/8_4_애니메이션_1부_출처_3색_대장.html)
+- [고아 주장의 최후](https://imguru-mooc.github.io/AI_Voice/html/8_4_애니메이션_2부_고아_주장의_최후.html)
+- [3세션 폴백 서사](https://imguru-mooc.github.io/AI_Voice/html/8_4_애니메이션_3부_3세션_폴백_서사.html)
+- [PENDING이 데이터로](https://imguru-mooc.github.io/AI_Voice/html/8_4_애니메이션_4부_PENDING이_데이터로.html)
+- [백로그 인계식](https://imguru-mooc.github.io/AI_Voice/html/8_4_애니메이션_5부_백로그_인계식.html)
