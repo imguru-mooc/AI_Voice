@@ -340,10 +340,16 @@ const hero=$('hero');let heroT=0;
 
 /* tabs */
 const tabs=[...document.querySelectorAll('nav.tabs button')];
-function openTab(id){tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+let openTab=function(id){tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
   document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
   if(id==='p2')buildEnv(); if(id==='p3')drawTrip(); if(id==='p4'){drawSamp();updDur();} if(id==='p6'){renderSteps();updRTF();} if(id==='p7')calcCER(); if(id==='p8')drawTimeline(0);}
 tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+/* deep link: animation.html#sampling 처럼 특정 탭 바로 열기 */
+const HASH={flow:'p0',tech:'p1',stack:'p2',file:'p3',sampling:'p4',mic:'p5',asr:'p6',cer:'p7',agent:'p8'};
+const RHASH=Object.fromEntries(Object.entries(HASH).map(([k,v])=>[v,k]));
+const _open=openTab;openTab=function(id){_open(id);try{history.replaceState(null,'','#'+RHASH[id]);}catch(e){}};
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>{const id=HASH[location.hash.slice(1)];if(id)_open(id);});
 
 /* 0 roadmap */
 const ROAD=[
@@ -358,6 +364,7 @@ function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.se
   $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${x}</li>`).join('')}</ul><p style="margin:8px 0 0">${r.q}</p><button class="btn primary go" data-go="${r.go}">관련 애니메이션 보기</button>`;
   $('roadDetail').querySelector('.go').onclick=()=>openTab(r.go);}
 [...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i)); showRoad(0);
+{const id=HASH[location.hash.slice(1)];if(id)setTimeout(()=>_open(id),0);}
 
 /* 1 tech map */
 const MODES={
