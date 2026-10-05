@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D1 이해도 확인 워크시트: 음성 AI 첫걸음</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 80px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6}
+.wrap{max-width:780px;margin:0 auto;padding:28px 18px 80px}
+h1{font-size:clamp(1.4rem,3.4vw,2rem);line-height:1.25;margin:0 0 6px;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:0 0 12px}
+.types{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.tbadge{font-size:.75rem;padding:2px 10px;border-radius:99px;background:var(--tc);color:#fff;white-space:nowrap}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.info label{font-size:.85rem;color:var(--muted);display:block}
+.info input{width:100%;font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
+.progress{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line);margin-bottom:18px;display:flex;align-items:center;gap:12px}
+.bar{flex:1;height:8px;background:var(--soft);border-radius:99px;overflow:hidden}
+.bar div{height:100%;width:0;background:var(--ink);transition:width .25s}
+.progress span{font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--muted);white-space:nowrap}
+.q{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--tc);border-radius:12px;padding:16px 18px;margin:0 0 14px}
+.q.correct{border-color:var(--ok);border-left-color:var(--ok)}
+.q.wrong{border-color:var(--bad);border-left-color:var(--bad)}
+.qhead{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap}
+.qn{font-weight:700;font-variant-numeric:tabular-nums;color:var(--tc);min-width:2.4em}
+.qt{font-weight:500;flex:1;min-width:60%}
+.qmeta{display:flex;gap:6px;margin-left:auto}
+.part{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px;white-space:nowrap}
+.guide{font-size:.85rem;color:var(--muted);margin:-4px 0 10px}
+.opts{display:grid;gap:6px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--panel)}
+.opt:hover{background:var(--soft)}
+.opt input{margin-top:5px;accent-color:var(--ink)}
+.opt.picked{border-color:var(--ink)}
+.opt.ans{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,var(--panel))}
+.opt.miss{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,var(--panel))}
+code{font-size:.9em;background:var(--soft);padding:0 5px;border-radius:4px}
+/* OX */
+.ox{display:flex;gap:12px}
+.ox button{flex:1;max-width:160px;font:inherit;font-size:2rem;font-weight:700;padding:10px;border-radius:14px;border:2px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.ox button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.ox button.ans{border-color:var(--ok);background:var(--ok);color:#fff}
+.ox button.miss{border-color:var(--bad);background:var(--bad);color:#fff}
+/* match */
+.match{position:relative;display:grid;grid-template-columns:1fr 70px 1.4fr;gap:0;align-items:start}
+.mcol{display:flex;flex-direction:column;gap:10px;position:relative;z-index:2}
+.mitem{font:inherit;text-align:left;border:2px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:10px 12px;cursor:pointer;min-height:48px;display:flex;align-items:center;gap:8px}
+.mitem .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--muted);flex:0 0 auto;background:var(--panel)}
+.mitem.sel{border-color:var(--ink);box-shadow:0 0 0 3px color-mix(in srgb,var(--ink) 18%,transparent)}
+.mitem.linked .dot{background:var(--pc);border-color:var(--pc)}
+.mitem.linked{border-color:var(--pc)}
+.mright .mitem{flex-direction:row}
+.mleft .mitem{justify-content:space-between;font-weight:700}
+.mleft .mitem .dot{order:2}
+svg.lines{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;overflow:visible}
+@media (max-width:560px){.match{grid-template-columns:1fr 34px 1.3fr}.mitem{font-size:.86rem;padding:8px}}
+/* order */
+.olist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.oitem{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);cursor:grab;user-select:none}
+.oitem.dragging{opacity:.4}
+.oitem .num{width:26px;height:26px;border-radius:50%;background:var(--soft);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex:0 0 auto}
+.oitem .txt{flex:1}
+.oitem .mv{display:flex;gap:4px}
+.oitem .mv button{font:inherit;width:34px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);cursor:pointer}
+.oitem.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--panel))}
+.oitem.no{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--panel))}
+.ohint{font-size:.8rem;color:var(--muted);margin-top:6px}
+/* num */
+.numrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.numrow input{font:inherit;font-size:1.2rem;width:130px;padding:8px 12px;border:2px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);text-align:right}
+.numrow input.ans{border-color:var(--ok)} .numrow input.miss{border-color:var(--bad)}
+.calcbox{background:var(--soft);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.95rem}
+/* feedback */
+.exp{display:none;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--soft);font-size:.93rem}
+.graded .exp{display:block}
+.exp b{margin-right:6px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0}
+.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:10px 18px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,.opt:focus-within{outline:2px solid var(--s2s);outline-offset:2px}
+.result{display:none;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
+.result.show{display:block}
+.score{font-size:2.4rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.score small{font-size:1rem;color:var(--muted);font-weight:400}
+.msg{margin:8px 0 14px;color:var(--muted)}
+.bd{display:grid;gap:8px}
+.bd div{display:grid;grid-template-columns:110px 1fr 48px;gap:10px;align-items:center;font-size:.9rem}
+.bd .b{height:10px;background:var(--soft);border-radius:99px;overflow:hidden}
+.bd .b i{display:block;height:100%;background:var(--tc)}
+.warn{color:var(--bad);font-size:.9rem;min-height:1.3em}
+body.onlywrong .q.correct{display:none}
+.locked .mitem,.locked .oitem,.locked .ox button{pointer-events:none}
+.locked .oitem .mv{display:none}
+@media (max-width:560px){.info{grid-template-columns:1fr}}
+@media print{body{background:#fff;color:#000}.progress,.actions{display:none!important}.q{break-inside:avoid;border-color:#999}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>D1 이해도 확인 워크시트</h1>
+  <p class="sub">음성 AI 첫걸음 실습 노트북 Part 0 ~ 6 내용입니다. 15문항을 모두 푼 뒤 채점하세요.</p>
+  <div class="types" id="types"></div>
+  <div class="info">
+    <div><label for="nm">이름</label><input id="nm" autocomplete="name"></div>
+    <div><label for="org">소속 / 조</label><input id="org"></div>
+  </div>
+  <div class="progress"><div class="bar"><div id="pbar"></div></div><span id="ptxt">0 / 15 응답</span></div>
+  <div class="result" id="result"></div>
+  <div id="quiz"></div>
+  <p class="warn" id="warn" role="status"></p>
+  <div class="actions">
+    <button class="btn primary" id="gradeBtn">채점하기</button>
+    <button class="btn" id="wrongBtn" hidden>오답만 보기</button>
+    <button class="btn" id="retryBtn">다시 풀기</button>
+    <button class="btn" id="printBtn">인쇄 / PDF 저장</button>
+  </div>
+</div>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const TYPES={mc:['객관식','--asr'],multi:['복수 선택','--s2s'],ox:['O / X','--net'],match:['선 잇기','--tts'],order:['순서 맞추기','--llm'],num:['계산','--ink']};
+const GUIDE={mc:'알맞은 답을 하나 고르세요.',multi:'알맞은 것을 모두 고르세요.',ox:'맞으면 O, 틀리면 X를 누르세요.',
+  match:'왼쪽 항목을 누른 뒤, 짝이 되는 오른쪽 항목을 누르세요. 연결된 항목을 다시 누르면 선이 지워집니다.',
+  order:'▲ ▼ 버튼(또는 끌어서 놓기)으로 올바른 순서로 정렬하세요.',num:'숫자만 입력하세요.'};
+const Q=[
+ {t:'mc',p:'Part 0',q:'사람의 목소리를 듣고 글자로 받아쓰는 기술은 무엇인가요?',o:['TTS','ASR','VAD','ffmpeg'],a:1,
+  e:'ASR(Automatic Speech Recognition)은 소리를 글자로 바꿉니다. STT라고도 부릅니다. TTS는 반대 방향, VAD는 말소리 구간 찾기, ffmpeg는 파일 형식 변환 도구입니다.'},
+ {t:'match',p:'Part 0',q:'음성 AI 4대 기술과 설명을 바르게 이으세요.',
+  l:['ASR','TTS','Speech-to-Speech','Voice Agent'],r:['소리를 듣고 글자로 받아쓰기','글자를 소리 내어 읽어주기','글자를 거치지 않고 소리로 바로 대답하기','듣기, 생각하기, 말하기를 이어 붙인 음성 비서'],
+  e:'무엇을 넣고 무엇을 얻는지로 구분합니다. Voice Agent는 ASR(듣기) + LLM(생각하기) + TTS(말하기)를 차례로 연결한 것입니다.'},
+ {t:'ox',p:'Part 1',q:'Colab에서는 GPU 드라이버부터 음성 라이브러리까지 모든 층을 직접 설치해야 한다.',a:false,
+  e:'Colab은 GPU, 드라이버, CUDA, Python, PyTorch, FFmpeg가 이미 준비되어 있습니다. 우리가 직접 설치한 것은 맨 위의 음성 라이브러리(faster-whisper, edge-tts 등)입니다.'},
+ {t:'order',p:'Part 1',q:'개발환경의 층을 가장 아래(1번)부터 가장 위까지 순서대로 정렬하세요.',
+  items:['GPU 하드웨어','NVIDIA Driver','CUDA / cuDNN','PyTorch','음성 라이브러리 (faster-whisper 등)','Colab 노트북'],
+  e:'아래층이 맞아야 위층이 동작합니다. 그래서 오류가 나면 가장 아래인 GPU부터 차례로 확인합니다.'},
+ {t:'mc',p:'Part 1',q:'PyTorch가 GPU를 쓸 수 있는지 확인하는 코드는? (빈칸 실습 1)',o:['torch.gpu.check()','!pip list','torch.cuda.is_available()','torch.device.list()'],a:2,code:true,
+  e:'torch.cuda.is_available()이 True면 GPU를 쓸 수 있습니다. False라면 Colab 메뉴의 런타임 > 런타임 유형 변경에서 GPU를 선택했는지 확인하세요.'},
+ {t:'order',p:'Part 2',q:'TTS로 만든 소리가 음성 모델에 들어가기까지의 순서로 정렬하세요.',
+  items:['문장(글자)','edge-tts로 합성','mp3 파일','ffmpeg로 변환','16kHz mono WAV','음성 모델'],
+  e:'TTS가 만든 mp3든 마이크로 녹음한 webm이든, ffmpeg로 16kHz mono WAV라는 공통 형식으로 바꾼 뒤 음성 모델에 넣습니다.'},
+ {t:'mc',p:'Part 2',q:'"16kHz mono WAV"에서 16kHz와 mono의 뜻으로 알맞은 것은?',
+  o:['16초 길이, 왼쪽 스피커 전용','16MB 크기, 고음질','1초에 16번 측정, 채널 2개','1초에 16,000번 측정, 채널 1개'],a:3,
+  e:'16kHz는 1초에 16,000번 소리를 측정했다는 뜻이고, mono는 채널이 하나라는 뜻입니다. Whisper를 비롯한 대부분의 음성 모델이 이 형식을 입력으로 씁니다.'},
+ {t:'num',p:'Part 3',q:'16kHz로 녹음한 오디오의 샘플 수가 48,000개입니다. 이 오디오의 길이는 몇 초인가요? (빈칸 실습 3)',a:3,unit:'초',
+  calc:'힌트: 길이(초) = 샘플 수 ÷ 1초당 측정 횟수',e:'48,000 ÷ 16,000 = 3초입니다. 노트북에서는 seconds = len(y) / sr로 계산했습니다.'},
+ {t:'match',p:'Part 3',q:'용어와 설명을 바르게 이으세요.',
+  l:['파형','스펙트로그램','VAD','ffmpeg'],r:['시간에 따른 소리의 크기','언제, 어떤 높낮이의 소리가 났는지','말소리 구간과 묵음 구간 구분하기','소리 파일 형식 바꾸기'],
+  e:'파형은 크기, 스펙트로그램은 높낮이를 보여줍니다. Whisper는 소리를 스펙트로그램 그림으로 바꿔서 읽습니다. faster-whisper의 vad_filter=True가 VAD 기능입니다.'},
+ {t:'num',p:'Part 5',q:'정답 문장이 10글자인데, 받아쓰기 결과에서 1글자가 다른 글자로 바뀌고(대체) 1글자가 빠졌습니다(삭제). CER은 몇 %인가요?',a:20,unit:'%',
+  calc:'힌트: CER = 틀린 횟수 ÷ 정답 글자 수',e:'틀린 횟수 2 ÷ 정답 10글자 = 0.2, 즉 20%입니다. CER은 낮을수록 정확합니다.'},
+ {t:'mc',p:'Part 5',q:'10초 길이의 음성을 받아쓰는 데 1초가 걸렸습니다. RTF와 그 의미로 알맞은 것은?',
+  o:['RTF 0.1, 실시간보다 빠르다','RTF 10, 실시간보다 빠르다','RTF 0.1, 실시간보다 느리다','RTF 10, 실시간보다 느리다'],a:0,
+  e:'RTF = 처리 시간 ÷ 음성 길이 = 1 ÷ 10 = 0.1입니다. 1보다 작으면 말하는 속도보다 빨리 받아쓴다는 뜻입니다.'},
+ {t:'match',p:'Part 5',q:'정답 "오늘날씨좋다"를 "오날시좋다요"로 받아썼습니다. 틀린 부분과 오류 종류를 이으세요.',
+  l:['씨 → 시','늘 → (없어짐)','(없음) → 요'],r:['대체','삭제','삽입'],
+  e:'다른 글자로 바뀌면 대체, 빠지면 삭제, 없던 글자가 끼어들면 삽입입니다. 이 예시는 6글자 중 3번 틀려 CER 50%입니다.'},
+ {t:'order',p:'Part 6',q:'미니 음성 비서(voice_agent)가 동작하는 순서로 정렬하세요.',
+  items:['사용자 음성','transcribe() 듣기','llm_reply() 생각하기','tts() 말하기','비서 음성'],
+  e:'듣고 → 생각하고 → 말하기 순서입니다. 빈칸 실습 6에서 이 세 함수로 비서를 조립했습니다.'},
+ {t:'ox',p:'Part 6',q:'음성 비서의 답변에는 표, 목록, 이모지를 많이 넣을수록 듣기 좋다.',a:false,
+  e:'답변은 소리로 읽히기 때문에 기호가 그대로 읽히거나 어색해집니다. 그래서 SYSTEM_PROMPT에서 기호 없이 1~2문장의 짧은 구어체로 답하도록 지시합니다.'},
+ {t:'multi',p:'Part 6',q:'음성 비서가 대답을 더 빨리 시작하게 만드는 방법을 모두 고르세요.',
+  o:['앞 단계가 끝나기 전에 조금씩 먼저 넘기기 (Streaming)','글자를 거치지 않는 Speech-to-Speech 모델 쓰기','답변을 길고 자세하게 만들기','GPU를 써서 받아쓰기 시간(RTF) 줄이기','각 단계가 완전히 끝날 때까지 기다렸다가 넘기기'],a:[0,1,3],
+  e:'Streaming, Speech-to-Speech, 각 단계 속도 개선(GPU)은 모두 기다리는 시간을 줄입니다. 답변이 길면 생각하기와 말하기 시간이 늘고, 단계마다 끝까지 기다리는 것은 오늘 만든 순차 처리 방식 그대로입니다.'}
+];
+const PAL=['#1E9E8F','#C2417A','#6A4FCF','#D98A1E','#3B7DD8'];
+const state=Q.map(q=>q.t==='multi'?[]:q.t==='match'?{}:q.t==='order'?null:null);
+let graded=false;
+
+/* type legend */
+const counts={};Q.forEach(q=>counts[q.t]=(counts[q.t]||0)+1);
+$('types').innerHTML=Object.entries(counts).map(([k,n])=>`<span class="tbadge" style="--tc:var(${TYPES[k][1]})">${TYPES[k][0]} ${n}</span>`).join('');
+
+function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function shuffledIdx(n){let p;do{p=shuffle([...Array(n).keys()]);}while(p.every((v,i)=>v===i));return p;}
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const fmt=(s,c)=>c?`<code>${esc(s)}</code>`:esc(s);
+
+function render(){graded=false;document.body.classList.remove('onlywrong');
+  const box=$('quiz');box.innerHTML='';
+  Q.forEach((q,i)=>{
+    const [tn,tc]=TYPES[q.t];const el=document.createElement('section');el.className='q';el.id='q'+i;el.style.setProperty('--tc',`var(${tc})`);
+    el.innerHTML=`<div class="qhead"><span class="qn">Q${i+1}</span><span class="qt">${esc(q.q)}</span><span class="qmeta"><span class="tbadge" style="--tc:var(${tc})">${tn}</span><span class="part">${q.p}</span></span></div><p class="guide">${GUIDE[q.t]}</p><div class="body"></div><div class="exp"></div>`;
+    const b=el.querySelector('.body');
+    if(q.t==='mc'||q.t==='multi'){const type=q.t==='mc'?'radio':'checkbox';
+      b.innerHTML=`<div class="opts">${q.o.map((o,j)=>`<label class="opt"><input type="${type}" name="q${i}" value="${j}"><span>${'①②③④⑤'[j]} ${fmt(o,q.code)}</span></label>`).join('')}</div>`;
+      b.querySelectorAll('input').forEach(inp=>inp.onchange=()=>{
+        if(q.t==='mc')state[i]=+inp.value;else state[i]=[...b.querySelectorAll('input:checked')].map(x=>+x.value);
+        b.querySelectorAll('.opt').forEach(o=>o.classList.toggle('picked',o.querySelector('input').checked));prog();});}
+    else if(q.t==='ox'){b.innerHTML=`<div class="ox"><button type="button" data-v="1" aria-pressed="false">O</button><button type="button" data-v="0" aria-pressed="false">X</button></div>`;
+      b.querySelectorAll('button').forEach(bt=>bt.onclick=()=>{state[i]=bt.dataset.v==='1';b.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===bt));prog();});}
+    else if(q.t==='num'){b.innerHTML=`<div class="calcbox">${esc(q.calc)}</div><div class="numrow"><input type="text" inputmode="decimal" aria-label="답"><span>${q.unit}</span></div>`;
+      const inp=b.querySelector('input');inp.oninput=()=>{const v=parseFloat(inp.value.replace(/[^\d.]/g,''));state[i]=isNaN(v)?null:v;prog();};}
+    else if(q.t==='order'){const perm=shuffledIdx(q.items.length);q._perm=perm;
+      b.innerHTML=`<ul class="olist"></ul><p class="ohint">위쪽이 1번입니다.</p>`;const ul=b.querySelector('ul');
+      perm.forEach(k=>{const li=document.createElement('li');li.className='oitem';li.draggable=true;li.dataset.k=k;
+        li.innerHTML=`<span class="num"></span><span class="txt">${esc(q.items[k])}</span><span class="mv"><button type="button" aria-label="위로">▲</button><button type="button" aria-label="아래로">▼</button></span>`;
+        const [up,dn]=li.querySelectorAll('button');
+        up.onclick=()=>{if(li.previousElementSibling){ul.insertBefore(li,li.previousElementSibling);touched(i,ul);up.focus();}};
+        dn.onclick=()=>{if(li.nextElementSibling){ul.insertBefore(li.nextElementSibling,li);touched(i,ul);dn.focus();}};
+        li.addEventListener('dragstart',e=>{li.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+        li.addEventListener('dragend',()=>{li.classList.remove('dragging');touched(i,ul);});
+        ul.appendChild(li);});
+      ul.addEventListener('dragover',e=>{e.preventDefault();const d=ul.querySelector('.dragging');if(!d)return;
+        const after=[...ul.querySelectorAll('.oitem:not(.dragging)')].find(x=>{const r=x.getBoundingClientRect();return e.clientY<r.top+r.height/2;});
+        after?ul.insertBefore(d,after):ul.appendChild(d);});
+      numberList(ul);}
+    else if(q.t==='match'){const perm=shuffledIdx(q.r.length);q._perm=perm;state[i]={};
+      b.innerHTML=`<div class="match"><div class="mcol mleft">${q.l.map((x,j)=>`<button type="button" class="mitem" data-side="l" data-k="${j}"><span>${esc(x)}</span><span class="dot"></span></button>`).join('')}</div><div></div>
+        <div class="mcol mright">${perm.map(k=>`<button type="button" class="mitem" data-side="r" data-k="${k}"><span class="dot"></span><span>${esc(q.r[k])}</span></button>`).join('')}</div><svg class="lines"></svg></div>`;
+      let sel=null;const m=b.querySelector('.match');
+      m.querySelectorAll('.mitem').forEach(it=>it.onclick=()=>{const side=it.dataset.side,k=+it.dataset.k,pairs=state[i];
+        if(side==='l'){if(k in pairs&&sel!==k){delete pairs[k];sel=null;}else sel=(sel===k?null:k);}
+        else{if(sel===null){const lk=Object.keys(pairs).find(x=>pairs[x]===k);if(lk!==undefined)delete pairs[lk];}
+          else{Object.keys(pairs).forEach(x=>{if(pairs[x]===k)delete pairs[x];});pairs[sel]=k;sel=null;}}
+        m.querySelectorAll('.mleft .mitem').forEach(x=>x.classList.toggle('sel',+x.dataset.k===sel));drawLines(i);prog();});}
+    box.appendChild(el);});
+  requestAnimationFrame(()=>Q.forEach((q,i)=>{if(q.t==='match')drawLines(i);}));prog();}
+function numberList(ul){[...ul.children].forEach((li,j)=>li.querySelector('.num').textContent=j+1);}
+function touched(i,ul){numberList(ul);state[i]=[...ul.children].map(li=>+li.dataset.k);prog();}
+function drawLines(i,result){const q=Q[i],el=$('q'+i),m=el.querySelector('.match'),svg=m.querySelector('svg'),pairs=state[i];const mr=m.getBoundingClientRect();
+  m.querySelectorAll('.mitem').forEach(x=>{x.classList.remove('linked');x.style.removeProperty('--pc');});
+  let html='';Object.entries(pairs).forEach(([lk,rk],n)=>{lk=+lk;const L=m.querySelector(`.mleft [data-k="${lk}"]`),R=m.querySelector(`.mright [data-k="${rk}"]`);
+    const col=result?(rk===lk?css('--ok'):css('--bad')):PAL[lk%PAL.length];
+    [L,R].forEach(x=>{x.classList.add('linked');x.style.setProperty('--pc',col);});
+    const a=L.querySelector('.dot').getBoundingClientRect(),c=R.querySelector('.dot').getBoundingClientRect();
+    const x1=a.left+a.width/2-mr.left,y1=a.top+a.height/2-mr.top,x2=c.left+c.width/2-mr.left,y2=c.top+c.height/2-mr.top;
+    html+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="3" stroke-linecap="round"${result&&rk!==lk?' stroke-dasharray="6 5"':''}/>`;});
+  svg.innerHTML=html;}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function answered(i){const q=Q[i],s=state[i];return q.t==='multi'?s.length>0:q.t==='match'?Object.keys(s).length===q.l.length:q.t==='order'?true:s!==null&&s!==undefined;}
+function prog(){const n=Q.filter((_,i)=>answered(i)).length;$('pbar').style.width=n/Q.length*100+'%';$('ptxt').textContent=`${n} / ${Q.length} 응답`;}
+function isCorrect(i){const q=Q[i],s=state[i];
+  switch(q.t){case 'mc':return s===q.a;case 'ox':return s===q.a;case 'num':return Math.abs(s-q.a)<1e-6;
+    case 'multi':return s.length===q.a.length&&q.a.every(x=>s.includes(x));
+    case 'match':return q.l.every((_,k)=>s[k]===k);
+    case 'order':{const cur=s||q._perm;return cur.every((v,j)=>v===j);}}}
+$('gradeBtn').onclick=()=>{if(graded)return;const un=Q.map((_,i)=>i).filter(i=>!answered(i));
+  if(un.length){$('warn').textContent=`아직 풀지 않은 문항: ${un.map(i=>'Q'+(i+1)).join(', ')}`;$('q'+un[0]).scrollIntoView({behavior:'smooth'});return;}
+  $('warn').textContent='';graded=true;let score=0;const bd={};
+  Q.forEach((q,i)=>{const ok=isCorrect(i);if(ok)score++;bd[q.t]=bd[q.t]||[0,0];bd[q.t][1]++;if(ok)bd[q.t][0]++;
+    const el=$('q'+i);el.classList.add('graded','locked',ok?'correct':'wrong');let extra='';
+    if(q.t==='mc'||q.t==='multi'){const ans=q.t==='mc'?[q.a]:q.a;el.querySelectorAll('.opt').forEach((o,j)=>{const inp=o.querySelector('input');inp.disabled=true;o.classList.toggle('ans',ans.includes(j));o.classList.toggle('miss',inp.checked&&!ans.includes(j));});
+      extra=`정답: ${ans.map(j=>'①②③④⑤'[j]).join(', ')}. `;}
+    else if(q.t==='ox'){el.querySelectorAll('.ox button').forEach(bt=>{const v=bt.dataset.v==='1';bt.classList.toggle('ans',v===q.a);bt.classList.toggle('miss',v===state[i]&&v!==q.a);});extra=`정답: ${q.a?'O':'X'}. `;}
+    else if(q.t==='num'){const inp=el.querySelector('input');inp.disabled=true;inp.classList.add(ok?'ans':'miss');extra=`정답: ${q.a}${q.unit}. `;}
+    else if(q.t==='order'){const ul=el.querySelector('ul');[...ul.children].forEach((li,j)=>{li.draggable=false;li.classList.add(+li.dataset.k===j?'ok':'no');});
+      if(!ok)extra=`정답 순서: ${q.items.map((x,j)=>`${j+1}. ${x}`).join(' → ')}. `;}
+    else if(q.t==='match'){drawLines(i,true);if(!ok)extra=`정답: ${q.l.map((x,k)=>`${x} — ${q.r[k]}`).join(' / ')}. `;}
+    el.querySelector('.exp').innerHTML=`<b>${ok?"✅ 정답":"❌ 오답"}</b>${ok?"":esc(extra)}${esc(q.e)}`;});
+  const pct=Math.round(score/Q.length*100);
+  const msg=pct>=90?'훌륭합니다. D2 디지털 오디오 기초로 넘어갈 준비가 되었습니다.':pct>=70?'대부분 이해했습니다. 틀린 문항의 해설과 애니메이션 자료를 다시 확인하세요.':'노트북의 그림 설명과 애니메이션 "오늘의 흐름" 탭을 복습한 뒤 다시 풀어보세요.';
+  const who=[$('nm').value,$('org').value].filter(Boolean).join(', ');
+  $('result').innerHTML=`<div class="score">${score} <small>/ ${Q.length} 문항 (${pct}점)${who?' '+esc(who):''}</small></div><p class="msg">${msg}</p>
+    <div class="bd">${Object.entries(bd).map(([k,[c,t]])=>`<div style="--tc:var(${TYPES[k][1]})"><span>${TYPES[k][0]}</span><span class="b"><i style="width:${c/t*100}%"></i></span><span>${c}/${t}</span></div>`).join('')}</div>`;
+  $('result').classList.add('show');$('wrongBtn').hidden=score===Q.length;$('result').scrollIntoView({behavior:'smooth'});};
+$('wrongBtn').onclick=()=>{const on=document.body.classList.toggle('onlywrong');$('wrongBtn').textContent=on?'전체 보기':'오답만 보기';redrawAll();};
+$('retryBtn').onclick=()=>{$('result').classList.remove('show');$('wrongBtn').hidden=true;$('wrongBtn').textContent='오답만 보기';$('warn').textContent='';
+  for(let i=0;i<Q.length;i++)state[i]=Q[i].t==='multi'?[]:Q[i].t==='match'?{}:null;render();scrollTo({top:0,behavior:'smooth'});};
+$('printBtn').onclick=()=>window.print();
+function redrawAll(){Q.forEach((q,i)=>{if(q.t==='match'&&$('q'+i).offsetParent)drawLines(i,graded);});}
+addEventListener('resize',redrawAll);addEventListener('beforeprint',redrawAll);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(redrawAll);
+render();
+})();
+</script>
+</body>
+</html>
