@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음성 AI Day 3 개념 워크시트 — 주파수 분석</title>
+<style>
+  :root{--bg:#0b1220;--panel:#111a2e;--line:#1f2b45;--text:#dbe4f0;--dim:#8a9bb8;--amber:#f5b942;--teal:#2dd4bf;--blue:#60a5fa;--green:#4ade80;--red:#f87171;--purple:#c084fc;--mono:"Consolas","D2Coding","JetBrains Mono",monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;font-size:15px;line-height:1.55}
+  .app{max-width:900px;margin:0 auto;padding:22px 20px 40px}
+  h1{color:var(--amber);font-size:24px;margin:0 0 6px}
+  .sub{color:var(--dim);margin:0 0 14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .panel h2{font-size:14px;color:var(--dim);margin:0 0 10px;font-weight:600}
+  button{background:#172239;border:1px solid #2a3a5c;color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--amber)}button.active{background:#3a2e12;border-color:var(--amber);color:var(--amber)}
+  button.primary{background:#123d33;border-color:var(--teal);color:var(--teal);font-weight:700;padding:9px 18px;font-size:14px}
+  button.submit{background:#3a2e12;border-color:var(--amber);color:var(--amber);font-weight:700;padding:9px 18px;font-size:14px}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  input[type=text]{background:#0a0f1c;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:14px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .tabs button .s{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+  .tabs button.graded .s{color:var(--green)}
+  .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .head .t{color:var(--amber);font-size:17px}
+  .head .a{font-size:13px;color:var(--teal);font-family:var(--mono)}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1628}
+  .q.unans{border-color:#5a3a1a}
+  .q .n{font-family:var(--mono);color:var(--dim);font-size:12px}
+  .q .p{margin:4px 0 10px;font-size:15px}
+  .q .p code,.opt code,.fb code,td code{font-family:var(--mono);color:var(--blue);background:#0a0f1c;padding:1px 5px;border-radius:4px}
+  .q pre.qc{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:10px 12px;margin:4px 0 12px;font-size:13.5px;line-height:1.5;white-space:pre;overflow-x:auto;color:#dbe4f3}
+  .q pre{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0 10px;font-size:14px;white-space:pre;overflow-x:auto}
+  .opts{display:grid;gap:6px}
+  .opt{text-align:left;padding:8px 12px;font-size:14px;font-family:inherit}
+  .opt.sel{border-color:var(--amber);background:#1f1a0c}
+  .opt.ok{border-color:var(--green);color:var(--green);background:#0d2216}
+  .opt.bad{border-color:var(--red);color:var(--red);background:#2a1212}
+  .opt:disabled{cursor:default;opacity:.9}
+  .fb{margin-top:8px;font-size:13px;color:var(--dim);border-left:3px solid var(--line);padding-left:10px}
+  .fb.ok{border-left-color:var(--green)}.fb.bad{border-left-color:var(--red)}
+  .fb .anim{color:var(--teal);font-family:var(--mono);font-size:12px;display:block;margin-top:3px}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .code{font-family:var(--mono);font-size:20px;color:var(--amber);letter-spacing:1px}
+  .score{font-family:var(--mono);color:var(--green);font-size:16px}
+  .hint{color:var(--dim);font-size:13px}
+  details{color:var(--dim);font-size:13px}
+  details summary{cursor:pointer;color:var(--dim)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* dialog */
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0;max-width:820px;width:92vw;max-height:88vh}
+  dialog::backdrop{background:#000a}
+  .dg{padding:18px 20px}
+  .dg h3{color:var(--amber);margin:0 0 4px;font-size:20px}
+  .dg .meta{color:var(--dim);font-size:13px;margin-bottom:12px;font-family:var(--mono)}
+  .dg .sec{margin:14px 0 6px;color:var(--teal);font-weight:700;font-size:14px}
+  .dg table{width:100%;border-collapse:collapse;font-size:13px}
+  .dg th{text-align:left;color:var(--dim);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12px}
+  .dg td{padding:5px 8px;border-bottom:1px solid #16203a;vertical-align:top}
+  .dg td.r{font-family:var(--mono)}
+  .dg .ok{color:var(--green)}.dg .bad{color:var(--red)}.dg .none{color:var(--dim)}
+  .dg .sum{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-family:var(--mono)}
+  .dgbar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .toast{color:var(--green);font-size:13px;margin-right:auto}
+  .body{overflow:auto;max-height:calc(88vh - 60px)}
+
+.q .n .ty{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;font-family:inherit}
+.ty-mc{background:#1b2a4a;color:var(--blue)} .ty-ox{background:#2a2410;color:var(--amber)} .ty-match{background:#13302c;color:var(--teal)}
+.ty-order{background:#2a1a3a;color:var(--purple)} .ty-multi{background:#2a1616;color:#fca5a5}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:360px}
+.oxrow .opt{text-align:center;font-size:22px;font-weight:700;padding:10px}
+.reflist{display:grid;gap:4px;margin:2px 0 10px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;font-size:14px;color:var(--text)}
+.reflist b{color:var(--teal);font-family:var(--mono);margin-right:6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow .l{font-size:14px} .mrow .l b{font-family:var(--mono);color:var(--dim);margin-right:6px}
+.mrow select{width:100%;background:#0a0f1c;color:var(--text);border:1px solid #2a3a5c;border-radius:6px;padding:6px 8px;font:inherit;font-size:13.5px}
+.mrow select.ok{border-color:var(--green);color:var(--green)} .mrow select.bad{border-color:var(--red);color:var(--red)}
+.steps{display:grid;gap:6px}
+.step{display:flex;gap:10px;align-items:center;text-align:left;padding:8px 12px;font-size:14px}
+.step .badge{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid #2a3a5c;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.step.on{border-color:var(--purple)} .step.on .badge{background:var(--purple);border-color:var(--purple);color:#0b1220;font-weight:700}
+.step.ok{border-color:var(--green)} .step.ok .badge{background:var(--green);color:#0b1220;border-color:var(--green)}
+.step.bad{border-color:var(--red)} .step.bad .badge{background:var(--red);color:#0b1220;border-color:var(--red)}
+.seqbar{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.seqbar button{padding:4px 10px;font-size:12px}
+.multi .opt::before{content:"☐ ";color:var(--dim)} .multi .opt.sel::before{content:"☑ ";color:var(--amber)}
+.multi .opt.ok::before{content:"☑ ";color:var(--green)} .multi .opt.miss::before{content:"☐ ";color:var(--green)}
+.multi .opt.miss{border-color:var(--green);border-style:dashed}
+.typeinfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>음성 AI Day 3 개념 워크시트</h1>
+  <p class="sub">주파수 분석 — 푸리에 급수 · 포먼트 · DFT · 오일러 · FFT · 해상도 · 창 함수 · STFT · Mel · MFCC · 4교시 × 10문항 (객관식 5 · OX 2 · 선잇기 1 · 순서 맞추기 1 · 모두 고르기 1). 🎬 표시는 같은 폴더 <a href="animation.html" style="color:var(--teal)">animation.html</a>의 애니메이션 번호입니다. 선잇기는 드롭다운으로, 순서 맞추기는 단계를 일어나는 순서대로 눌러서, 모두 고르기는 여러 개를 눌러서 답합니다. 답을 고른 뒤 아래 <b style="color:var(--teal)">채점하기</b>를 누르면 정오·해설과 결과 코드가 나타납니다. 채점 전에는 답을 바꿀 수 있고, 채점 후에는 잠깁니다. 모든 교시를 마치면 <b style="color:var(--amber)">제출</b>로 오답 정리를 열고, <b>캡처</b>로 복사해 노션에 붙여 넣으세요.</p>
+
+  <div class="panel">
+    <div class="row"><label style="color:var(--dim);font-size:13px">이름 <input type="text" id="name" placeholder="홍길동"></label><span class="hint">이름은 결과 코드 계산에만 쓰이며 저장되지 않습니다.</span></div>
+  </div>
+  <div class="panel"><h2>교시</h2><div class="tabs" id="tabs"></div></div>
+  <div class="panel" id="sheet"></div>
+  <div class="panel">
+    <div class="actions">
+      <button class="primary" id="gradeBtn">채점하기</button>
+      <span class="code" id="rcode">—</span><span class="score" id="rscore"></span><span class="hint" id="rhint"></span>
+      <button class="submit" id="submitBtn" style="margin-left:auto">제출</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="body"><div class="dg" id="dgBody"></div></div>
+  <div class="dgbar"><span class="toast" id="toast"></span><button id="captureBtn" class="primary">📋 캡처 (노션용 복사)</button><button id="closeBtn">닫기</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const Q=[{"t": "1교시 · 사인파의 합 · DFT 원리", "anim": "D3-2 사인파의 합 · D3-3 DFT 원리", "qs": [{"ty": "mc", "p": "기본 주파수가 200 Hz인 소리의 3번째 배음은 몇 Hz입니까?", "o": ["203 Hz", "400 Hz", "800 Hz", "600 Hz"], "a": 3, "w": "배음은 기본 주파수의 정수배입니다. 3 × 200 = 600 Hz.", "an": "D3-2 · 배음 슬라이더"}, {"ty": "ox", "p": "배음의 크기 A_k를 바꾸면 음 높이(반복 주기)도 함께 바뀝니다.", "a": false, "w": "반복 주기 1/f₀는 그대로이고 모양(음색)만 바뀝니다. 음 높이는 f₀가 정합니다.", "an": "D3-2 · 2주기 표시"}, {"ty": "mc", "p": "모음 \"아\"와 \"이\"를 구분하게 해 주는 것은 무엇입니까?", "o": ["포먼트 (성도가 만드는 봉우리)", "기본 주파수 f₀", "샘플링 레이트", "파일 형식"], "a": 0, "w": "같은 높이로 말해도 입 모양(성도)이 만드는 봉우리 F1, F2 위치가 달라 다른 모음으로 들립니다.", "an": "노트북 1-1 · 포먼트 표"}, {"ty": "match", "p": "모음과 대표적인 포먼트 위치를 이으세요.", "left": ["아", "이", "우"], "right": ["F1 약 300 · F2 약 800 Hz", "F1 약 700 · F2 약 1200 Hz", "F1 약 300 · F2 약 2300 Hz"], "a": [1, 2, 0], "w": "\"이\"는 F2가 높고, \"우\"는 F1, F2가 모두 낮습니다. 값은 사람마다 조금씩 다릅니다.", "an": "노트북 vowel() · 그림 f_vowels"}, {"ty": "mc", "p": "DFT에서 신호에 어떤 주파수가 있는지 재는 방법으로 알맞은 것은 무엇입니까?", "o": ["신호의 최댓값을 찾는다", "신호를 미분한다", "그 주파수의 시험 사인파를 곱해서 모두 더한다", "신호의 평균을 구한다"], "a": 2, "w": "주파수가 맞으면 곱한 값이 양수로 쌓이고, 맞지 않으면 +와 −가 상쇄되어 0 근처가 됩니다.", "an": "D3-3 · 곱한 값의 합"}, {"ty": "order", "p": "오일러 공식 e^{jθ} = cos θ + j sin θ 유도 순서대로 놓으세요.", "steps": ["e^x 급수에 x = jθ를 넣는다", "원 위의 점을 (cos θ, sin θ)로 쓴다", "짝수 차수는 cos, 홀수 차수는 sin 급수로 묶인다", "복소평면에서 z = cos θ + j sin θ로 쓴다"], "a": [1, 3, 0, 2], "w": "원 위의 점 → 복소수 표현 → 지수함수 급수 → 정리하면 cos + j sin.", "an": "D3-3 · 오일러 공식 유도"}, {"ty": "ox", "p": "DFT에서 cos와 sin을 둘 다 곱하는 이유는 신호의 위상을 모르기 때문입니다.", "a": true, "w": "sin만 곱하면 cos 모양으로 들어 있는 성분을 놓칩니다. 크기는 √(c² + s²)로 합칩니다.", "an": "노트북 2-1"}, {"ty": "mc", "p": "N = 1024, f_s = 16,000 Hz일 때 FFT의 k = 32번째 bin은 몇 Hz입니까?", "o": ["32 Hz", "500 Hz", "512 Hz", "1,024 Hz"], "a": 1, "w": "f_k = k·f_s/N = 32 × 16000 / 1024 = 500 Hz.", "an": "빈칸 실습 2 · 그림 f_bins"}, {"ty": "multi", "p": "DFT와 FFT에 대한 설명으로 옳은 것을 모두 고르세요.", "o": ["FFT는 DFT와 같은 결과를 더 빠르게 계산한다", "직접 DFT의 곱셈 횟수는 약 N², FFT는 약 N·log₂N이다", "FFT는 근사 계산이라 결과가 조금 다르다", "진폭 A인 사인파가 bin에 맞으면 |X[k]| = A·N/2이다"], "a": [0, 1, 3], "w": "FFT는 근사가 아닙니다. 노트북에서 np.allclose로 같은 결과를 확인했습니다.", "an": "수식 검증 1"}, {"ty": "mc", "p": "<code>np.abs(X)</code>는 FFT 결과 X에서 무엇을 계산합니까?", "o": ["위상", "bin 번호", "실수부만", "복소수의 크기 √(c² + s²)"], "a": 3, "w": "X는 복소수 c − js입니다. np.abs는 크기, np.angle은 위상입니다.", "an": "빈칸 실습 2"}]}, {"t": "2교시 · FFT 실습: 해상도 · 창 함수", "anim": "D3-4 주파수 해상도 · D3-5 창 함수", "qs": [{"ty": "mc", "p": "f_s = 16,000 Hz에서 N = 400(25 ms)으로 FFT하면 주파수 해상도 Δf는?", "o": ["40 Hz", "16 Hz", "4 Hz", "400 Hz"], "a": 0, "w": "Δf = f_s / N = 16000 / 400 = 40 Hz.", "an": "D3-4 · Δf 수식 줄"}, {"ty": "mc", "p": "440 Hz와 460 Hz를 FFT로 구분하려면 어떻게 해야 합니까?", "o": ["N을 줄인다", "창 함수를 뺀다", "샘플링 레이트를 낮춘다", "N을 늘려 더 길게 본다"], "a": 3, "w": "Δf = f_s/N이므로 N이 클수록(길게 볼수록) 촘촘해집니다. 차이 20 Hz보다 Δf가 충분히 작아야 합니다.", "an": "D3-4 · N 슬라이더"}, {"ty": "ox", "p": "np.fft.rfft로 길이 512 신호를 변환하면 결과 길이는 257입니다.", "a": true, "w": "실수 신호는 앞쪽 절반만 계산합니다: N/2 + 1 = 257.", "an": "노트북 Part 3"}, {"ty": "match", "p": "용어와 뜻을 이으세요.", "left": ["Δf = f_s/N", "Spectral leakage", "Hann 창", "dB 스펙트럼"], "right": ["bin에 맞지 않는 주파수의 에너지가 주변으로 새는 현상", "양 끝을 0으로 부드럽게 줄이는 창", "20·log₁₀(|X|/max|X|)", "주파수 해상도 (bin 간격)"], "a": [3, 0, 1, 2], "w": "Δf는 해상도, leakage는 새어 나감, Hann은 창, dB는 로그 크기입니다.", "an": "D3-5 · 창 함수"}, {"ty": "mc", "p": "Hann 창의 식은 무엇입니까?", "o": ["w[n] = 1", "w[n] = 0.5 − 0.5·cos(2πn/(N−1))", "w[n] = n/N", "w[n] = sin(2πn)"], "a": 1, "w": "양 끝 w[0] = w[N−1] = 0, 가운데 약 1입니다. np.hanning(N)이 이 식입니다.", "an": "빈칸 실습 3"}, {"ty": "order", "p": "한 구간의 dB 스펙트럼을 얻는 순서대로 놓으세요.", "steps": ["np.abs로 크기 구하기", "N개 샘플 자르기", "20·log₁₀으로 dB 변환", "Hann 창 곱하기", "rfft"], "a": [1, 3, 4, 0, 2], "w": "자르기 → 창 → FFT → 크기 → dB.", "an": "노트북 Part 3"}, {"ty": "ox", "p": "신호 주파수가 bin에 딱 맞지 않으면(예: 445 Hz, Δf = 31.25 Hz) 직사각형 창에서 leakage가 크게 생깁니다.", "a": true, "w": "445/31.25 = 14.24로 정수가 아니라 끝부분이 끊겨 에너지가 넓게 퍼집니다.", "an": "D3-5 · 신호 주파수 슬라이더"}, {"ty": "mc", "p": "노트북에서 445 Hz 신호를 Hann 창으로 분석했을 때 1,500 Hz에 새어 나간 세기는 직사각형 창과 비교해 어땠습니까?", "o": ["비슷했다", "더 컸다", "훨씬 작았다 (약 −40 dB → −100 dB 아래)", "측정할 수 없었다"], "a": 2, "w": "Hann 창은 멀리 새는 에너지를 크게 줄입니다. 대가로 봉우리가 조금 넓어집니다.", "an": "빈칸 실습 3 출력"}, {"ty": "multi", "p": "창 함수에 대한 설명으로 옳은 것을 모두 고르세요.", "o": ["창 없이 자르는 것은 직사각형 창을 곱한 것과 같다", "Hann 창은 멀리 새는 에너지를 줄인다", "Hann 창을 쓰면 봉우리(main lobe)가 조금 넓어진다", "창을 곱하면 샘플링 레이트가 바뀐다"], "a": [0, 1, 2], "w": "창은 각 샘플에 가중치를 곱할 뿐 샘플링 레이트와는 관계없습니다.", "an": "D3-5"}, {"ty": "mc", "p": "f₀ = 150 Hz 모음의 스펙트럼에서 봉우리들이 나타나는 간격은?", "o": ["약 150 Hz", "약 75 Hz", "약 15 Hz", "약 1,500 Hz"], "a": 0, "w": "배음은 f₀의 정수배라서 봉우리 간격이 f₀입니다.", "an": "수식 검증 2"}]}, {"t": "3교시 · STFT · 스펙트로그램", "anim": "D3-6 STFT 프레이밍 · D3-7 시간-주파수 트레이드오프", "qs": [{"ty": "mc", "p": "STFT를 쓰는 가장 큰 이유는 무엇입니까?", "o": ["파일 크기를 줄이려고", "샘플링 레이트를 바꾸려고", "시간에 따라 바뀌는 주파수 성분을 보려고", "잡음을 없애려고"], "a": 2, "w": "전체를 한 번에 FFT하면 \"언제\" 정보가 사라집니다. 짧게 잘라 각각 FFT합니다.", "an": "D3-6"}, {"ty": "mc", "p": "Whisper의 STFT 설정 n_fft = 400, hop = 160은 16 kHz에서 각각 몇 ms입니까?", "o": ["40 ms, 16 ms", "400 ms, 160 ms", "10 ms, 25 ms", "25 ms, 10 ms"], "a": 3, "w": "400/16000 = 25 ms, 160/16000 = 10 ms. 1초에 100 frame.", "an": "빈칸 실습 4"}, {"ty": "ox", "p": "librosa.stft(y, n_fft=400)의 결과는 세로 201줄입니다.", "a": true, "w": "bin 수 = 1 + n_fft/2 = 201. 각 간격 40 Hz.", "an": "노트북 4-1"}, {"ty": "match", "p": "STFT 기호와 뜻을 이으세요.", "left": ["N (n_fft)", "H (hop_length)", "w[n]", "m"], "right": ["창을 옮기는 간격", "frame 번호 (시간)", "창 길이", "창 함수 (Hann)"], "a": [2, 0, 3, 1], "w": "X[m,k] = Σ x[n + mH]·w[n]·e^{−j2πkn/N}.", "an": "노트북 4-1 표"}, {"ty": "mc", "p": "길이 L = 16,000 샘플, n_fft = 400, hop = 160, center=False일 때 frame 수는?", "o": ["98", "100", "101", "160"], "a": 0, "w": "M = 1 + ⌊(L − N)/H⌋ = 1 + ⌊15600/160⌋ = 1 + 97 = 98.", "an": "D3-6 · frame 수 수식 줄"}, {"ty": "mc", "p": "librosa 기본값(center=True)에서 30초(480,000 샘플), hop = 160이면 frame 수는?", "o": ["2,999", "3,001", "3,000", "3,200"], "a": 1, "w": "1 + ⌊L/H⌋ = 1 + 3000 = 3001. Whisper는 마지막 하나를 버려 3000을 씁니다.", "an": "수식 검증 3"}, {"ty": "order", "p": "my_stft() 함수가 하는 일을 순서대로 놓으세요.", "steps": ["각 frame을 열로 세워 붙이기", "frame 수 M 계산", "각 frame에 Hann 창 곱하기", "열마다 rfft", "hop 간격으로 n_fft개씩 자르기"], "a": [1, 4, 2, 0, 3], "w": "M 계산 → 자르기 → 창 → 쌓기 → FFT.", "an": "코드 해설: my_stft()"}, {"ty": "ox", "p": "n_fft를 크게 하면 시간 해상도와 주파수 해상도가 모두 좋아집니다.", "a": false, "w": "(N/f_s) × (f_s/N) = 1. 주파수는 선명해지지만 시간은 흐려집니다.", "an": "D3-7 · 트레이드오프"}, {"ty": "multi", "p": "n_fft = 2048(128 ms) 스펙트로그램에 대한 설명으로 옳은 것을 모두 고르세요.", "o": ["배음이 가로 줄무늬로 선명하게 보인다", "빠른 시간 변화(말의 시작)가 흐려진다", "Δf = 16000/2048 ≈ 7.8 Hz다", "포먼트 덩어리와 성대 진동의 세로 줄이 가장 선명하다"], "a": [0, 1, 2], "w": "D는 짧은 창(광대역, 예: n_fft = 128)의 특징입니다.", "an": "노트북 4-2 표"}, {"ty": "mc", "p": "n_fft = 400, hop = 160일 때 이웃한 frame끼리 겹치는 비율은?", "o": ["0%", "40%", "100%", "60%"], "a": 3, "w": "(N − H)/N = (400 − 160)/400 = 60%.", "an": "수식 검증 3"}]}, {"t": "4교시 · Mel · MFCC · 특징 추출기", "anim": "D3-8 Mel 필터뱅크 · D3-9 MFCC", "qs": [{"ty": "mc", "p": "Mel 스케일을 쓰는 이유는 무엇입니까?", "o": ["사람이 낮은 소리 차이는 잘 구분하고 높은 소리 차이는 둔하게 느끼기 때문", "계산을 빠르게 하려고", "샘플링 레이트를 맞추려고", "잡음을 없애려고"], "a": 0, "w": "그래서 낮은 쪽은 촘촘하게, 높은 쪽은 넓게 묶습니다.", "an": "D3-8"}, {"ty": "mc", "p": "HTK 공식 m = 2595·log₁₀(1 + f/700)에서 1,000 Hz는 약 몇 mel입니까?", "o": ["700", "2,595", "1,000", "3,000"], "a": 2, "w": "1000 Hz ≈ 1000 mel이 되도록 만든 공식입니다.", "an": "D3-8 · 계산기"}, {"ty": "ox", "p": "Mel 필터뱅크의 삼각형 필터는 높은 주파수로 갈수록 폭이 넓어집니다.", "a": true, "w": "mel 축에서 같은 간격이 Hz 축에서는 위로 갈수록 넓어집니다.", "an": "D3-8 · 필터 폭"}, {"ty": "match", "p": "모양을 이으세요 (n_fft = 400, n_mels = 80, T frame).", "left": ["STFT 파워 |X|²", "Mel 필터뱅크 H", "Mel 스펙트로그램 H·|X|²", "MFCC"], "right": ["(80, T)", "(13, T)", "(201, T)", "(80, 201)"], "a": [2, 3, 0, 1], "w": "(80, 201) @ (201, T) = (80, T), DCT 앞 13개 → (13, T).", "an": "노트북 Part 5 · 그림 f_pipeline"}, {"ty": "mc", "p": "Whisper(기본 80 mel)가 입력으로 받는 30초 Log-Mel의 모양은?", "o": ["(201, 3000)", "(80, 480000)", "(13, 3000)", "(80, 3000)"], "a": 3, "w": "80 mel × 3000 frame.", "an": "빈칸 실습 5"}, {"ty": "order", "p": "음성에서 MFCC를 얻는 순서대로 놓으세요.", "steps": ["log (dB)", "STFT 파워 |X|²", "DCT 후 앞 13개", "Mel 필터뱅크 곱하기"], "a": [1, 3, 0, 2], "w": "STFT → Mel → log → DCT.", "an": "D3-9 · 그림 f_pipeline"}, {"ty": "ox", "p": "power_to_db는 10·log₁₀, amplitude_to_db는 20·log₁₀을 써서 같은 dB 값을 줍니다.", "a": true, "w": "10·log₁₀(A²) = 20·log₁₀(A)이기 때문입니다.", "an": "코드 해설: Mel 스펙트로그램"}, {"ty": "mc", "p": "MFCC에서 앞쪽 계수(낮은 n)만 남기면 Log-Mel의 무엇이 남습니까?", "o": ["배음 줄무늬 (음 높이)", "포먼트 봉우리 (성도 모양)", "잡음", "샘플링 레이트"], "a": 1, "w": "낮은 n의 cos는 천천히 출렁여 큰 봉우리 모양을 담습니다. 빠른 배음 줄무늬는 높은 n에 있습니다.", "an": "D3-9 · K 슬라이더"}, {"ty": "multi", "p": "노트북 빈칸 실습 6의 결과로 알 수 있는 것을 모두 고르세요.", "o": ["같은 모음이면 음 높이가 달라도 MFCC 거리가 작다", "MFCC는 음 높이보다 성도 모양(포먼트)을 주로 담는다", "MFCC c0는 전체 크기(에너지)를 나타낸다", "MFCC는 음 높이만 담는다"], "a": [0, 1, 2], "w": "그래서 MFCC는 음성 인식과 화자 인식의 전통적인 특징이었습니다.", "an": "빈칸 실습 6 · D3-9 거리"}, {"ty": "mc", "p": "extract_features()에서 n_fft = 400, hop_length = 160으로 1초 음성을 처리하면 MFCC의 가로(frame) 수는 대략?", "o": ["100", "80", "13", "16,000"], "a": 0, "w": "hop 10 ms → 1초에 약 100 frame (center=True면 101).", "an": "빈칸 실습 7"}]}];
+
+const TYNAME={mc:'객관식',ox:'OX',match:'선잇기',order:'순서 맞추기',multi:'모두 고르기'};
+let tab=0;
+const ans=Q.map(s=>s.qs.map(q=>q.ty==='multi'?[]:(q.ty==='match'?q.left.map(()=>null):(q.ty==='order'?[]:null))));
+const graded=Q.map(()=>false);
+function hash(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16).padStart(8,'0').slice(-4);}
+function codeFor(name,t,score){return `${t}${'ABCDEFGHIJK'[10-score]||'K'}-${hash(`${name.trim()}|${t}|${score}|voice-day3`)}`;}
+function strip(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent;}
+const eqArr=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+function answered(q,a){if(q.ty==='mc'||q.ty==='ox')return a!==null;if(q.ty==='multi')return a.length>0;if(q.ty==='match')return a.every(x=>x!==null);return a.length===q.steps.length;}
+function correct(q,a){if(!answered(q,a))return false;if(q.ty==='multi')return eqArr([...a].sort((x,y)=>x-y),q.a);if(q.ty==='match'||q.ty==='order')return eqArr(a,q.a);return a===q.a;}
+function scoreOf(i){return ans[i].filter((a,k)=>correct(Q[i].qs[k],a)).length;}
+function nAns(i){return ans[i].filter((a,k)=>answered(Q[i].qs[k],a)).length;}
+function txt(q,a){ /* 답을 문자열로 (오답 정리 · 해설용) */
+  if(!answered(q,a))return '미응답';
+  if(q.ty==='mc')return '①②③④'[a]+' '+strip(q.o[a]);
+  if(q.ty==='ox')return a?'O':'X';
+  if(q.ty==='multi')return [...a].sort((x,y)=>x-y).map(j=>'ABCDEFGH'[j]).join(', ');
+  if(q.ty==='match')return a.map((r,i)=>(i+1)+'-'+'ABCDEFGH'[r]).join(' · ');
+  return a.map(j=>'ABCDEFGH'[j]).join(' → ');}
+function renderTabs(){$('#tabs').innerHTML=Q.map((s,i)=>`<button class="${i===tab?'active':''} ${graded[i]?'graded':''}" data-i="${i}">${s.k||(i+1)+'교시'}<span class="s">${graded[i]?scoreOf(i)+'/10':nAns(i)+'/10'}</span></button>`).join('');$('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=+b.dataset.i;render();window.scrollTo({top:0});});}
+function body(q,k,a,g){
+  if(q.ty==='mc'){return `<div class="opts">${q.o.map((o,j)=>{let c='';if(g){if(j===q.a)c='ok';else if(j===a)c='bad';}else if(j===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-j="${j}" ${g?'disabled':''}>${'①②③④'[j]} ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='ox'){return `<div class="oxrow">${[true,false].map(v=>{let c='';if(g){if(v===q.a)c='ok';else if(v===a)c='bad';}else if(v===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-v="${v?1:0}" ${g?'disabled':''}>${v?'O':'X'}</button>`;}).join('')}</div>`;}
+  if(q.ty==='multi'){return `<div class="opts multi">${q.o.map((o,j)=>{const on=a.includes(j),ri=q.a.includes(j);let c='';if(g){if(on&&ri)c='ok';else if(on&&!ri)c='bad';else if(!on&&ri)c='miss';}else if(on)c='sel';return `<button class="opt ${c}" data-k="${k}" data-m="${j}" ${g?'disabled':''}>${'ABCDEFGH'[j]}. ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='match'){return `<div class="reflist">${q.right.map((r,j)=>`<div><b>${'ABCDEFGH'[j]}</b>${r}</div>`).join('')}</div>`+q.left.map((l,i)=>{let c='';if(g)c=a[i]===q.a[i]?'ok':'bad';return `<div class="mrow"><div class="l"><b>${i+1}.</b>${l}</div><select class="${c}" data-k="${k}" data-i="${i}" ${g?'disabled':''}><option value="">— 고르기 —</option>${q.right.map((r,j)=>`<option value="${j}" ${a[i]===j?'selected':''}>${'ABCDEFGH'[j]}. ${strip(r)}</option>`).join('')}</select></div>`;}).join('');}
+  /* order */
+  return `<div class="steps">${q.steps.map((s,j)=>{const pos=a.indexOf(j);let c=pos>=0?'on':'';if(g){c=(pos>=0&&a[pos]===q.a[pos])?'ok':'bad';}return `<button class="opt step ${c}" data-k="${k}" data-s="${j}" ${g?'disabled':''}><span class="badge">${pos>=0?pos+1:'ABCDEFGH'[j]}</span><span>${'ABCDEFGH'[j]}. ${s}</span></button>`;}).join('')}</div><div class="seqbar">순서: ${a.length?a.map(j=>'ABCDEFGH'[j]).join(' → '):'단계를 일어나는 순서대로 누르세요'}${g?'':` <button data-k="${k}" data-reset="1">다시</button>`}</div>`;
+}
+function render(){renderTabs();const s=Q[tab];const g=graded[tab];
+  $('#sheet').innerHTML=`<div class="head"><span class="t">${s.t}</span><span class="a">🎬 ${s.anim}</span></div>`+s.qs.map((q,k)=>{const a=ans[tab][k];const ok=correct(q,a);
+    return `<div class="q ${g&&!answered(q,a)?'unans':''}"><div class="n">문항 ${k+1}<span class="ty ty-${q.ty}">${TYNAME[q.ty]}</span></div><div class="p">${q.p}</div>${q.c?`<pre class="qc">${q.c}</pre>`:``}${body(q,k,a,g)}${g?`<div class="fb ${ok?'ok':'bad'}">${!answered(q,a)?'미응답. ':(ok?'정답. ':'오답. ')}${q.ty!=='mc'&&!ok?`<b>정답: ${txt(q,q.a)}</b> · `:''}${q.w}<span class="anim">확인: ${q.an}</span></div>`:''}</div>`;}).join('');
+  if(!g){
+    $('#sheet').querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.j;ans[tab][k]=(ans[tab][k]===j?null:j);render();});
+    $('#sheet').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,v=b.dataset.v==='1';ans[tab][k]=(ans[tab][k]===v?null:v);render();});
+    $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.m;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p,1);else a.push(j);render();});
+    $('#sheet').querySelectorAll('select[data-i]').forEach(sl=>sl.onchange=()=>{const k=+sl.dataset.k,i=+sl.dataset.i;ans[tab][k][i]=sl.value===''?null:+sl.value;renderTabs();updHint();});
+    $('#sheet').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.s;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p);else a.push(j);render();});
+    $('#sheet').querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{ans[tab][+b.dataset.k]=[];render();});
+  }
+  $('#gradeBtn').disabled=g;$('#gradeBtn').textContent=g?'채점 완료':'채점하기';updHint();
+}
+function updHint(){const g=graded[tab];const nm=$('#name').value;
+  if(g){const sc=scoreOf(tab);$('#rscore').textContent=`${sc}/10`;if(nm.trim()){$('#rcode').textContent=codeFor(nm,tab+1,sc);$('#rhint').textContent='결과 코드';}else{$('#rcode').textContent='—';$('#rhint').textContent='이름을 입력하면 결과 코드가 나옵니다.';}}
+  else{$('#rcode').textContent='—';$('#rscore').textContent='';$('#rhint').textContent=`${Q[tab].k||(tab+1)+'교시'}: ${nAns(tab)}/10 답했습니다. 채점하기를 누르면 잠깁니다.`;}}
+$('#gradeBtn').onclick=()=>{const n=nAns(tab);if(n<10&&!confirm(`아직 ${10-n}문항을 끝까지 답하지 않았습니다. 그래도 채점할까요? (미응답은 오답 처리)`))return;graded[tab]=true;render();};
+$('#name').addEventListener('input',updHint);
+
+/* ── 제출 대화상자 ── */
+let lastHtml='',lastText='';
+function buildReport(){
+  const nm=$('#name').value.trim()||'(이름 없음)';const ds=new Date().toLocaleString('ko-KR');
+  let h=`<h3>음성 AI Day 3 개념 워크시트 — 오답 정리</h3><div class="meta">${nm} · ${ds}</div>`;
+  let t=`음성 AI Day 3 개념 워크시트 — 오답 정리\n이름: ${nm}\n일시: ${ds}\n\n`;
+  Q.forEach((s,i)=>{if(!graded[i])return;
+    const wrong=s.qs.map((q,k)=>({q,k,a:ans[i][k]})).filter(x=>!correct(x.q,x.a));
+    h+=`<div class="sec">${s.t} — ${scoreOf(i)}/10</div>`;t+=`### ${s.t} — ${scoreOf(i)}/10\n`;
+    if(!wrong.length){h+=`<div class="ok" style="margin:4px 0 8px">오답 없음</div>`;t+=`오답 없음\n\n`;return;}
+    h+=`<table><tr><th>#</th><th>유형</th><th>문항</th><th>내 답</th><th>정답</th></tr>`;t+=`| # | 유형 | 문항 | 내 답 | 정답 |\n|---|---|---|---|---|\n`;
+    wrong.forEach(({q,k,a})=>{const my=txt(q,a),co=txt(q,q.a);const qt=strip(q.p).replace(/\s+/g,' ').slice(0,60);
+      h+=`<tr><td class="r">${k+1}</td><td>${TYNAME[q.ty]}</td><td>${qt}</td><td class="bad">${my}</td><td class="ok">${co}</td></tr>`;
+      t+=`| ${k+1} | ${TYNAME[q.ty]} | ${qt.replace(/\|/g,'/')} | ${my.replace(/\|/g,'/')} | ${co.replace(/\|/g,'/')} |\n`;});
+    h+=`</table>`;t+=`\n`;});
+  const ng=Q.map((s,i)=>graded[i]?null:(s.k||(i+1)+'교시')).filter(x=>x);
+  if(ng.length){h+=`<div class="meta" style="margin-top:10px">미채점: ${ng.join(', ')}</div>`;t+=`미채점: ${ng.join(', ')}\n`;}
+  lastHtml=h;lastText=t;return h;
+}
+$('#submitBtn').onclick=()=>{if(!graded.some(x=>x)){alert('먼저 채점하기를 눌러 주세요.');return;}$('#dgBody').innerHTML=buildReport();$('#toast').textContent='';$('#dlg').showModal();};
+$('#closeBtn').onclick=()=>$('#dlg').close();
+function copyRich(html,text){
+  // 1) copy 이벤트에 두 형식을 직접 실어 보내기 (사용자 클릭 안에서 동기 실행 — file:// 에서도 동작)
+  let done=false;
+  const onCopy=e=>{e.clipboardData.setData('text/html',html);e.clipboardData.setData('text/plain',text);e.preventDefault();done=true;};
+  document.addEventListener('copy',onCopy);
+  try{
+    const body=$('#dgBody');const sel=window.getSelection();const range=document.createRange();range.selectNodeContents(body);sel.removeAllRanges();sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }catch(e){}
+  document.removeEventListener('copy',onCopy);
+  return done;
+}
+$('#captureBtn').onclick=async()=>{
+  const htmlDoc=`<meta charset="utf-8">`+lastHtml.replace(/ class="[^"]*"/g,'').replace(/<table>/g,'<table border="1" style="border-collapse:collapse">');
+  if(copyRich(htmlDoc,lastText)){$('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;}
+  // 2) 비동기 Clipboard API
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([htmlDoc],{type:'text/html'}),'text/plain':new Blob([lastText],{type:'text/plain'})})]);
+    }else{await navigator.clipboard.writeText(lastText);}
+    $('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;
+  }catch(e){}
+  // 3) 최종: 텍스트 영역 선택 복사
+  try{
+    const ta=document.createElement('textarea');ta.value=lastText;ta.style.position='fixed';ta.style.opacity='0';$('#dlg').appendChild(ta);ta.focus();ta.select();
+    const ok=document.execCommand('copy');ta.remove();
+    $('#toast').textContent=ok?'텍스트(마크다운 표)로 복사됨 — 노션에서 Ctrl+V.':'복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';
+  }catch(e){$('#toast').textContent='복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';}
+};
+render();
+</script>
+</body>
+</html>
