@@ -127,6 +127,9 @@ input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);bord
 .pill.on{background:var(--ok);color:#fff}
 footer{margin-top:40px;color:var(--muted);font-size:.85rem}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
 .sub3{font-size:1rem;margin:20px 0 8px}
 .keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
 .grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
@@ -178,6 +181,15 @@ nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
 h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
 .fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
 .fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
 </style>
 </head>
 <body>
@@ -211,13 +223,41 @@ h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:v
   <h2><span class="hc">D2-2</span>소리의 정체: 높낮이와 크기</h2>
   <p class="lead">소리는 공기의 떨림입니다. 1초에 몇 번 떨리는지가 높낮이(주파수), 얼마나 크게 떨리는지가 크기(진폭)입니다. 슬라이더를 움직이며 들어 보세요.</p>
   <div class="stage">
-    <label class="sl"><span>주파수 (높낮이)</span><input type="range" id="fSl" min="0" max="1000" value="500"><output id="fOut"></output></label>
+    <label class="sl"><span>주파수 (높낮이)</span><input type="range" id="fSl" min="0" max="100000" value="50000"><output id="fOut"></output></label>
     <label class="sl"><span>진폭 (크기)</span><input type="range" id="aSl" min="0" max="100" value="50"><output id="aOut"></output></label>
     <canvas id="sineCv" height="200"></canvas>
     <div class="row" style="margin-top:12px"><button class="btn primary" id="toneBtn">▶ 소리 켜기</button>
       <span style="color:var(--muted);font-size:.9rem">건반:</span><span id="keys" class="row" style="margin:0"></span></div>
     <div class="kv" id="soundKv"></div><div class="fx" id="soundFx"></div>
     <p class="note">노트북 빈칸 실습 1: tone(880)은 1초에 880번 떨리는 소리입니다. 440 Hz의 두 배라서 한 옥타브 높게 들립니다.</p>
+  </div>
+  <h3 class="sub3" id="derive" style="font-size:1.15rem;margin-top:28px">사인파 공식 유도: <code>amp * np.sin(2 * np.pi * freq * t)</code>는 어디서 왔을까?</h3>
+  <p class="lead" style="margin-bottom:10px">원 위를 일정한 속도로 도는 점의 <b>높이</b>를 시간에 따라 그리면 사인파가 됩니다. 단계를 하나씩 넘기며 식이 만들어지는 과정을 보세요.</p>
+  <div class="stage">
+    <div class="row">
+      <button class="btn" id="dvPrev">이전</button><button class="btn primary" id="dvNext">다음 단계</button>
+      <button class="btn" id="dvPlay">⏸ 멈춤</button>
+      <span class="pill" id="dvStep">1 / 6</span>
+    </div>
+    <canvas id="dvCv" height="300"></canvas>
+    <label class="sl"><span>주파수 f (보기용, 느리게)</span><input type="range" id="dvF" min="0.25" max="3" step="0.25" value="1"><output id="dvFo"></output></label>
+    <label class="sl"><span>진폭 A (반지름)</span><input type="range" id="dvA" min="0.2" max="1" step="0.05" value="1"><output id="dvAo"></output></label>
+    <div class="derive" id="dvBox"></div>
+    <div class="fx" id="dvFx"></div>
+  </div>
+  <h3 class="sub3" id="radian" style="font-size:1.15rem;margin-top:28px">라디안 유도: 왜 한 바퀴가 2π일까?</h3>
+  <p class="lead" style="margin-bottom:10px">사인파 공식의 <code>2 * np.pi</code>는 "한 바퀴 = 2π 라디안"에서 나옵니다. 라디안은 각도를 <b>호의 길이 ÷ 반지름</b>으로 재는 방법입니다. 단계를 넘기며 확인하세요.</p>
+  <div class="stage">
+    <div class="row">
+      <button class="btn" id="rdPrev">이전</button><button class="btn primary" id="rdNext">다음 단계</button>
+      <button class="btn" id="rdPlay">⏸ 멈춤</button>
+      <span class="pill" id="rdStep">1 / 6</span>
+    </div>
+    <canvas id="rdCv" height="300"></canvas>
+    <label class="sl"><span>각도 (직접 조절)</span><input type="range" id="rdDeg" min="0" max="360" step="1" value="90"><output id="rdDegO"></output></label>
+    <label class="sl"><span>반지름 r</span><input type="range" id="rdR" min="0.5" max="1" step="0.05" value="1"><output id="rdRO"></output></label>
+    <div class="derive" id="rdBox"></div>
+    <div class="fx" id="rdFx"></div>
   </div>
 </section>
 
@@ -392,7 +432,7 @@ function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.se
 /* sound */
 const NOTES=[['도',262],['레',294],['미',330],['파',349],['솔',392],['라',440],['시',494],['높은 도',523]];
 $('keys').innerHTML=NOTES.map(([n,f])=>`<button class="keybtn" data-f="${f}">${n}</button>`).join('');
-const fFromSl=v=>Math.round(100*Math.pow(20,v/1000));const slFromF=f=>Math.round(Math.log(f/100)/Math.log(20)*1000);
+const fFromSl=v=>Math.round(100*Math.pow(20,v/100000));const slFromF=f=>Math.round(Math.log(f/100)/Math.log(20)*100000);
 let osc=null,gain=null;
 function stopTone(){if(osc){try{osc.stop()}catch(e){}osc=null;}$('toneBtn')&&($('toneBtn').textContent='▶ 소리 켜기');}
 function drawSine(){const f=fFromSl(+$('fSl').value),a=+$('aSl').value/100;$('fOut').textContent=f+' Hz';$('aOut').textContent=a.toFixed(2);
@@ -406,6 +446,146 @@ $('fSl').value=slFromF(440);$('fSl').oninput=drawSine;$('aSl').oninput=drawSine;
 $('toneBtn').onclick=()=>{if(osc){stopTone();return;}const a=ac();osc=a.createOscillator();gain=a.createGain();osc.type='sine';
   osc.frequency.value=fFromSl(+$('fSl').value);gain.gain.value=+$('aSl').value/100*0.3;osc.connect(gain);gain.connect(a.destination);osc.start();$('toneBtn').textContent='■ 소리 끄기';};
 document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{$('fSl').value=slFromF(+b.dataset.f);drawSine();if(!osc)$('toneBtn').click();});
+
+
+/* sine derivation */
+const DV=[
+ {t:'원 위를 도는 점의 높이',eq:'높이 = sin θ',p:'반지름 1인 원 위의 점이 각도 θ만큼 돌았을 때, 그 점의 높이(y 좌표)가 sin θ입니다. 0에서 시작해 위로 1, 다시 0, 아래로 −1, 다시 0으로 돌아옵니다.'},
+ {t:'한 바퀴는 2π 라디안',eq:'한 바퀴 = 360° = <b>2π</b> 라디안',p:'라디안은 "반지름 길이만큼 원둘레를 걸어간 각도"입니다. 원둘레가 2π × 반지름이므로 한 바퀴는 2π입니다. numpy의 np.sin()은 라디안을 받습니다. 자세한 유도는 아래 "라디안 유도"를 보세요.'},
+ {t:'1초에 f바퀴 돈다',eq:'1초에 돈 각도 = <b>2π · f</b>   (각속도 ω = 2πf)',p:'주파수 f는 1초에 몇 바퀴(몇 번 떨림) 도는지입니다. 한 바퀴가 2π이므로 1초에 2π·f만큼 돕니다.'},
+ {t:'t초 동안 돈 각도',eq:'θ(t) = 2π · f · <b>t</b>',p:'일정한 속도로 돌므로 t초 동안의 각도는 (1초당 각도) × t입니다. t = 1/f (주기 T)이면 θ = 2π로 정확히 한 바퀴입니다.'},
+ {t:'높이를 시간에 따라 그리기',eq:'x(t) = sin(2π · f · t)',p:'1단계의 θ 자리에 4단계의 θ(t)를 넣으면, 시간에 따른 높이 = 사인파가 됩니다. 오른쪽 그래프가 왼쪽 점의 높이를 따라 그려집니다.'},
+ {t:'반지름 = 진폭, 그리고 코드로',eq:'x(t) = <b>A</b> · sin(2π · f · t)   →   <b>amp * np.sin(2 * np.pi * freq * t)</b>',p:'반지름을 A로 키우면 높이도 A배 → 진폭(크기)입니다. 디지털에서는 t = n / f_s를 넣어 x[n] = A·sin(2π·f·n/f_s). tone()의 t = np.arange(N) / sr이 바로 이 t입니다.'}];
+let dvCur=0,dvRun=!RM,dvT=0,dvLast=performance.now(),dvHist=[];
+$('dvBox').innerHTML=DV.map((d,i)=>`<div class="dstep" id="ds${i}"><span class="n">${i+1}</span><div><div style="font-weight:700">${d.t}</div><div class="eq">${d.eq}</div><p>${d.p}</p></div></div>`).join('');
+function dvRender(){DV.forEach((_,i)=>{const e=$('ds'+i);e.classList.toggle('on',i<=dvCur);e.classList.toggle('cur',i===dvCur);});$('dvStep').textContent=`${dvCur+1} / ${DV.length}`;
+  $('dvFo').textContent=(+$('dvF').value).toFixed(2)+' Hz';$('dvAo').textContent=(+$('dvA').value).toFixed(2);}
+$('dvNext').onclick=()=>{dvCur=Math.min(DV.length-1,dvCur+1);dvT=0;dvHist=[];dvRender();};
+$('dvPrev').onclick=()=>{dvCur=Math.max(0,dvCur-1);dvT=0;dvHist=[];dvRender();};
+$('dvPlay').onclick=()=>{dvRun=!dvRun;$('dvPlay').textContent=dvRun?'⏸ 멈춤':'▶ 재생';};
+['dvF','dvA'].forEach(id=>$(id).oninput=()=>{dvT=0;dvHist=[];dvRender();});
+dvRender();
+(function dvLoop(){const now=performance.now(),dt=Math.min(0.05,(now-dvLast)/1000);dvLast=now;
+  if(active('sound')&&$('dvCv').clientWidth){if(dvRun)dvT+=dt;drawDv();}
+  requestAnimationFrame(dvLoop);})();
+function drawDv(){const {c,w,h}=fit($('dvCv'),300);c.clearRect(0,0,w,h);
+  const f=+$('dvF').value,A=dvCur>=5?+$('dvA').value:1,showT=dvCur>=2;
+  const R=Math.min(110,h*0.36),cx=R+30,cy=h/2,gx=cx+R+60,gw=w-gx-20,secs=2;
+  const theta=dvCur<2?(dvT*Math.PI*0.6)%(2*Math.PI):2*Math.PI*f*(dvT%secs);
+  const ink=css('--ink'),mu=css('--muted'),ln=css('--line'),as=css('--asr'),tt=css('--tts'),am=css('--llm'),s2=css('--s2s');
+  c.font='12px '+FONT;
+  // circle
+  c.strokeStyle=ln;c.lineWidth=1.5;c.beginPath();c.arc(cx,cy,R,0,2*Math.PI);c.stroke();
+  if(dvCur>=5){c.strokeStyle=as;c.setLineDash([5,4]);c.beginPath();c.arc(cx,cy,R*A,0,2*Math.PI);c.stroke();c.setLineDash([]);}
+  c.strokeStyle=ln;c.lineWidth=1.5;c.beginPath();c.moveTo(cx-R-12,cy);c.lineTo(cx+R+12,cy);c.moveTo(cx,cy-R-12);c.lineTo(cx,cy+R+12);c.stroke();
+  const r=R*A,px=cx+r*Math.cos(theta),py=cy-r*Math.sin(theta);
+  // angle arc
+  const thm=((theta%(2*Math.PI))+2*Math.PI)%(2*Math.PI);c.strokeStyle=am;c.lineWidth=2.5;c.beginPath();c.arc(cx,cy,26,0,-thm,true);c.stroke();
+  c.fillStyle=am;c.fillText(dvCur>=3?'θ = 2πft':'θ',cx+30,cy-8);
+  // radius & height
+  c.strokeStyle=ink;c.lineWidth=1.5;c.beginPath();c.moveTo(cx,cy);c.lineTo(px,py);c.stroke();
+  c.strokeStyle=tt;c.lineWidth=3;c.beginPath();c.moveTo(px,cy);c.lineTo(px,py);c.stroke();
+  c.fillStyle=tt;c.beginPath();c.arc(px,py,7,0,2*Math.PI);c.fill();
+  c.fillStyle=tt;c.font='700 12px '+FONT;c.fillText(dvCur>=5?'높이 = A·sin θ':'높이 = sin θ',px+10,(py+cy)/2);
+  c.fillStyle=mu;c.font='12px '+FONT;c.fillText(dvCur>=5?`반지름 A = ${A.toFixed(2)}`:'반지름 1',cx-R,cy+R+28);
+  if(dvCur===1){c.fillStyle=s2;c.font='700 13px '+FONT;c.fillText(`θ = ${(theta).toFixed(2)} rad = ${(theta*180/Math.PI).toFixed(0)}°`,cx-R,22);c.fillText('한 바퀴 = 2π ≈ 6.28 rad',cx-R,40);}
+  // graph
+  c.strokeStyle=ln;c.lineWidth=1;c.beginPath();c.moveTo(gx,cy);c.lineTo(gx+gw,cy);c.moveTo(gx,cy-R-10);c.lineTo(gx,cy+R+10);c.stroke();
+  c.fillStyle=mu;c.fillText(showT?'시간 t (초)':'각도 θ',gx+gw-70,cy+R+24);
+  if(showT){for(let k=0;k<=secs;k++){const x=gx+k/secs*gw;c.fillText(k+'s',x-6,cy+16);}
+    // period marker
+    const Tp=1/f;if(Tp<=secs){const x1=gx,x2=gx+Tp/secs*gw;c.strokeStyle=am;c.beginPath();c.moveTo(x1,cy-R-6);c.lineTo(x2,cy-R-6);c.stroke();c.fillStyle=am;c.fillText(`주기 T = 1/f = ${Tp.toFixed(2)} s`,x1+4,cy-R-12);}}
+  else{for(const [v,l] of [[Math.PI/2,'π/2'],[Math.PI,'π'],[1.5*Math.PI,'3π/2'],[2*Math.PI,'2π']]){const x=gx+v/(2*Math.PI)*gw;c.fillText(l,x-8,cy+16);}}
+  // full faint curve when step>=4
+  if(dvCur>=4){c.strokeStyle=ln;c.lineWidth=1.5;c.beginPath();for(let x=0;x<=gw;x++){const t=x/gw*secs;const y=cy-R*A*Math.sin(2*Math.PI*f*t);x?c.lineTo(gx+x,y):c.moveTo(gx+x,y);}c.stroke();}
+  // traced point on graph
+  const gxp=showT?gx+((dvT%secs)/secs)*gw:gx+theta/(2*Math.PI)*gw;
+  c.strokeStyle=tt;c.setLineDash([4,4]);c.lineWidth=1.2;c.beginPath();c.moveTo(px,py);c.lineTo(gxp,py);c.stroke();c.setLineDash([]);
+  c.strokeStyle=as;c.lineWidth=2.4;c.beginPath();
+  const N=200,span=showT?(dvT%secs):theta;for(let k=0;k<=N;k++){const u=k/N*span;const x=showT?gx+u/secs*gw:gx+u/(2*Math.PI)*gw;const y=showT?cy-R*A*Math.sin(2*Math.PI*f*u):cy-R*Math.sin(u);k?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();
+  c.fillStyle=tt;c.beginPath();c.arc(gxp,py,5,0,2*Math.PI);c.fill();
+  // fx line
+  const tnow=dvT%secs;
+  const fx=[`θ = ${theta.toFixed(3)} rad`,`sin θ = ${Math.sin(theta).toFixed(3)}`];
+  if(dvCur>=2)fx.push(`ω = 2π·f = 2π×${f} = ${(2*Math.PI*f).toFixed(3)} rad/s`);
+  if(dvCur>=3)fx.push(`t = ${tnow.toFixed(3)} s → θ = 2π×${f}×${tnow.toFixed(3)} = ${(2*Math.PI*f*tnow).toFixed(3)}`);
+  if(dvCur>=5)fx.push(`x = ${A.toFixed(2)} × sin(${(2*Math.PI*f*tnow).toFixed(3)}) = <b>${(A*Math.sin(2*Math.PI*f*tnow)).toFixed(3)}</b>`,`디지털: t = n / f<sub>s</sub> (예: f<sub>s</sub>=16000, n=8000 → t=0.5 s)`);
+  $('dvFx').innerHTML=fx.join(' &nbsp;·&nbsp; ');}
+
+
+/* radian derivation */
+const RD=[
+ {t:'π의 정의: 원둘레 ÷ 지름',eq:'π = 원둘레 / 지름 ≈ 3.14159   →   원둘레 = <b>2πr</b>',p:'어떤 크기의 원이든 둘레를 지름으로 나누면 항상 같은 값 π가 나옵니다. 지름 = 2r이므로 둘레는 2πr입니다.'},
+ {t:'라디안의 정의',eq:'θ [rad] = <b>호의 길이 s ÷ 반지름 r</b>',p:'각도를 "원 위에서 걸어간 거리"로 잽니다. 반지름으로 나누기 때문에 원의 크기와 상관없이 같은 각도는 같은 값이 됩니다. 반지름 슬라이더를 바꿔도 s/r은 그대로입니다.'},
+ {t:'1 라디안 = 반지름만큼 걸어간 각도',eq:'s = r 이면 θ = r / r = <b>1 rad ≈ 57.3°</b>',p:'반지름 길이의 실(주황)을 원 둘레에 그대로 감으면, 그 호가 만드는 각도가 1 라디안입니다.'},
+ {t:'한 바퀴 = 2π 라디안',eq:'s = 2πr 이면 θ = 2πr / r = <b>2π</b> ≈ 6.283 rad',p:'둘레 전체를 걸으면 한 바퀴입니다. 반지름 길이의 실이 둘레에 약 6.28개 들어갑니다. 그래서 360° = 2π rad입니다.'},
+ {t:'도(°)와 라디안 바꾸기',eq:'360° = 2π  →  180° = π  →  θ[rad] = θ[°] × <b>π / 180</b>',p:'90° = π/2, 180° = π, 270° = 3π/2. 반대로 1 rad = 180°/π ≈ 57.3°입니다. numpy에서는 np.deg2rad(), np.rad2deg()가 이 변환입니다.'},
+ {t:'그래서 사인파 공식에 2π가 들어간다',eq:'1초에 f바퀴 × 한 바퀴 2π = <b>2πf</b> rad/s  →  sin(<b>2π</b>·f·t)',p:'np.sin()은 라디안을 받습니다. 1초에 f바퀴 돌면 1초에 2πf 라디안이므로, t초 뒤의 각도는 2πft입니다. 도(°)로 쓰면 sin(360·f·t°)가 되지만 계산 라이브러리는 라디안을 씁니다.'}];
+let rdCur=0,rdRun=!RM,rdT=0,rdLast=performance.now(),rdManual=false;
+$('rdBox').innerHTML=RD.map((d,i)=>`<div class="dstep" id="rs${i}"><span class="n">${i+1}</span><div><div style="font-weight:700">${d.t}</div><div class="eq">${d.eq}</div><p>${d.p}</p></div></div>`).join('');
+function rdRender(){RD.forEach((_,i)=>{const e=$('rs'+i);e.classList.toggle('on',i<=rdCur);e.classList.toggle('cur',i===rdCur);});$('rdStep').textContent=`${rdCur+1} / ${RD.length}`;
+  $('rdDegO').textContent=$('rdDeg').value+'°';$('rdRO').textContent=(+$('rdR').value).toFixed(2);}
+const RD_DEF=[0,120,57,360,90,270];function rdSet(){if(RD_DEF[rdCur]!==undefined&&rdCur!==2&&rdCur!==3)$('rdDeg').value=RD_DEF[rdCur];}
+$('rdNext').onclick=()=>{rdCur=Math.min(RD.length-1,rdCur+1);rdT=0;rdManual=false;rdSet();rdRender();};
+$('rdPrev').onclick=()=>{rdCur=Math.max(0,rdCur-1);rdT=0;rdManual=false;rdSet();rdRender();};
+$('rdPlay').onclick=()=>{rdRun=!rdRun;$('rdPlay').textContent=rdRun?'⏸ 멈춤':'▶ 재생';};
+$('rdDeg').oninput=()=>{rdManual=true;rdRender();};$('rdR').oninput=rdRender;
+rdRender();
+(function rdLoop(){const now=performance.now(),dt=Math.min(0.05,(now-rdLast)/1000);rdLast=now;
+  if(active('sound')&&$('rdCv').clientWidth){if(rdRun)rdT+=dt;drawRd();}
+  requestAnimationFrame(rdLoop);})();
+function drawRd(){const {c,w,h}=fit($('rdCv'),300);c.clearRect(0,0,w,h);
+  const ink=css('--ink'),mu=css('--muted'),ln=css('--line'),as=css('--asr'),tt=css('--tts'),am=css('--llm'),s2=css('--s2s');
+  const rr=+$('rdR').value,Rmax=Math.min(120,h*0.38),R=Rmax*rr,cx=Rmax+40,cy=h/2;
+  // angle to show
+  let th;
+  if(rdManual)th=(+$('rdDeg').value)*Math.PI/180;
+  else if(rdCur===2)th=Math.min(1,rdT/2.5);                 // wrap one radius
+  else if(rdCur===3)th=Math.min(2*Math.PI,rdT*1.4);          // wrap full circle
+  else if(rdCur===0)th=Math.min(2*Math.PI,rdT*1.6);
+  else th=(+$('rdDeg').value)*Math.PI/180;
+  if(!rdManual&&(rdCur===2||rdCur===3))$('rdDeg').value=Math.round(th*180/Math.PI);
+  $('rdDegO').textContent=Math.round(th*180/Math.PI)+'°';
+  c.font='12px '+FONT;
+  // circle and axes
+  c.strokeStyle=ln;c.lineWidth=1.5;c.beginPath();c.arc(cx,cy,R,0,2*Math.PI);c.stroke();
+  c.beginPath();c.moveTo(cx-Rmax-14,cy);c.lineTo(cx+Rmax+14,cy);c.stroke();
+  // radius on x-axis
+  c.strokeStyle=ink;c.lineWidth=2;c.beginPath();c.moveTo(cx,cy);c.lineTo(cx+R,cy);c.stroke();c.fillStyle=ink;c.fillText('r',cx+R/2-3,cy+16);
+  // arc s
+  c.strokeStyle=tt;c.lineWidth=5;c.beginPath();c.arc(cx,cy,R,0,-th,true);c.stroke();
+  // second radius
+  const px=cx+R*Math.cos(th),py=cy-R*Math.sin(th);
+  c.strokeStyle=ink;c.lineWidth=2;c.beginPath();c.moveTo(cx,cy);c.lineTo(px,py);c.stroke();
+  c.fillStyle=tt;c.beginPath();c.arc(px,py,5,0,2*Math.PI);c.fill();
+  // angle mark
+  c.strokeStyle=am;c.lineWidth=2;c.beginPath();c.arc(cx,cy,22,0,-th,true);c.stroke();
+  c.fillStyle=am;c.font='700 12px '+FONT;c.fillText('θ',cx+26*Math.cos(th/2)-3,cy-26*Math.sin(th/2)+4);
+  c.fillStyle=tt;c.fillText('s',cx+(R+14)*Math.cos(Math.min(th,6.2)/2)-3,cy-(R+14)*Math.sin(Math.min(th,6.2)/2)+4);
+  // step-specific overlays
+  const rx=2*Rmax+90,rw=w-rx-20;
+  if(rdCur===0){const dl=Math.min(rw/3.4,2*R),pg=Math.min(rdT*1.6,2*Math.PI)/(2*Math.PI);
+    c.fillStyle=ink;c.font='700 14px '+FONT;c.fillText('지름 = 2r',rx,cy-60);
+    c.strokeStyle=s2;c.lineWidth=3;c.beginPath();c.moveTo(rx,cy-40);c.lineTo(rx+dl,cy-40);c.stroke();
+    c.fillStyle=ink;c.fillText(`펼친 둘레 = 지름 × ${(Math.PI*pg).toFixed(2)}`,rx,cy+10);
+    c.strokeStyle=tt;c.lineWidth=5;c.beginPath();c.moveTo(rx,cy+30);c.lineTo(rx+Math.PI*dl*pg,cy+30);c.stroke();
+    c.fillStyle=s2;c.font='12px '+FONT;
+    for(let k=1;k<=3;k++){const x=rx+dl*k;c.strokeStyle=s2;c.lineWidth=1.2;c.beginPath();c.moveTo(x,cy+20);c.lineTo(x,cy+42);c.stroke();c.fillText(k+'지름',x-14,cy+56);}
+    if(pg>=1){c.fillStyle=tt;c.font='700 13px '+FONT;c.fillText('둘레 ÷ 지름 ≈ 3.14 = π  →  둘레 = π × 2r = 2πr',rx,cy+82);}}
+  if(rdCur===2||rdCur===3){c.fillStyle=ink;c.font='700 14px '+FONT;
+    const n=th; c.fillText(rdCur===2?`감은 실 길이 = r × ${n.toFixed(2)}`:`반지름 ${n.toFixed(2)}개가 둘레에 들어감`,rx,cy-30);
+    // ticks of each radian on circle
+    for(let k=1;k<=Math.floor(n);k++){const a=k;c.fillStyle=am;c.beginPath();c.arc(cx+R*Math.cos(a),cy-R*Math.sin(a),4,0,2*Math.PI);c.fill();c.fillText(k,cx+(R+16)*Math.cos(a)-3,cy-(R+16)*Math.sin(a)+4);}
+    c.fillStyle=mu;c.font='12px '+FONT;c.fillText(rdCur===2?'반지름 길이만큼 감으면 1 rad ≈ 57.3°':'끝까지 감으면 2π ≈ 6.283개',rx,cy);}
+  if(rdCur===4){const marks=[[0,'0',"0°"],[Math.PI/2,'π/2','90°'],[Math.PI,'π','180°'],[1.5*Math.PI,'3π/2','270°'],[2*Math.PI,'2π','360°']];
+    c.font='700 13px '+FONT;marks.forEach(([a,r_,d],k)=>{const y=cy-80+k*36;c.fillStyle=as;c.fillText(d,rx,y);c.fillStyle=ink;c.fillText('= '+r_+' rad',rx+60,y);});
+    c.fillStyle=mu;c.font='12px '+FONT;c.fillText('슬라이더로 각도를 바꿔 보세요',rx,cy+110);}
+  if(rdCur===5){const f=1;c.fillStyle=ink;c.font='700 13px '+FONT;c.fillText('1초에 f바퀴 → 1초에 2πf rad',rx,cy-70);
+    c.strokeStyle=as;c.lineWidth=2;c.beginPath();for(let x=0;x<=rw;x++){const t=x/rw;const y=cy+10-50*Math.sin(2*Math.PI*2*t);x?c.lineTo(rx+x,y):c.moveTo(rx+x,y);}c.stroke();
+    c.fillStyle=mu;c.font='12px '+FONT;c.fillText('f = 2: 1초에 4π rad = 2바퀴 → 사인파 2번',rx,cy+90);}
+  // fx
+  const s=th*rr,deg=th*180/Math.PI;
+  $('rdFx').innerHTML=`r = <b>${rr.toFixed(2)}</b> &nbsp;·&nbsp; s = r·θ = <b>${s.toFixed(3)}</b> &nbsp;·&nbsp; θ = s / r = <b>${th.toFixed(3)} rad</b> &nbsp;·&nbsp; θ[°] = θ × 180/π = <b>${deg.toFixed(1)}°</b><br>둘레 2πr = ${(2*Math.PI*rr).toFixed(3)} &nbsp;·&nbsp; 한 바퀴 비율 θ / 2π = ${(th/(2*Math.PI)).toFixed(3)} &nbsp;·&nbsp; np.deg2rad(${deg.toFixed(0)}) = ${(Math.round(deg)*Math.PI/180).toFixed(3)}`;}
 
 /* sampling */
 const SRS=[1000,2000,4000,8000,16000,44100];
