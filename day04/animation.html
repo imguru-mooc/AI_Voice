@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D4 오디오 전처리: 인터랙티브 수업 자료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>D4 오디오 전처리</h1>
+  <p>잡음의 크기를 재는 SNR, 크기를 고르게 하는 정규화, 저음을 거르는 필터, 잡음을 빼는 스펙트럼 차감 · Wiener · spectral gating, 말소리 구간을 찾는 VAD를 직접 움직여 보는 수업 자료입니다. 탭 번호 D4-1 ~ D4-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D4-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="snr"><span class="tc">D4-2</span>잡음과 SNR</button>
+  <button role="tab" aria-selected="false" data-t="norm"><span class="tc">D4-3</span>정규화</button>
+  <button role="tab" aria-selected="false" data-t="filter"><span class="tc">D4-4</span>pre-emphasis · high-pass</button>
+  <button role="tab" aria-selected="false" data-t="specsub"><span class="tc">D4-5</span>스펙트럼 차감 · Wiener</button>
+  <button role="tab" aria-selected="false" data-t="gate"><span class="tc">D4-6</span>spectral gating</button>
+  <button role="tab" aria-selected="false" data-t="vad"><span class="tc">D4-7</span>에너지 · ZCR VAD</button>
+  <button role="tab" aria-selected="false" data-t="silero"><span class="tc">D4-8</span>Silero VAD</button>
+  <button role="tab" aria-selected="false" data-t="pipe"><span class="tc">D4-9</span>전처리 파이프라인</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D4-1</span>오늘 만들 것: 잡음을 줄이고 말소리 구간만 잘라 내는 전처리기</h2>
+  <p class="lead">노트북은 여섯 단계로 진행됩니다. 단계를 눌러 무엇을 하는지 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="snr">
+  <h2><span class="hc">D4-2</span>잡음과 SNR: 얼마나 시끄러운가를 숫자로</h2>
+  <p class="lead">깨끗한 음성(설명용 합성 음성)에 잡음을 원하는 SNR로 섞습니다. 슬라이더를 움직이면 잡음에 곱하는 이득 g가 다시 계산됩니다. 0 dB는 음성과 잡음의 파워가 같은 상태입니다.</p>
+  <div class="stage">
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">잡음 종류:</span>
+      <button class="chip" style="--c:var(--net)" data-nz="white" aria-pressed="true">white (모든 주파수)</button><button class="chip" style="--c:var(--tts)" data-nz="pink" aria-pressed="false">pink (1/f, 팬 · 바람)</button><button class="chip" style="--c:var(--llm)" data-nz="hum" aria-pressed="false">hum (60 Hz 전원)</button>
+    </div>
+    <label class="sl"><span>목표 SNR</span><input type="range" id="snrSl" min="-10" max="30" step="1" value="10"><output id="snrO"></output></label>
+    <div class="row"><button class="btn" id="snrPlayC">▶ 깨끗한 음성</button><button class="btn primary" id="snrPlayN">▶ 잡음 섞인 음성</button><button class="btn" id="snrPlayZ">▶ 잡음만</button></div>
+    <canvas id="snrCv" height="190"></canvas>
+    <canvas id="snrSpec" height="160" style="margin-top:8px"></canvas>
+    <div class="kv" id="snrKv"></div>
+    <div class="fx" id="snrFx"></div>
+    <div class="row" style="margin-top:14px"><b>📐 g 유도 단계</b><button class="btn" id="gPrev">◀ 이전</button><button class="btn primary" id="gNext">다음 단계 ▶</button></div>
+    <div class="derive" id="gBox"></div>
+  </div>
+</section>
+
+<section class="panel" id="norm">
+  <h2><span class="hc">D4-3</span>정규화: peak · RMS · dBFS, 그리고 DC offset</h2>
+  <p class="lead">입력 상황과 정규화 방법을 고르세요. peak 정규화는 가장 큰 한 점을, RMS 정규화는 평균 크기(체감 크기)를 맞춥니다. ±1을 넘는 부분은 <b style="color:var(--bad)">클리핑</b>(빨강)입니다.</p>
+  <div class="stage">
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">입력:</span>
+      <button class="chip" style="--c:var(--asr)" data-ns="quiet" aria-pressed="true">작은 음성</button><button class="chip" style="--c:var(--tts)" data-ns="click" aria-pressed="false">클릭 하나 포함</button><button class="chip" style="--c:var(--llm)" data-ns="dc" aria-pressed="false">DC offset</button><button class="chip" style="--c:var(--s2s)" data-ns="loud" aria-pressed="false">너무 큰 음성</button>
+    </div>
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">방법:</span>
+      <button class="chip" style="--c:var(--net)" data-nm="none" aria-pressed="true">원본</button><button class="chip" style="--c:var(--tts)" data-nm="peak" aria-pressed="false">peak → 0.9</button><button class="chip" style="--c:var(--asr)" data-nm="rms" aria-pressed="false">RMS → 목표 dBFS</button>
+      <label style="font-size:.9rem;color:var(--muted);display:flex;gap:6px;align-items:center"><input type="checkbox" id="nDc"> DC 제거 (x − 평균)</label>
+      <label style="font-size:.9rem;color:var(--muted);display:flex;gap:6px;align-items:center"><input type="checkbox" id="nLim" checked> peak 0.99 제한</label>
+    </div>
+    <label class="sl"><span>RMS 목표 (dBFS)</span><input type="range" id="nTg" min="-40" max="-6" step="1" value="-20"><output id="nTgO"></output></label>
+    <canvas id="normCv" height="200"></canvas>
+    <div id="normBars" style="margin-top:8px"></div>
+    <div class="row"><button class="btn primary" id="normPlay">▶ 결과 듣기</button></div>
+    <div class="fx" id="normFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="filter">
+  <h2><span class="hc">D4-4</span>pre-emphasis와 high-pass 필터</h2>
+  <p class="lead">왼쪽 α는 pre-emphasis y[n] = x[n] − αx[n−1]의 계수, 오른쪽은 Butterworth high-pass의 차단 주파수와 차수입니다. 응답 곡선과, 험(60 Hz)이 섞인 음성의 평균 스펙트럼이 어떻게 바뀌는지 보세요.</p>
+  <div class="stage">
+    <label class="sl"><span>pre-emphasis α</span><input type="range" id="aSl" min="0" max="0.99" step="0.01" value="0.97"><output id="aO"></output></label>
+    <label class="sl"><span>high-pass 차단</span><input type="range" id="fcSl" min="20" max="400" step="5" value="80"><output id="fcO"></output></label>
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">차수:</span>
+      <button class="chip" style="--c:var(--net)" data-ord="2" aria-pressed="false">2차</button><button class="chip" style="--c:var(--asr)" data-ord="4" aria-pressed="true">4차</button><button class="chip" style="--c:var(--s2s)" data-ord="8" aria-pressed="false">8차</button>
+      <span style="color:var(--muted);font-size:.9rem;margin-left:8px">적용:</span>
+      <label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="usePE" checked> pre-emphasis</label>
+      <label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="useHP" checked> high-pass</label>
+    </div>
+    <canvas id="respCv" height="210"></canvas>
+    <canvas id="fspecCv" height="170" style="margin-top:8px"></canvas>
+    <div class="row"><button class="btn" id="fPlayIn">▶ 험 섞인 입력</button><button class="btn primary" id="fPlayOut">▶ 필터 결과</button></div>
+    <div class="fx" id="filterFx"></div>
+    <div class="row" style="margin-top:14px"><b>📐 |H(ω)|² 유도 단계</b><button class="btn" id="hPrev">◀ 이전</button><button class="btn primary" id="hNext">다음 단계 ▶</button></div>
+    <div class="derive" id="hBox"></div>
+  </div>
+</section>
+
+<section class="panel" id="specsub">
+  <h2><span class="hc">D4-5</span>스펙트럼 차감과 Wiener 이득</h2>
+  <p class="lead">잡음 섞인 음성(SNR 5 dB)의 한 프레임 스펙트럼입니다. 앞 0.5초 무음에서 추정한 잡음(빨강)을 빼거나(차감), 칸마다 이득 G를 곱합니다(Wiener). 결과(초록)가 실제 깨끗한 음성(점선)에 얼마나 가까운지 보세요.</p>
+  <div class="stage">
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">방법:</span>
+      <button class="chip" style="--c:var(--asr)" data-sm="ss" aria-pressed="true">스펙트럼 차감</button><button class="chip" style="--c:var(--s2s)" data-sm="wf" aria-pressed="false">Wiener</button>
+    </div>
+    <label class="sl"><span>과차감 β</span><input type="range" id="bSl" min="0.5" max="6" step="0.1" value="2"><output id="bO"></output></label>
+    <label class="sl"><span>바닥 γ</span><input type="range" id="gmSl" min="0" max="0.2" step="0.005" value="0.02"><output id="gmO"></output></label>
+    <label class="sl"><span>보는 프레임 (초)</span><input type="range" id="frSl" min="0" max="5.3" step="0.02" value="1.0"><output id="frO"></output></label>
+    <canvas id="ssCv" height="220"></canvas>
+    <div class="two">
+      <div><canvas id="gainCv" height="170"></canvas></div>
+      <div><div class="kv" id="ssKv" style="margin-top:0"></div><div class="row"><button class="btn" id="ssPlayN">▶ 잡음 섞인 음성</button><button class="btn primary" id="ssPlayO">▶ 처리 결과</button></div><p class="note">β를 1 근처로 낮추면 띄엄띄엄 남은 잡음 칸이 "삐릭삐릭" 하는 <b>뮤지컬 노이즈</b>로 들립니다.</p></div>
+    </div>
+    <div class="fx" id="ssFx"></div>
+    <div class="row" style="margin-top:14px"><b>📐 Wiener 이득 유도 단계</b><button class="btn" id="wPrev">◀ 이전</button><button class="btn primary" id="wNext">다음 단계 ▶</button></div>
+    <div class="derive" id="wBox"></div>
+  </div>
+</section>
+
+<section class="panel" id="gate">
+  <h2><span class="hc">D4-6</span>spectral gating: 문턱으로 만든 마스크</h2>
+  <p class="lead">주파수마다 잡음 구간의 dB 평균 μ와 표준편차 σ로 문턱 T = μ + n<sub>std</sub>·σ를 정하고, 문턱을 넘는 칸만 통과시키는 마스크를 만듭니다. noisereduce의 핵심 원리입니다.</p>
+  <div class="stage">
+    <label class="sl"><span>n_std</span><input type="range" id="nsSl" min="0" max="4" step="0.1" value="1.5"><output id="nsO"></output></label>
+    <label class="sl"><span>prop_decrease</span><input type="range" id="pdSl" min="0" max="1" step="0.05" value="1"><output id="pdO"></output></label>
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">마스크 평활:</span>
+      <button class="chip" style="--c:var(--net)" data-sm2="0" aria-pressed="false">없음</button><button class="chip" style="--c:var(--asr)" data-sm2="1" aria-pressed="true">시간 · 주파수 평활</button>
+      <span style="color:var(--muted);font-size:.9rem;margin-left:8px">문턱 기준:</span>
+      <button class="chip" style="--c:var(--llm)" data-gn="noise" aria-pressed="true">y_noise (앞 0.5초)</button><button class="chip" style="--c:var(--tts)" data-gn="all" aria-pressed="false">전체 신호</button>
+    </div>
+    <div class="two" style="grid-template-columns:1fr 1fr 1fr">
+      <div><h3>잡음 섞인 음성</h3><canvas id="gIn" height="170"></canvas></div>
+      <div><h3>마스크</h3><canvas id="gMask" height="170"></canvas></div>
+      <div><h3>결과</h3><canvas id="gOut" height="170"></canvas></div>
+    </div>
+    <div class="row"><button class="btn" id="gPlayN">▶ 입력</button><button class="btn primary" id="gPlayO">▶ 결과</button></div>
+    <div class="kv" id="gKv"></div>
+    <div class="fx" id="gFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="vad">
+  <h2><span class="hc">D4-7</span>에너지 · ZCR VAD: 두 문턱과 hangover</h2>
+  <p class="lead">25 ms 창, 10 ms hop으로 프레임 에너지(dB)를 구하고, 잡음 바닥(하위 10%)에서 T<sub>high</sub> 위로 올라가면 음성 시작, T<sub>low</sub> 아래가 hangover 동안 이어지면 끝입니다. 잡음을 키우면 어떻게 무너지는지, 🎙️ 마이크로 직접 말해 보세요.</p>
+  <div class="stage">
+    <div class="row"><button class="btn" id="vSrcSyn" aria-pressed="true">합성 음성</button><button class="btn" id="vMic">🎙️ 4초 녹음해서 분석</button><span id="vMicSt" style="color:var(--muted);font-size:.9rem"></span></div>
+    <label class="sl"><span>잡음 SNR</span><input type="range" id="vSnr" min="-5" max="40" step="1" value="30"><output id="vSnrO"></output></label>
+    <label class="sl"><span>T_high (바닥 + dB)</span><input type="range" id="vHi" min="2" max="30" step="1" value="12"><output id="vHiO"></output></label>
+    <label class="sl"><span>T_low (바닥 + dB)</span><input type="range" id="vLo" min="0" max="30" step="1" value="6"><output id="vLoO"></output></label>
+    <label class="sl"><span>hangover</span><input type="range" id="vHang" min="0" max="600" step="10" value="200"><output id="vHangO"></output></label>
+    <label class="sl"><span>최소 음성 길이</span><input type="range" id="vMin" min="0" max="600" step="10" value="250"><output id="vMinO"></output></label>
+    <canvas id="vadCv" height="320"></canvas>
+    <div class="row"><button class="btn primary" id="vPlay">▶ 음성 구간만 이어 듣기</button><button class="btn" id="vPlayAll">▶ 전체 듣기</button></div>
+    <div class="kv" id="vKv"></div>
+    <div class="fx" id="vFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="silero">
+  <h2><span class="hc">D4-8</span>Silero VAD: 32 ms마다 확률, 두 문턱, 최소 길이 · 패딩</h2>
+  <p class="lead">Silero 모델은 512샘플(32 ms) 조각마다 음성 확률 p를 냅니다. 아래 곡선은 설명용 <b>모의 확률</b>입니다. <code>get_speech_timestamps</code>의 파라미터를 바꾸며 구간이 어떻게 바뀌는지 보세요.</p>
+  <div class="stage">
+    <label class="sl"><span>threshold θ</span><input type="range" id="sTh" min="0.1" max="0.95" step="0.05" value="0.5"><output id="sThO"></output></label>
+    <label class="sl"><span>min_silence (ms)</span><input type="range" id="sSil" min="0" max="1500" step="10" value="100"><output id="sSilO"></output></label>
+    <label class="sl"><span>min_speech (ms)</span><input type="range" id="sSp" min="0" max="1000" step="10" value="250"><output id="sSpO"></output></label>
+    <label class="sl"><span>speech_pad (ms)</span><input type="range" id="sPad" min="0" max="300" step="10" value="30"><output id="sPadO"></output></label>
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">입력 잡음:</span>
+      <button class="chip" style="--c:var(--asr)" data-sn="clean" aria-pressed="true">깨끗함</button><button class="chip" style="--c:var(--llm)" data-sn="5" aria-pressed="false">SNR 5 dB</button><button class="chip" style="--c:var(--bad)" data-sn="0" aria-pressed="false">SNR 0 dB</button>
+    </div>
+    <canvas id="silCv" height="260"></canvas>
+    <div class="kv" id="sKv"></div>
+    <pre class="code" id="sCode"></pre>
+    <div class="fx" id="sFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="pipe">
+  <h2><span class="hc">D4-9</span>전처리 파이프라인 preprocess()</h2>
+  <p class="lead">입력은 작고, 중심이 밀려 있고(DC), 60 Hz 험과 pink 잡음이 섞인 녹음입니다. 단계를 하나씩 켜며 파형과 스펙트로그램이 어떻게 바뀌는지 보세요. 단계 순서는 노트북 Part 6-2와 같습니다.</p>
+  <div class="stage">
+    <div class="pstages" id="pSt"></div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="pAll">모두 켜기</button><button class="btn" id="pNone">모두 끄기</button><button class="btn primary" id="pPlay">▶ 현재 결과 듣기</button></div>
+    <canvas id="pWave" height="150"></canvas>
+    <canvas id="pSpec" height="190" style="margin-top:8px"></canvas>
+    <div class="kv" id="pKv"></div>
+    <div class="fx" id="pFx"></div>
+  </div>
+</section>
+
+<footer>음성 AI 전문가 과정 160시간, 1주차 D4 실습 노트북 연계 자료 · 탭 번호 D4-1 ~ D4-9는 워크시트와 슬라이드의 🎬 번호와 같습니다 · 소리는 모두 브라우저에서 합성한 설명용 신호입니다</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+const SR=16000;
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+let actx=null;function ac(){if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx;}
+let curSrc=null;function playArr(data,sr=SR){const a=ac();let m=0;for(const v of data)m=Math.max(m,Math.abs(v));const k=m>1?1/m:1;const d=new Float32Array(data.length);for(let i=0;i<d.length;i++)d[i]=data[i]*k;
+  const buf=a.createBuffer(1,d.length,sr);buf.copyToChannel(d,0);if(curSrc){try{curSrc.stop()}catch(e){}}const s=a.createBufferSource();s.buffer=buf;s.connect(a.destination);s.start();curSrc=s;}
+/* rng */
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gaussArr(n,seed){const r=mulberry(seed),o=new Float32Array(n);for(let i=0;i<n;i+=2){const u=Math.max(r(),1e-12),v=r(),R=Math.sqrt(-2*Math.log(u));o[i]=R*Math.cos(2*Math.PI*v);if(i+1<n)o[i+1]=R*Math.sin(2*Math.PI*v);}return o;}
+/* FFT */
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}}
+  for(let len=2;len<=n;len<<=1){const ang=-2*Math.PI/len,wr=Math.cos(ang),wi=Math.sin(ang);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let k=0;k<len/2;k++){const ur=re[i+k],ui=im[i+k],vr=re[i+k+len/2]*cr-im[i+k+len/2]*ci,vi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;re[i+k]=ur+vr;im[i+k]=ui+vi;re[i+k+len/2]=ur-vr;im[i+k+len/2]=ui-vi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t;}}}}
+const NF=512,HP=256,NB=NF/2+1;
+const SW=Float64Array.from({length:NF},(_,n)=>Math.sqrt(0.5-0.5*Math.cos(2*Math.PI*n/NF)));
+function stft(x){const M=Math.max(1,Math.floor((x.length-NF)/HP)+1),R=[],I=[];for(let m=0;m<M;m++){const re=new Float64Array(NF),im=new Float64Array(NF);for(let n=0;n<NF;n++)re[n]=(x[m*HP+n]||0)*SW[n];fft(re,im);R.push(re);I.push(im);}return {R,I,M};}
+function istft(R,I,L){const y=new Float32Array(L);for(let m=0;m<R.length;m++){const re=Float64Array.from(R[m]),im=Float64Array.from(I[m]).map(v=>-v);fft(re,im);for(let n=0;n<NF;n++){const i=m*HP+n;if(i<L)y[i]+=re[n]/NF*SW[n];}}return y;}
+function applyGain(S,G,L){const R=[],I=[];for(let m=0;m<S.M;m++){const re=new Float64Array(NF),im=new Float64Array(NF);for(let k=0;k<NB;k++){const g=G[m][k];re[k]=S.R[m][k]*g;im[k]=S.I[m][k]*g;if(k>0&&k<NF/2){re[NF-k]=S.R[m][NF-k]*g;im[NF-k]=S.I[m][NF-k]*g;}}R.push(re);I.push(im);}return istft(R,I,L);}
+const pw=x=>{let s=0;for(const v of x)s+=v*v;return s/x.length;};
+const rmsDb=x=>10*Math.log10(pw(x)+1e-12);
+const pkDb=x=>{let m=0;for(const v of x)m=Math.max(m,Math.abs(v));return 20*Math.log10(m+1e-12);};
+const mean=x=>{let s=0;for(const v of x)s+=v;return s/x.length;};
+function snrVs(ref,est){let a=0,b=0;for(let i=0;i<ref.length;i++){a+=ref[i]*ref[i];b+=(ref[i]-est[i])**2;}return 10*Math.log10(a/(b+1e-12));}
+function pct(arr,p){const s=Float64Array.from(arr).sort();return s[Math.min(s.length-1,Math.floor(p/100*s.length))];}
+function axes(c,x,y,w,h,col){c.strokeStyle=col;c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(x,y+h);c.lineTo(x+w,y+h);c.stroke();}
+const STOPS=[[0,0,4],[59,15,112],[140,41,129],[222,73,104],[254,159,109],[252,253,191]];
+function cmap(t){t=Math.min(1,Math.max(0,t))*(STOPS.length-1);const i=Math.min(STOPS.length-2,Math.floor(t)),f=t-i;return STOPS[i].map((v,j)=>v+(STOPS[i+1][j]-v)*f);}
+function gmap(t){t=Math.min(1,Math.max(0,t));const v=Math.round(20+t*225);return [v,v,v];}
+function drawSpec(cv,h,mat,vmin,vmax,fmax,map,segs){const {c,w}=fit(cv,h);const M=mat.length,K=Math.round(fmax/(SR/NF));const iw=Math.max(1,M),ih=K;
+  const off=document.createElement('canvas');off.width=iw;off.height=ih;const oc=off.getContext('2d');const img=oc.createImageData(iw,ih);
+  for(let m=0;m<M;m++)for(let k=0;k<K;k++){const [r,g,b]=(map||cmap)((mat[m][k]-vmin)/(vmax-vmin));const p=((ih-1-k)*iw+m)*4;img.data[p]=r;img.data[p+1]=g;img.data[p+2]=b;img.data[p+3]=255;}
+  oc.putImageData(img,0,0);c.clearRect(0,0,w,h);c.imageSmoothingEnabled=true;c.drawImage(off,0,0,w,h-14);
+  c.fillStyle=css('--muted');c.font='10px '+FONT;c.fillText(`0 ~ ${fmax} Hz`,4,h-2);c.fillText(`${(M*HP/SR).toFixed(1)} s`,w-34,h-2);
+  if(segs){c.fillStyle=css('--ok');const T=M*HP/SR;segs.forEach(([a,b])=>c.fillRect(a/T*w,0,(b-a)/T*w,5));}}
+function makeDerive(box,prev,next,steps){let idx=0;$(box).innerHTML=steps.map((d,i)=>`<div class="dstep" id="${box}${i}"><span class="n">${i+1}</span><div><div style="font-weight:700">${d.t}</div><div class="eq">${d.eq}</div><p>${d.p}</p></div></div>`).join('');
+  const show=()=>steps.forEach((_,i)=>{const e=$(box+i);e.classList.toggle('on',i<=idx);e.classList.toggle('cur',i===idx);});
+  $(prev).onclick=()=>{idx=Math.max(0,idx-1);show();};$(next).onclick=()=>{idx=Math.min(steps.length-1,idx+1);show();};show();}
+
+/* ===== synthetic speech ===== */
+function syllable(f0,F1,F2,sec){const n=Math.floor(SR*sec),y=new Float32Array(n);const K=Math.floor(SR/2/f0/1.1);let ph=0;
+  const g=[];for(let k=1;k<=K;k++){const f=k*f0;g.push(Math.exp(-(((f-F1)/160)**2))+0.7*Math.exp(-(((f-F2)/220)**2))+0.03);}
+  for(let i=0;i<n;i++){const t=i/SR;ph+=2*Math.PI*f0*(1+0.08*Math.sin(2*Math.PI*1.5*t))/SR;let v=0;for(let k=1;k<=K;k++)v+=g[k-1]*Math.sin(k*ph);y[i]=v*Math.pow(Math.sin(Math.PI*Math.min(1,t/sec)),0.6);}return y;}
+const VV=[[700,1200],[300,2300],[300,800],[500,1800],[650,1100]];
+const PLAN=[[0.35,0.05],[0.3,0.06],[0.4,0.5],[0.3,0.05],[0.35,0.05],[0.45,0.6],[0.3,0.05],[0.4,0]];
+const parts=[new Float32Array(Math.floor(0.8*SR))],TRUTH=[];let pos=Math.floor(0.8*SR);
+PLAN.forEach(([d,gap],i)=>{const s=syllable(140+10*(i%3),VV[i%5][0],VV[i%5][1],d);parts.push(s);TRUTH.push([pos/SR,(pos+s.length)/SR]);pos+=s.length;const z=new Float32Array(Math.floor(gap*SR));parts.push(z);pos+=z.length;});
+parts.push(new Float32Array(Math.floor(0.5*SR)));
+const L=parts.reduce((a,b)=>a+b.length,0);const CLEAN=new Float32Array(L);{let o=0;for(const p of parts){CLEAN.set(p,o);o+=p.length;}let m=0;for(const v of CLEAN)m=Math.max(m,Math.abs(v));for(let i=0;i<L;i++)CLEAN[i]=CLEAN[i]/m*0.9;}
+const DUR=L/SR;
+const NZ={white:gaussArr(L,7)};
+{const w=gaussArr(L,11),p=new Float32Array(L);let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;for(let i=0;i<L;i++){const x=w[i];b0=0.99886*b0+x*0.0555179;b1=0.99332*b1+x*0.0750759;b2=0.969*b2+x*0.153852;b3=0.8665*b3+x*0.3104856;b4=0.55*b4+x*0.5329522;b5=-0.7616*b5-x*0.016898;p[i]=b0+b1+b2+b3+b4+b5+b6+x*0.5362;b6=x*0.115926;}NZ.pink=p;}
+NZ.hum=Float32Array.from({length:L},(_,i)=>{const t=i/SR;return Math.sin(2*Math.PI*60*t)+0.5*Math.sin(2*Math.PI*120*t)+0.25*Math.sin(2*Math.PI*180*t);});
+function mixSNR(s,n,snr){const Ps=pw(s),Pn=pw(n),g=Math.sqrt(Ps/(Pn*Math.pow(10,snr/10)));const x=new Float32Array(s.length),nn=new Float32Array(s.length);for(let i=0;i<s.length;i++){nn[i]=g*n[i];x[i]=s[i]+nn[i];}return {x,nn,g,Ps,Pn};}
+
+/* hero */
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.016;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const cols=[css('--asr'),css('--llm'),css('--tts')];
+  const r=mulberry(Math.floor(heroT*20));
+  c.strokeStyle=cols[2];c.globalAlpha=.35;c.lineWidth=1;c.beginPath();for(let x=0;x<=w;x+=3){const y=h/2+(r()-0.5)*h*0.5;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();c.globalAlpha=1;
+  c.strokeStyle=cols[0];c.lineWidth=2;c.beginPath();for(let x=0;x<=w;x+=2){const env=Math.max(0,Math.sin(x/w*Math.PI*5+heroT*.6));const y=h/2+Math.sin(x/5+heroT*4)*h*0.38*env;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+/* tabs + hash */
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+function chips(attr,cb){const bs=[...document.querySelectorAll(`[${attr}]`)];bs.forEach(b=>b.onclick=()=>{bs.forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+
+/* ===== D4-1 flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'잡음과 SNR',c:'--net',go:'snr',items:['SNR = 10·log10(Ps/Pn), 파워 P = 평균(x²)','원하는 SNR로 섞기: g = √(Ps / (Pn·10^(SNR/10)))','white · pink · hum 잡음 비교'],q:'🧩 빈칸 실습 1: 지수 자리에 snr_db'},
+ {p:'Part 2',t:'정규화 · 필터',c:'--asr',go:'norm',items:['dBFS, peak 정규화와 RMS 정규화, 클리핑 제한','DC offset 제거 x − 평균','pre-emphasis y[n] = x[n] − αx[n−1], high-pass 필터'],q:'🧩 빈칸 실습 2, 3: 10^(dB/20), alpha'},
+ {p:'Part 3',t:'스펙트럼 차감 · Wiener',c:'--s2s',go:'specsub',items:['|Y|² ≈ |S|² + |N|², 앞 0.5초로 잡음 추정','max(|Y|² − β·N̂², γ·|Y|²), 위상은 그대로','Wiener G = ξ/(1+ξ), 뮤지컬 노이즈'],q:'🧩 빈칸 실습 4, 5: beta, 1 + xi'},
+ {p:'Part 4',t:'spectral gating',c:'--tts',go:'gate',items:['문턱 T = μ + n_std·σ (dB), 마스크 + 평활','noisereduce: stationary, y_noise, prop_decrease','지표 여러 개로 보기, ASR 앞에서는 약하게'],q:'🧩 빈칸 실습 6: y_noise 0.5초'},
+ {p:'Part 5',t:'에너지 · ZCR VAD',c:'--llm',go:'vad',items:['프레임 에너지 20·log10(RMS), ZCR ≈ 2f/fs','잡음 바닥 + 두 문턱(히스테리시스) + hangover','잡음이 커지면 에너지 VAD는 무너진다'],q:'🧩 빈칸 실습 7: 20, T_lo'},
+ {p:'Part 6',t:'Silero VAD · 파이프라인',c:'--ink',go:'silero',items:['512샘플(32 ms)마다 확률, threshold 0.5 / 0.35','min_speech · min_silence · speech_pad','preprocess(): DC·HPF → VAD → 잡음 제거 → 정규화 → 자르기'],q:'🧩 빈칸 실습 8, 9: 512, False'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${x}</li>`).join('')}</ul><p style="margin:8px 0 0">${r.q}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${i===1?'<button class="btn" data-go="filter">pre-emphasis · high-pass</button>':''}${i===5?'<button class="btn" data-go="pipe">전처리 파이프라인</button>':''}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== D4-2 SNR ===== */
+let NZK='white',SNRM=null;
+chips('data-nz',v=>{NZK=v;drawSnr();});$('snrSl').oninput=drawSnr;
+function avgSpec(x){const S=stft(x),P=new Float64Array(NB);for(let m=0;m<S.M;m++)for(let k=0;k<NB;k++)P[k]+=S.R[m][k]**2+S.I[m][k]**2;return P.map(v=>10*Math.log10(v/S.M+1e-12));}
+const SPEC_CLEAN=avgSpec(CLEAN),SPEC_N={};for(const k in NZ)SPEC_N[k]=avgSpec(NZ[k]);
+function drawSnr(){const snr=+$('snrSl').value;$('snrO').textContent=snr+' dB';SNRM=mixSNR(CLEAN,NZ[NZK],snr);
+  let {c,w,h}=fit($('snrCv'),190);c.clearRect(0,0,w,h);const mx=Math.max(1,...[pkDb(SNRM.x)].map(v=>Math.pow(10,v/20)));
+  const draw=(arr,col,lw,al)=>{c.strokeStyle=col;c.lineWidth=lw;c.globalAlpha=al;c.beginPath();const step=Math.max(1,Math.floor(arr.length/w/2));for(let x=0;x<w;x++){let lo=1e9,hi=-1e9;const i0=Math.floor(x/w*arr.length),i1=Math.floor((x+1)/w*arr.length);for(let i=i0;i<i1;i+=step){lo=Math.min(lo,arr[i]);hi=Math.max(hi,arr[i]);}c.moveTo(x,h/2-hi/mx*h*0.45);c.lineTo(x,h/2-lo/mx*h*0.45);}c.stroke();c.globalAlpha=1;};
+  draw(SNRM.x,css('--tts'),1,0.8);draw(CLEAN,css('--asr'),1,0.9);
+  c.fillStyle=css('--ink');c.font='700 12px '+FONT;c.fillText('초록: 깨끗한 음성   분홍: 잡음 섞인 음성',8,16);c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText(`${DUR.toFixed(1)} s`,w-40,h-4);
+  ({c,w,h}=fit($('snrSpec'),160));c.clearRect(0,0,w,h);const x0=40,pw_=w-60,ph=h-34;axes(c,x0,8,pw_,ph,css('--line'));
+  const gdb=20*Math.log10(SNRM.g),fmax=8000,py=v=>8+ph-(v+70)/80*ph;const top=Math.max(...SPEC_CLEAN);
+  const line=(arr,off,col,lw)=>{c.strokeStyle=col;c.lineWidth=lw;c.beginPath();for(let k=1;k<NB;k++){const X=x0+Math.log10(k*SR/NF/20)/Math.log10(fmax/20)*pw_;const Y=py(arr[k]-top+off);k>1?c.lineTo(X,Math.max(8,Math.min(8+ph,Y))):c.moveTo(X,Math.max(8,Math.min(8+ph,Y)));}c.stroke();};
+  line(SPEC_N[NZK],gdb,css('--tts'),1.5);line(SPEC_CLEAN,0,css('--asr'),2);
+  c.fillStyle=css('--muted');c.font='10px '+FONT;[50,100,500,1000,4000].forEach(f=>{c.fillText(f>=1000?f/1000+'k':f,x0+Math.log10(f/20)/Math.log10(fmax/20)*pw_-8,h-10);});c.fillText('평균 스펙트럼 (dB, 로그 주파수)',x0+6,20);
+  $('snrKv').innerHTML=`<div><span>음성 파워 Ps</span><b>${SNRM.Ps.toExponential(2)}</b></div><div><span>잡음 파워 Pn (g 곱하기 전)</span><b>${SNRM.Pn.toFixed(3)}</b></div><div><span>이득 g</span><b>${SNRM.g.toFixed(4)}</b></div><div><span>측정 SNR</span><b>${(10*Math.log10(SNRM.Ps/pw(SNRM.nn))).toFixed(2)} dB</b></div>`;
+  $('snrFx').innerHTML=`SNR = 10·log<sub>10</sub>(Ps / Pn) &nbsp;·&nbsp; g = √(Ps / (Pn · 10<sup>SNR/10</sup>)) = √(${SNRM.Ps.toExponential(2)} / (${SNRM.Pn.toFixed(3)} × 10<sup>${snr}/10</sup>)) = <b>${SNRM.g.toFixed(4)}</b><br>파워 비 10<sup>${snr}/10</sup> = <b>${Math.pow(10,snr/10).toFixed(2)}</b>배 &nbsp;·&nbsp; 진폭(RMS) 비 10<sup>${snr}/20</sup> = <b>${Math.pow(10,snr/20).toFixed(2)}</b>배`;}
+$('snrPlayC').onclick=()=>playArr(CLEAN);$('snrPlayN').onclick=()=>playArr(SNRM.x);$('snrPlayZ').onclick=()=>playArr(SNRM.nn);
+REDRAW.snr=drawSnr;
+makeDerive('gBox','gPrev','gNext',[
+ {t:'잡음에 이득 g를 곱해 섞는다',eq:'x[n] = s[n] + <b>g</b>·n[n]',p:'g는 진폭에 곱하는 숫자입니다.'},
+ {t:'잡음 파워는 g²배',eq:'P(g·n) = mean((g·n)²) = <b>g²</b>·Pn',p:'진폭이 g배면 제곱의 평균인 파워는 g²배.'},
+ {t:'SNR 정의에 대입',eq:'SNR = 10·log<sub>10</sub>( Ps / (g²·Pn) )',p:'섞은 뒤의 잡음 파워 g²Pn으로 SNR을 씁니다.'},
+ {t:'로그 풀기',eq:'10<sup>SNR/10</sup> = Ps / (g²·Pn)',p:'양변을 10으로 나누고 10의 거듭제곱을 취합니다.'},
+ {t:'g에 대해 정리',eq:'<b>g = √( Ps / (Pn · 10<sup>SNR/10</sup>) )</b>',p:'노트북 빈칸 실습 1의 add_noise()가 바로 이 식입니다.'}]);
+
+/* ===== D4-3 norm ===== */
+let NS='quiet',NM='none';
+chips('data-ns',v=>{NS=v;drawNorm();});chips('data-nm',v=>{NM=v;drawNorm();});['nDc','nLim'].forEach(id=>$(id).onchange=drawNorm);$('nTg').oninput=drawNorm;
+function normInput(){const x=new Float32Array(L);for(let i=0;i<L;i++)x[i]=CLEAN[i]*0.12;if(NS==='click')x[Math.floor(1.6*SR)]=0.95;if(NS==='dc')for(let i=0;i<L;i++)x[i]+=0.25;if(NS==='loud')for(let i=0;i<L;i++)x[i]=CLEAN[i]*1.6;return x;}
+let NORMOUT=null;
+function drawNorm(){const tg=+$('nTg').value;$('nTgO').textContent=tg+' dBFS';const x=normInput();let y=Float32Array.from(x);let gain=1,note='';
+  if($('nDc').checked){const m=mean(y);for(let i=0;i<L;i++)y[i]-=m;}
+  if(NM==='peak'){let m=0;for(const v of y)m=Math.max(m,Math.abs(v));gain=0.9/m;}
+  if(NM==='rms'){gain=Math.pow(10,(tg-rmsDb(y))/20);}
+  for(let i=0;i<L;i++)y[i]*=gain;
+  if(NM==='rms'&&$('nLim').checked){let m=0;for(const v of y)m=Math.max(m,Math.abs(v));if(m>0.99){const k=0.99/m;for(let i=0;i<L;i++)y[i]*=k;gain*=k;note=`peak가 ${m.toFixed(2)}라서 0.99로 다시 낮춤 (×${k.toFixed(3)})`;}}
+  let clip=0;for(let i=0;i<L;i++)if(Math.abs(y[i])>1){clip++;}
+  NORMOUT=y.map(v=>Math.max(-1,Math.min(1,v)));
+  const {c,w,h}=fit($('normCv'),200);c.clearRect(0,0,w,h);const sc=h*0.4/1.2;const mid=h/2;
+  c.fillStyle=css('--soft');c.fillRect(0,mid-sc,w,2*sc);c.strokeStyle=css('--bad');c.setLineDash([5,4]);[1,-1].forEach(s=>{c.beginPath();c.moveTo(0,mid-s*sc);c.lineTo(w,mid-s*sc);c.stroke();});c.setLineDash([]);
+  c.strokeStyle=css('--line');c.beginPath();c.moveTo(0,mid);c.lineTo(w,mid);c.stroke();
+  for(let px=0;px<w;px++){const i0=Math.floor(px/w*L),i1=Math.floor((px+1)/w*L);let lo=1e9,hi=-1e9;for(let i=i0;i<i1;i++){lo=Math.min(lo,y[i]);hi=Math.max(hi,y[i]);}
+    const over=hi>1||lo<-1;c.strokeStyle=over?css('--bad'):css('--asr');c.beginPath();c.moveTo(px+.5,mid-Math.min(1.2,hi)*sc);c.lineTo(px+.5,mid-Math.max(-1.2,lo)*sc);c.stroke();}
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('+1.0 (0 dBFS)',4,mid-sc-4);c.fillText('평균 '+mean(y).toFixed(3),4,h-6);
+  const bars=[['peak',pkDb(y),'--tts'],['RMS',rmsDb(y),'--asr']];
+  $('normBars').innerHTML=bars.map(([n,v,col])=>`<div class="barrow" style="--c:var(${col})"><div class="lab"><b>${n} dBFS</b><small>${n==='peak'?'20·log10 max|x|':'20·log10 √mean(x²)'}</small></div><div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,(v+60)/60*100))}%"></div></div><div class="val">${v.toFixed(1)} dBFS</div></div>`).join('');
+  const msg={none:'원본 그대로',peak:`peak 정규화: gain = 0.9 / max|x| = <b>${gain.toFixed(3)}</b>`,rms:`RMS 정규화: gain = 10<sup>(${tg} − (${(rmsDb(y)-20*Math.log10(gain)).toFixed(1)}))/20</sup> = <b>${gain.toFixed(3)}</b>`}[NM];
+  $('normFx').innerHTML=`${msg}${note?' · '+note:''}<br>클리핑된 샘플 <b>${clip}</b>개 · 결과 peak <b>${pkDb(y).toFixed(1)}</b> dBFS · RMS <b>${rmsDb(y).toFixed(1)}</b> dBFS · 평균(DC) <b>${mean(y).toFixed(3)}</b>${NS==='click'&&NM==='peak'?'<br>⚠️ 클릭 하나가 0.9에 맞춰져 음성은 거의 커지지 않습니다.':''}${NS==='dc'&&!$('nDc').checked?'<br>⚠️ DC가 남아 있으면 RMS가 부풀고, 양쪽 여유가 비대칭이 됩니다. "DC 제거"를 켜 보세요.':''}`;}
+$('normPlay').onclick=()=>{const y=Float32Array.from(NORMOUT);playArr(y.map(v=>v*0.9));};
+REDRAW.norm=drawNorm;
+
+/* ===== D4-4 filter ===== */
+let ORD=4;chips('data-ord',v=>{ORD=+v;drawFilter();});['aSl','fcSl'].forEach(id=>$(id).oninput=drawFilter);['usePE','useHP'].forEach(id=>$(id).onchange=drawFilter);
+const HUMMY=mixSNR(CLEAN,NZ.hum,0).x;
+const peResp=(f,a)=>Math.sqrt(1+a*a-2*a*Math.cos(2*Math.PI*f/SR));
+const hpResp=(f,fc,N)=>1/Math.sqrt(1+Math.pow(fc/Math.max(f,1e-3),2*N));
+function biquadHP(x,fc,Q){const w0=2*Math.PI*fc/SR,al=Math.sin(w0)/(2*Q),cw=Math.cos(w0);const b0=(1+cw)/2,b1=-(1+cw),b2=(1+cw)/2,a0=1+al,a1=-2*cw,a2=1-al;const y=new Float32Array(x.length);let x1=0,x2=0,y1=0,y2=0;for(let i=0;i<x.length;i++){const v=(b0*x[i]+b1*x1+b2*x2-a1*y1-a2*y2)/a0;x2=x1;x1=x[i];y2=y1;y1=v;y[i]=v;}return y;}
+function butterHP(x,fc,N){let y=x;for(let k=1;k<=N/2;k++){const Q=1/(2*Math.cos(Math.PI*(2*k-1)/(2*N)));y=biquadHP(y,fc,Q);}return y;}
+function preemph(x,a){const y=new Float32Array(x.length);y[0]=x[0];for(let i=1;i<x.length;i++)y[i]=x[i]-a*x[i-1];return y;}
+let FOUT=null;const SPEC_HUM=avgSpec(HUMMY);
+function drawFilter(){const a=+$('aSl').value,fc=+$('fcSl').value,pe=$('usePE').checked,hp=$('useHP').checked;$('aO').textContent=a.toFixed(2);$('fcO').textContent=fc+' Hz';
+  let {c,w,h}=fit($('respCv'),210);c.clearRect(0,0,w,h);const x0=44,pw_=w-64,ph=h-36;axes(c,x0,8,pw_,ph,css('--line'));
+  const fx=f=>x0+Math.log10(f/10)/Math.log10(8000/10)*pw_,py=d=>8+ph-(d+60)/72*ph;
+  c.strokeStyle=css('--line');c.setLineDash([3,3]);c.beginPath();c.moveTo(x0,py(0));c.lineTo(x0+pw_,py(0));c.stroke();c.setLineDash([]);
+  c.fillStyle=css('--bad');c.globalAlpha=.15;c.fillRect(fx(50),8,fx(62)-fx(50),ph);c.globalAlpha=1;
+  const curve=(fn,col,lw)=>{c.strokeStyle=col;c.lineWidth=lw;c.beginPath();for(let i=0;i<=300;i++){const f=10*Math.pow(800,i/300);const d=Math.max(-60,20*Math.log10(fn(f)+1e-9));i?c.lineTo(fx(f),py(d)):c.moveTo(fx(f),py(d));}c.stroke();};
+  curve(f=>peResp(f,a),css('--tts'),pe?2.4:1);curve(f=>hpResp(f,fc,ORD),css('--asr'),hp?2.4:1);curve(f=>(pe?peResp(f,a):1)*(hp?hpResp(f,fc,ORD):1),css('--ink'),1.4);
+  c.fillStyle=css('--muted');c.font='10px '+FONT;[20,50,100,200,500,1000,2000,4000,8000].forEach(f=>c.fillText(f>=1000?f/1000+'k':f,fx(f)-8,h-12));[0,-20,-40,-60].forEach(d=>c.fillText(d+' dB',4,py(d)+3));
+  c.font='700 12px '+FONT;c.fillStyle=css('--tts');c.fillText(`pre-emphasis α=${a.toFixed(2)}`,x0+8,22);c.fillStyle=css('--asr');c.fillText(`high-pass ${fc} Hz, ${ORD}차`,x0+180,22);c.fillStyle=css('--ink');c.fillText('검정: 둘을 곱한 전체 응답',x0+360,22);
+  let y=HUMMY;if(hp)y=butterHP(y,fc,ORD);if(pe)y=preemph(y,a);FOUT=y;const so=avgSpec(y);
+  ({c,w,h}=fit($('fspecCv'),170));c.clearRect(0,0,w,h);axes(c,x0,8,pw_,h-36,css('--line'));const top=Math.max(...SPEC_HUM),ph2=h-36,py2=v=>8+ph2-(v-top+80)/90*ph2;
+  const line=(arr,col,lw)=>{c.strokeStyle=col;c.lineWidth=lw;c.beginPath();for(let k=1;k<NB;k++){const X=fx(k*SR/NF),Y=Math.max(8,Math.min(8+ph2,py2(arr[k])));k>1?c.lineTo(X,Y):c.moveTo(X,Y);}c.stroke();};
+  line(SPEC_HUM,css('--net'),1.2);line(so,css('--asr'),2);c.fillStyle=css('--muted');c.font='10px '+FONT;[50,100,500,1000,4000].forEach(f=>c.fillText(f>=1000?f/1000+'k':f,fx(f)-8,h-12));
+  c.font='700 12px '+FONT;c.fillStyle=css('--net');c.fillText('회색: 험(60 Hz) 섞인 입력',x0+8,22);c.fillStyle=css('--asr');c.fillText('초록: 필터 결과 (31.25 Hz 칸이라 60 Hz 험은 맨 왼쪽 봉우리)',x0+190,22);
+  const g60=20*Math.log10((pe?peResp(60,a):1)*(hp?hpResp(60,fc,ORD):1)),g150=20*Math.log10((pe?peResp(150,a):1)*(hp?hpResp(150,fc,ORD):1)),g7k=20*Math.log10((pe?peResp(7900,a):1)*(hp?hpResp(7900,fc,ORD):1));
+  $('filterFx').innerHTML=`pre-emphasis |H(f)| = √(1 + α² − 2α·cos(2πf/f<sub>s</sub>)) &nbsp;·&nbsp; Butterworth |H(f)| = 1/√(1 + (f<sub>c</sub>/f)<sup>2N</sup>)<br>전체 이득: 60 Hz 험 <b>${g60.toFixed(1)} dB</b> · 150 Hz(남성 f₀) <b>${g150.toFixed(1)} dB</b> · 7.9 kHz <b>${g7k.toFixed(1)} dB</b> · 험 섞인 입력 대비 SNR <b>${snrVs(CLEAN,HUMMY).toFixed(1)} → ${hp&&!pe?snrVs(CLEAN,y).toFixed(1):'(pre-emphasis는 음성도 바꿔서 비교 생략)'}</b>${fc>180&&hp?'<br>⚠️ 차단 주파수가 높으면 남성 목소리의 기본 주파수(85~180 Hz)까지 깎입니다.':''}`;}
+$('fPlayIn').onclick=()=>playArr(HUMMY);$('fPlayOut').onclick=()=>playArr(FOUT);
+REDRAW.filter=drawFilter;
+makeDerive('hBox','hPrev','hNext',[
+ {t:'입력을 복소 사인파로 둔다',eq:'x[n] = e<sup>jωn</sup>, &nbsp; ω = 2πf / f<sub>s</sub>',p:'D3의 오일러 공식: 원 위를 도는 점. 어떤 주파수에 얼마나 곱해지는지 보려는 것.'},
+ {t:'pre-emphasis 식에 대입',eq:'y[n] = e<sup>jωn</sup> − α·e<sup>jω(n−1)</sup>',p:'x[n−1]은 한 샘플 늦은 같은 사인파.'},
+ {t:'공통 인수로 묶기',eq:'y[n] = <b>(1 − α·e<sup>−jω</sup>)</b>·e<sup>jωn</sup> = H(ω)·x[n]',p:'출력 = 입력 × H(ω). 사인파는 모양 그대로, 크기만 |H|배.'},
+ {t:'오일러로 실수부 · 허수부 나누기',eq:'H = (1 − α·cos ω) + j·α·sin ω',p:'e<sup>−jω</sup> = cos ω − j sin ω.'},
+ {t:'크기의 제곱',eq:'|H|² = (1 − α cos ω)² + α² sin²ω = <b>1 + α² − 2α·cos ω</b>',p:'cos² + sin² = 1을 사용.'},
+ {t:'양 끝 값',eq:'ω = 0 → |H| = 1 − α (α=0.97: −30 dB) &nbsp;·&nbsp; ω = π → |H| = 1 + α (+5.9 dB)',p:'저음은 크게 줄고 고음은 조금 커집니다.'}]);
+
+/* ===== D4-5 specsub ===== */
+const NOISY5=mixSNR(CLEAN,NZ.white,5).x;
+const SN=stft(NOISY5),SC=stft(CLEAN);
+const PN=SN.R.map((re,m)=>{const p=new Float64Array(NB);for(let k=0;k<NB;k++)p[k]=re[k]**2+SN.I[m][k]**2;return p;});
+const PC=SC.R.map((re,m)=>{const p=new Float64Array(NB);for(let k=0;k<NB;k++)p[k]=re[k]**2+SC.I[m][k]**2;return p;});
+const M0=Math.floor((0.5*SR-NF)/HP)+1;
+const NHAT=new Float64Array(NB);for(let m=0;m<M0;m++)for(let k=0;k<NB;k++)NHAT[k]+=PN[m][k]/M0;
+let SM='ss',SSOUT=null,ssTimer=null;
+chips('data-sm',v=>{SM=v;drawSS();});['bSl','gmSl','frSl'].forEach(id=>$(id).oninput=drawSS);
+function gainOf(P,k,beta,gam){if(SM==='ss'){const s=Math.max(P-beta*NHAT[k],gam*P);return Math.sqrt(s/(P+1e-20));}const xi=Math.max(P/NHAT[k]-1,0);return xi/(1+xi);}
+function drawSS(){const beta=+$('bSl').value,gam=+$('gmSl').value,ft=+$('frSl').value;$('bO').textContent=beta.toFixed(1);$('gmO').textContent=gam.toFixed(3);$('frO').textContent=ft.toFixed(2)+' s';
+  ['bSl','gmSl'].forEach(id=>$(id).disabled=SM==='wf');
+  const m0=Math.min(SN.M-3,Math.max(0,Math.round(ft*SR/HP)));const avg=(A)=>{const p=new Float64Array(NB);for(let j=0;j<3;j++)for(let k=0;k<NB;k++)p[k]+=A[m0+j][k]/3;return p;};
+  const P=avg(PN),C=avg(PC);const OUT=P.map((v,k)=>v*gainOf(v,k,beta,gam)**2);
+  let {c,w,h}=fit($('ssCv'),220);c.clearRect(0,0,w,h);const x0=44,pw_=w-60,ph=h-34;axes(c,x0,8,pw_,ph,css('--line'));const fmax=5000,K=Math.round(fmax/(SR/NF));
+  const all=[...P].slice(0,K).map(v=>10*Math.log10(v+1e-12));const top=Math.max(...all)+3,bot=top-70;const py=v=>8+ph-(Math.max(bot,10*Math.log10(v+1e-12))-bot)/(top-bot)*ph,fx=k=>x0+k/K*pw_;
+  const line=(arr,col,lw,dash)=>{c.strokeStyle=col;c.lineWidth=lw;c.setLineDash(dash||[]);c.beginPath();for(let k=0;k<K;k++){k?c.lineTo(fx(k),py(arr[k])):c.moveTo(fx(k),py(arr[k]));}c.stroke();c.setLineDash([]);};
+  line(P,css('--net'),1.2);line(Float64Array.from(NHAT).map(v=>v*(SM==='ss'?beta:1)),css('--bad'),2);line(C,css('--llm'),1.2,[3,3]);line(OUT,css('--asr'),2);
+  c.fillStyle=css('--muted');c.font='10px '+FONT;for(let f=0;f<=fmax;f+=1000)c.fillText(f,fx(f/(SR/NF))-8,h-10);
+  c.font='700 11px '+FONT;[['회색: |Y|² (3프레임 평균)','--net'],[SM==='ss'?`빨강: β·N̂² (β=${beta.toFixed(1)})`:'빨강: N̂²','--bad'],['초록: 결과','--asr'],['점선: 실제 깨끗한 음성','--llm']].forEach(([t,col],i)=>{c.fillStyle=css(col);c.fillText(t,x0+8+i*150,20);});
+  ({c,w,h}=fit($('gainCv'),170));c.clearRect(0,0,w,h);const gx0=36,gw=w-50,gh=h-34;axes(c,gx0,8,gw,gh,css('--line'));
+  const gxx=d=>gx0+(d+20)/40*gw,gy=g=>8+gh-g*gh;
+  const gcur=(fn,col,lw)=>{c.strokeStyle=col;c.lineWidth=lw;c.beginPath();for(let i=0;i<=200;i++){const d=-20+i/5;const g=fn(Math.pow(10,d/10));i?c.lineTo(gxx(d),gy(g)):c.moveTo(gxx(d),gy(g));}c.stroke();};
+  gcur(xi=>xi/(1+xi),css('--s2s'),SM==='wf'?2.6:1.2);gcur(xi=>{const P1=xi+1;return Math.sqrt(Math.max(P1-beta,gam*P1)/P1);},css('--asr'),SM==='ss'?2.6:1.2);
+  c.fillStyle=css('--muted');c.font='10px '+FONT;[-20,-10,0,10,20].forEach(d=>c.fillText(d,gxx(d)-6,h-12));c.fillText('칸 SNR ξ (dB)',gx0+gw-70,h-1);c.fillText('G',4,14);
+  c.font='700 11px '+FONT;c.fillStyle=css('--s2s');c.fillText('Wiener ξ/(1+ξ)',gx0+6,20);c.fillStyle=css('--asr');c.fillText('차감 √max(1−β/(ξ+1), γ)',gx0+6,34);
+  clearTimeout(ssTimer);ssTimer=setTimeout(()=>{const G=PN.map(p=>Float64Array.from(p,(v,k)=>gainOf(v,k,beta,gam)));SSOUT=applyGain(SN,G,L);const si=snrVs(CLEAN,NOISY5),so=snrVs(CLEAN,SSOUT);
+    let sil=0,sil0=0;for(let i=0;i<Math.floor(0.7*SR);i++){sil+=SSOUT[i]**2;sil0+=NOISY5[i]**2;}
+    $('ssKv').innerHTML=`<div><span>SNR 입력 → 결과</span><b>${si.toFixed(1)} → ${so.toFixed(1)} dB</b></div><div><span>무음 구간 잡음 감소</span><b>${(10*Math.log10(sil0/(sil+1e-12))).toFixed(1)} dB</b></div>`;},RM?0:60);
+  $('ssFx').innerHTML=SM==='ss'?`|Ŝ|² = max( |Y|² − <b>β</b>·N̂², <b>γ</b>·|Y|² ), &nbsp; β = <b>${beta.toFixed(1)}</b>, γ = <b>${gam.toFixed(3)}</b> (${(10*Math.log10(gam+1e-9)).toFixed(0)} dB) &nbsp;·&nbsp; Ŝ = |Ŝ|·e<sup>j∠Y</sup> (위상은 noisy 그대로) → ISTFT<br>N̂² = 앞 ${M0}프레임(0.5초) 평균. 이 프레임에서 음성이 잡음 아래로 깎인 칸: <b>${[...C].slice(0,K).filter((v,k)=>OUT[k]<0.5*v&&v>NHAT[k]).length}</b>개`:`ξ = max(|Y|²/N̂² − 1, 0), &nbsp; <b>G = ξ / (1 + ξ)</b>, &nbsp; Ŝ = G·Y → ISTFT &nbsp;·&nbsp; ξ = 1 (0 dB)이면 G = 0.5`;}
+$('ssPlayN').onclick=()=>playArr(NOISY5);$('ssPlayO').onclick=()=>{if(SSOUT)playArr(SSOUT);};
+REDRAW.specsub=drawSS;
+makeDerive('wBox','wPrev','wNext',[
+ {t:'칸마다 음성 + 잡음',eq:'Y = S + N, &nbsp; E|Y|² = |S|² + |N|²',p:'둘이 서로 관계없으면 파워가 더해집니다.'},
+ {t:'이득 하나를 곱해 추정',eq:'Ŝ = <b>G</b>·Y, &nbsp; 오차 E|S − G·Y|²를 가장 작게',p:'G는 0~1 사이 실수.'},
+ {t:'오차 전개',eq:'E|S − G(S+N)|² = (1 − G)²|S|² + G²|N|²',p:'S와 N을 곱한 항은 평균이 0이라 사라집니다.'},
+ {t:'G로 미분해서 0',eq:'−2(1 − G)|S|² + 2G|N|² = 0 → G = |S|² / (|S|² + |N|²)',p:'음성이 차지하는 파워의 몫.'},
+ {t:'칸 SNR ξ로 쓰기',eq:'ξ = |S|²/|N|² → <b>G = ξ / (1 + ξ)</b>',p:'ξ가 크면 1, 작으면 0.'},
+ {t:'ξ를 모르니 추정',eq:'ξ̂ = max(|Y|² / N̂² − 1, 0)',p:'|Y|²/N̂² ≈ (|S|² + |N|²)/|N|² = ξ + 1 이므로 1을 뺍니다. 노트북 빈칸 실습 5.'}]);
+
+/* ===== D4-6 gate ===== */
+const SDB=SN.R.map((re,m)=>Float64Array.from({length:NB},(_,k)=>10*Math.log10(re[k]**2+SN.I[m][k]**2+1e-12)));
+let GSM=1,GN='noise',GOUT=null,gTimer=null;
+chips('data-sm2',v=>{GSM=+v;drawGate();});chips('data-gn',v=>{GN=v;drawGate();});['nsSl','pdSl'].forEach(id=>$(id).oninput=drawGate);
+const statsOf=(M1)=>{const mu=new Float64Array(NB),sd=new Float64Array(NB);for(let m=0;m<M1;m++)for(let k=0;k<NB;k++)mu[k]+=SDB[m][k]/M1;for(let m=0;m<M1;m++)for(let k=0;k<NB;k++)sd[k]+=(SDB[m][k]-mu[k])**2/M1;return {mu,sd:sd.map(Math.sqrt)};};
+const ST_NOISE=statsOf(M0),ST_ALL=statsOf(SN.M);
+const truthAt=t=>TRUTH.some(([a,b])=>t>=a&&t<=b);
+function drawGate(){const ns=+$('nsSl').value,pd=+$('pdSl').value;$('nsO').textContent=ns.toFixed(1);$('pdO').textContent=pd.toFixed(2);const st=GN==='noise'?ST_NOISE:ST_ALL;
+  let mask=SDB.map(row=>Float64Array.from(row,(v,k)=>v>st.mu[k]+ns*st.sd[k]?1:0));
+  if(GSM){const sm=mask.map(r=>new Float64Array(NB));for(let m=0;m<SN.M;m++)for(let k=0;k<NB;k++){let s=0,n=0;for(let dm=-2;dm<=2;dm++)for(let dk=-1;dk<=1;dk++){const a=m+dm,b=k+dk;if(a>=0&&a<SN.M&&b>=0&&b<NB){s+=mask[a][b];n++;}}sm[m][k]=s/n;}mask=sm;}
+  const G=mask.map(r=>Float64Array.from(r,v=>1-pd*(1-v)));
+  const top=Math.max(...SDB.map(r=>Math.max(...r)));
+  drawSpec($('gIn'),170,SDB,top-70,top,5000);drawSpec($('gMask'),170,mask,0,1,5000,gmap);
+  const outDb=SDB.map((r,m)=>Float64Array.from(r,(v,k)=>v+20*Math.log10(G[m][k]+1e-4)));drawSpec($('gOut'),170,outDb,top-70,top,5000);
+  let ps=0,ns_=0,cs=0,cn=0;for(let m=0;m<SN.M;m++){const t=(m*HP+NF/2)/SR,sp=truthAt(t);for(let k=0;k<NB;k++){if(sp){ps+=mask[m][k];cs++;}else{ns_+=mask[m][k];cn++;}}}
+  clearTimeout(gTimer);gTimer=setTimeout(()=>{GOUT=applyGain(SN,G,L);let sil=0,sil0=0;for(let i=0;i<Math.floor(0.7*SR);i++){sil+=GOUT[i]**2;sil0+=NOISY5[i]**2;}
+    const sp=(a)=>{let s=0,n=0;for(const [x,y] of TRUTH)for(let i=Math.floor(x*SR);i<Math.floor(y*SR);i++){s+=a[i]**2;n++;}return s/n;};
+    $('gKv').innerHTML=`<div><span>마스크 통과율: 무음 프레임</span><b>${(ns_/cn*100).toFixed(1)}%</b></div><div><span>마스크 통과율: 음성 프레임</span><b>${(ps/cs*100).toFixed(1)}%</b></div><div><span>무음 구간 잡음 감소</span><b>${(10*Math.log10(sil0/(sil+1e-12))).toFixed(1)} dB</b></div><div><span>음성 구간 크기 변화</span><b>${(10*Math.log10(sp(GOUT)/sp(NOISY5))).toFixed(1)} dB</b></div>`;},RM?0:60);
+  $('gFx').innerHTML=`T<sub>k</sub> = μ<sub>k</sub> + <b>${ns.toFixed(1)}</b>·σ<sub>k</sub> (dB, 주파수마다) &nbsp;·&nbsp; 마스크 = [ |Y|<sub>dB</sub> &gt; T<sub>k</sub> ] ${GSM?'→ 5프레임 × 3칸 평균으로 평활':''} &nbsp;·&nbsp; 이득 = 1 − <b>${pd.toFixed(2)}</b>·(1 − 마스크)<br>문턱 기준: <b>${GN==='noise'?'y_noise = 앞 0.5초 (잡음만)':'전체 신호 (음성까지 섞여 μ, σ가 커짐 → 문턱이 높아져 음성도 깎임)'}</b> &nbsp;·&nbsp; 1 kHz 칸 문턱 ${(st.mu[32]+ns*st.sd[32]).toFixed(1)} dB`;}
+$('gPlayN').onclick=()=>playArr(NOISY5);$('gPlayO').onclick=()=>{if(GOUT)playArr(GOUT);};
+REDRAW.gate=drawGate;
+
+/* ===== D4-7 energy VAD ===== */
+let VSRC=null,VX=null,VSEG=[];
+['vSnr','vHi','vLo','vHang','vMin'].forEach(id=>$(id).oninput=drawVad);
+function frameFeat(x){const N=400,H=160,M=Math.max(1,Math.floor((x.length-N)/H)+1),e=new Float64Array(M),z=new Float64Array(M);for(let m=0;m<M;m++){let s=0,c=0;for(let n=0;n<N;n++){const v=x[m*H+n];s+=v*v;if(n&&((v>=0)!==(x[m*H+n-1]>=0)))c++;}e[m]=20*Math.log10(Math.sqrt(s/N)+1e-10);z[m]=c/N;}return {e,z,M};}
+function energyVad(e,hiDb,loDb,hangSec,minSec){const floor=pct(e,10),Th=floor+hiDb,Tl=floor+loDb,hang=Math.round(hangSec*100);const segs=[];let sp=false,q=0,st=0;const state=new Uint8Array(e.length);
+  for(let m=0;m<e.length;m++){const v=e[m];if(!sp){if(v>Th){sp=true;st=m;q=0;}}else{q=v<Tl?q+1:0;if(q>=hang){segs.push([st,m-q+1]);sp=false;}}state[m]=sp;}
+  if(sp)segs.push([st,e.length]);return {floor,Th,Tl,state,segs:segs.map(([a,b])=>[a*0.01+0.0125,b*0.01+0.0125]).filter(([a,b])=>b-a>=minSec)};}
+function drawVad(){const snr=+$('vSnr').value,hi=+$('vHi').value;let lo=+$('vLo').value;if(lo>hi){lo=hi;$('vLo').value=hi;}
+  $('vSnrO').textContent=VSRC?'(녹음)':snr+' dB';$('vHiO').textContent='+'+hi+' dB';$('vLoO').textContent='+'+lo+' dB';$('vHangO').textContent=$('vHang').value+' ms';$('vMinO').textContent=$('vMin').value+' ms';
+  VX=VSRC||mixSNR(CLEAN,NZ.white,snr).x;const F=frameFeat(VX);const R=energyVad(F.e,hi,lo,+$('vHang').value/1000,+$('vMin').value/1000);VSEG=R.segs;const D=VX.length/SR;
+  const {c,w,h}=fit($('vadCv'),320);c.clearRect(0,0,w,h);const x0=44,pw_=w-56;const tx=t=>x0+t/D*pw_;
+  const bands=[[8,80],[100,150],[268,40]];
+  c.fillStyle=css('--asr');c.globalAlpha=.16;VSEG.forEach(([a,b])=>c.fillRect(tx(a),8,tx(b)-tx(a),h-34));c.globalAlpha=1;
+  if(!VSRC){c.fillStyle=css('--llm');TRUTH.forEach(([a,b])=>c.fillRect(tx(a),2,tx(b)-tx(a),4));}
+  let mx=0;for(const v of VX)mx=Math.max(mx,Math.abs(v));const [wy,wh]=bands[0];c.strokeStyle=css('--net');c.lineWidth=1;c.beginPath();for(let px=0;px<pw_;px++){const i0=Math.floor(px/pw_*VX.length),i1=Math.floor((px+1)/pw_*VX.length);let a=1e9,b=-1e9;for(let i=i0;i<i1;i+=4){a=Math.min(a,VX[i]);b=Math.max(b,VX[i]);}c.moveTo(x0+px+.5,wy+wh/2-b/mx*wh/2);c.lineTo(x0+px+.5,wy+wh/2-a/mx*wh/2);}c.stroke();
+  const [ey,eh]=bands[1];const emin=Math.min(...F.e,R.floor-3),emax=Math.max(...F.e,R.Th+3),eyf=v=>ey+eh-(v-emin)/(emax-emin)*eh;
+  c.strokeStyle=css('--ink');c.lineWidth=1.4;c.beginPath();for(let m=0;m<F.M;m++){const X=tx(m*0.01+0.0125);m?c.lineTo(X,eyf(F.e[m])):c.moveTo(X,eyf(F.e[m]));}c.stroke();
+  [[R.Th,'--bad','T_high'],[R.Tl,'--llm','T_low'],[R.floor,'--muted','floor']].forEach(([v,col,lab])=>{c.strokeStyle=css(col);c.setLineDash([5,4]);c.beginPath();c.moveTo(x0,eyf(v));c.lineTo(x0+pw_,eyf(v));c.stroke();c.setLineDash([]);c.fillStyle=css(col);c.font='10px '+FONT;c.fillText(lab,4,eyf(v)+3);});
+  const [zy,zh]=bands[2];c.strokeStyle=css('--s2s');c.beginPath();for(let m=0;m<F.M;m++){const X=tx(m*0.01+0.0125),Y=zy+zh-Math.min(0.6,F.z[m])/0.6*zh;m?c.lineTo(X,Y):c.moveTo(X,Y);}c.stroke();
+  c.fillStyle=css('--muted');c.font='10px '+FONT;c.fillText('파형',4,wy+12);c.fillText('에너지 dB',4,ey+10);c.fillText('ZCR',4,zy+10);for(let t=0;t<=D;t+=1)c.fillText(t+'s',tx(t)-4,h-4);
+  if(!VSRC){c.fillStyle=css('--llm');c.fillText('주황 띠: 실제 음절 위치',x0+4,16);}
+  const truthMask=t=>VSRC?false:truthAt(t);let agree=0;if(!VSRC){for(let m=0;m<F.M;m++){const t=m*0.01+0.0125;const pr=VSEG.some(([a,b])=>t>=a&&t<b);agree+=(pr===truthMask(t))?1:0;}}
+  $('vKv').innerHTML=`<div><span>잡음 바닥 (하위 10%)</span><b>${R.floor.toFixed(1)} dB</b></div><div><span>T_high / T_low</span><b>${R.Th.toFixed(1)} / ${R.Tl.toFixed(1)} dB</b></div><div><span>검출 구간</span><b>${VSEG.length}개</b></div>${VSRC?'':`<div><span>실제 음절과 프레임 일치율</span><b>${(agree/F.M*100).toFixed(1)}%</b></div>`}`;
+  $('vFx').innerHTML=`E[m] = 20·log<sub>10</sub> √(Σx²/N), N = 400 (25 ms), hop 160 (10 ms) &nbsp;·&nbsp; 시작: E &gt; floor + <b>${hi}</b> dB &nbsp;·&nbsp; 끝: E &lt; floor + <b>${lo}</b> dB 가 <b>${$('vHang').value}</b> ms 계속 &nbsp;·&nbsp; <b>${$('vMin').value}</b> ms 미만 구간은 버림<br>구간(초): ${VSEG.map(([a,b])=>`${a.toFixed(2)}~${b.toFixed(2)}`).join(', ')||'없음'}${!VSRC&&snr<=5?'<br>⚠️ 잡음이 크면 잡음 바닥이 올라와 음성과의 차이가 줄어듭니다. 에너지 VAD의 한계 → Silero VAD (D4-8)':''}${hi===lo?'<br>T_high = T_low: 히스테리시스가 없어 경계에서 켜졌다 꺼졌다를 반복하기 쉽습니다.':''}`;}
+$('vSrcSyn').onclick=()=>{VSRC=null;$('vMicSt').textContent='';drawVad();};
+$('vMic').onclick=async()=>{try{const st=await navigator.mediaDevices.getUserMedia({audio:true});const rec=new MediaRecorder(st);const ch=[];rec.ondataavailable=e=>ch.push(e.data);
+  rec.onstop=async()=>{st.getTracks().forEach(t=>t.stop());const ab=await new Blob(ch).arrayBuffer();const b=await ac().decodeAudioData(ab);const off=new OfflineAudioContext(1,Math.ceil(b.duration*SR),SR);const s=off.createBufferSource();s.buffer=b;s.connect(off.destination);s.start();const r=await off.startRendering();VSRC=r.getChannelData(0).slice();$('vMicSt').textContent=`녹음 ${(VSRC.length/SR).toFixed(1)}초 분석 완료`;drawVad();};
+  rec.start();let n=4;$('vMicSt').textContent='🔴 녹음 중… 4';const iv=setInterval(()=>{n--;if(n>0)$('vMicSt').textContent='🔴 녹음 중… '+n;else{clearInterval(iv);rec.stop();}},1000);}catch(e){$('vMicSt').textContent='마이크를 쓸 수 없습니다: '+e.name;}};
+$('vPlay').onclick=()=>{const parts=VSEG.map(([a,b])=>VX.slice(Math.floor(a*SR),Math.floor(b*SR)));const n=parts.reduce((s,p)=>s+p.length+1600,0);const y=new Float32Array(Math.max(1,n));let o=0;for(const p of parts){y.set(p,o);o+=p.length+1600;}playArr(y);};
+$('vPlayAll').onclick=()=>playArr(VX);
+REDRAW.vad=drawVad;
+
+/* ===== D4-8 silero ===== */
+let SNK='clean';chips('data-sn',v=>{SNK=v;drawSil();});['sTh','sSil','sSp','sPad'].forEach(id=>$(id).oninput=drawSil);
+function simProb(kind){const n=Math.floor(L/512),r=mulberry(kind==='clean'?3:kind==='5'?5:9),p=new Float64Array(n);const sd={clean:.04,'5':.1,'0':.17}[kind];let st=0;
+  for(let i=0;i<n;i++){const t=(i*512+256)/SR;let target=0;for(const [a,b] of TRUTH){if(t>=a-0.02&&t<=b+0.03){target=0.97;const edge=Math.min(t-a,b-t);if(edge<0.05)target=0.55+edge*8;}}
+    if(kind!=='clean'&&target>0.9&&r()<(kind==='0'?0.12:0.05))target=0.4;
+    st=0.45*st+0.55*target;p[i]=Math.min(1,Math.max(0,st+(r()-0.5)*2*sd*(target>0.5?0.6:1)+(kind==='0'&&target<0.5?0.08:0)));}return p;}
+const PROBS={clean:simProb('clean'),'5':simProb('5'),'0':simProb('0')};
+function sileroTs(p,th,minSil,minSp,pad){const neg=Math.max(th-0.15,0.01),ws=512,minSilS=minSil*SR/1000,minSpS=minSp*SR/1000,padS=pad*SR/1000;let trig=false,temp=0,cur={};const out=[];
+  for(let i=0;i<p.length;i++){const cs=i*ws;if(p[i]>=th&&temp)temp=0;if(p[i]>=th&&!trig){trig=true;cur={start:cs};continue;}
+    if(p[i]<neg&&trig){if(!temp)temp=cs;if(cs-temp<minSilS)continue;cur.end=temp;if(cur.end-cur.start>minSpS)out.push(cur);cur={};trig=false;temp=0;}}
+  if(trig&&L-cur.start>minSpS){cur.end=L;out.push(cur);}
+  for(let i=0;i<out.length;i++){if(i===0)out[i].start=Math.max(0,out[i].start-padS);if(i!==out.length-1){const sil=out[i+1].start-out[i].end;if(sil<2*padS){out[i].end+=Math.floor(sil/2);out[i+1].start=Math.max(0,out[i+1].start-Math.floor(sil/2));}else{out[i].end=Math.min(L,out[i].end+padS);out[i+1].start=Math.max(0,out[i+1].start-padS);}}else out[i].end=Math.min(L,out[i].end+padS);}
+  return {segs:out.map(d=>[d.start/SR,d.end/SR]),neg};}
+function drawSil(){const th=+$('sTh').value,mSil=+$('sSil').value,mSp=+$('sSp').value,pad=+$('sPad').value;$('sThO').textContent=th.toFixed(2);$('sSilO').textContent=mSil+' ms';$('sSpO').textContent=mSp+' ms';$('sPadO').textContent=pad+' ms';
+  const p=PROBS[SNK];const R=sileroTs(p,th,mSil,mSp,pad);
+  const {c,w,h}=fit($('silCv'),260);c.clearRect(0,0,w,h);const x0=44,pw_=w-56,ph=h-70,tx=t=>x0+t/DUR*pw_,py=v=>14+ph-v*ph;
+  c.fillStyle=css('--asr');c.globalAlpha=.16;R.segs.forEach(([a,b])=>c.fillRect(tx(a),14,tx(b)-tx(a),ph));c.globalAlpha=1;
+  c.fillStyle=css('--llm');TRUTH.forEach(([a,b])=>c.fillRect(tx(a),h-46,tx(b)-tx(a),6));c.fillStyle=css('--asr');R.segs.forEach(([a,b])=>c.fillRect(tx(a),h-36,tx(b)-tx(a),6));
+  c.strokeStyle=css('--tts');c.lineWidth=1.6;c.beginPath();for(let i=0;i<p.length;i++){const X=tx((i*512+256)/SR);i?c.lineTo(X,py(p[i])):c.moveTo(X,py(p[i]));}c.stroke();
+  c.fillStyle=css('--tts');for(let i=0;i<p.length;i++){c.fillRect(tx((i*512+256)/SR)-1,py(p[i])-1,2,2);}
+  [[th,'--bad',`threshold ${th.toFixed(2)}`],[R.neg,'--llm',`neg ${R.neg.toFixed(2)}`]].forEach(([v,col,lab])=>{c.strokeStyle=css(col);c.setLineDash([5,4]);c.beginPath();c.moveTo(x0,py(v));c.lineTo(x0+pw_,py(v));c.stroke();c.setLineDash([]);c.fillStyle=css(col);c.font='10px '+FONT;c.fillText(lab,x0+pw_-80,py(v)-3);});
+  c.fillStyle=css('--muted');c.font='10px '+FONT;c.fillText('p',8,py(1)+4);c.fillText('1',30,py(1)+4);c.fillText('0',30,py(0)+4);c.fillText('실제 음절',2,h-40);c.fillText('검출 구간',2,h-30);for(let t=0;t<=DUR;t+=1)c.fillText(t+'s',tx(t)-4,h-6);
+  const z=c.font;c.fillStyle=css('--muted');c.fillText(`점 하나 = 512샘플 = 32 ms (총 ${p.length}개)`,x0+60,10);
+  const spSec=R.segs.reduce((s,[a,b])=>s+b-a,0);
+  $('sKv').innerHTML=`<div><span>검출 구간</span><b>${R.segs.length}개</b></div><div><span>음성 길이 / 전체</span><b>${spSec.toFixed(2)} / ${DUR.toFixed(2)} s</b></div><div><span>음성 비율</span><b>${(spSec/DUR*100).toFixed(0)}%</b></div>`;
+  $('sCode').innerHTML=`<span class="cm"># 노트북 Part 6</span>\nts = get_speech_timestamps(wav, model, sampling_rate=16000,\n        <span class="hl">threshold=${th.toFixed(2)}, min_silence_duration_ms=${mSil},\n        min_speech_duration_ms=${mSp}, speech_pad_ms=${pad}</span>, return_seconds=True)\n<span class="cm"># →</span> ${JSON.stringify(R.segs.slice(0,4).map(([a,b])=>({start:+a.toFixed(1),end:+b.toFixed(1)})))}${R.segs.length>4?' ...':''}`;
+  $('sFx').innerHTML=`시작: p &gt; θ = <b>${th.toFixed(2)}</b> &nbsp;·&nbsp; 끝: p &lt; θ − 0.15 = <b>${R.neg.toFixed(2)}</b> 가 <b>${mSil}</b> ms 이상 &nbsp;·&nbsp; <b>${mSp}</b> ms 이하 구간 버림 &nbsp;·&nbsp; 앞뒤 <b>${pad}</b> ms 패딩 (구간 사이가 2×pad보다 좁으면 반씩 나눠 붙임)${mSil>=500?'<br>min_silence를 길게 하면 음절 · 단어 사이 쉼이 이어져 구간이 문장 단위로 합쳐집니다.':''}${SNK!=='clean'?'<br>잡음이 커도 확률 곡선은 대부분 0과 1로 갈립니다. 잠깐 떨어지는 곳은 min_silence가 메워 줍니다.':''}`;}
+REDRAW.silero=drawSil;
+
+/* ===== D4-9 pipeline ===== */
+const RAW=(()=>{const a=mixSNR(CLEAN,NZ.pink,10).x,x=new Float32Array(L);for(let i=0;i<L;i++)x[i]=(a[i]+0.08*NZ.hum[i])*0.18+0.15;return x;})();
+const STAGES=[
+ {k:'dc',t:'DC 제거',d:'x − 평균. 중심을 0으로 (Part 2)',c:'--net',on:false},
+ {k:'hp',t:'high-pass 80 Hz',d:'Butterworth 4차. 60 Hz 험과 저음 잡음 제거 (Part 2)',c:'--asr',on:false},
+ {k:'vad',t:'VAD',d:'음성 구간 찾기. 무음 구간 = 잡음 견본 (Part 5, 6)',c:'--llm',on:false},
+ {k:'nr',t:'잡음 제거 (prop 0.8)',d:'VAD 무음 구간으로 문턱 → spectral gating (Part 3, 4)',c:'--s2s',on:false},
+ {k:'norm',t:'RMS 정규화 −20 dBFS',d:'체감 크기 맞추기 + peak 0.99 제한 (Part 2)',c:'--tts',on:false},
+ {k:'cut',t:'자르기',d:'음성 구간만 남겨 이어 붙이기 (seg_00.wav ...)',c:'--ok',on:false}];
+$('pSt').innerHTML=STAGES.map((s,i)=>`<div class="pst" style="--c:var(${s.c});cursor:pointer" data-pi="${i}"><b>${i+1}</b><span><b style="color:var(${s.c})">${s.t}</b> — <span style="color:var(--muted)">${s.d}</span></span></div>`).join('');
+[...$('pSt').children].forEach(el=>el.onclick=()=>{STAGES[+el.dataset.pi].on=!STAGES[+el.dataset.pi].on;drawPipe();});
+$('pAll').onclick=()=>{STAGES.forEach(s=>s.on=true);drawPipe();};$('pNone').onclick=()=>{STAGES.forEach(s=>s.on=false);drawPipe();};
+let POUT=null,PSEG=[];
+function goertzel(x,f){const w=2*Math.PI*f/SR,cw=2*Math.cos(w);let s1=0,s2=0;for(const v of x){const s=v+cw*s1-s2;s2=s1;s1=s;}return Math.sqrt(s1*s1+s2*s2-cw*s1*s2)/x.length*2;}
+function gateWith(x,noiseIdx){const S=stft(x),M=S.M;const db=S.R.map((re,m)=>Float64Array.from({length:NB},(_,k)=>10*Math.log10(re[k]**2+S.I[m][k]**2+1e-12)));
+  const fr=[];for(let m=0;m<M;m++){const c=m*HP+NF/2;if(noiseIdx(c))fr.push(m);}if(fr.length<5)for(let m=0;m<Math.min(M,M0);m++)fr.push(m);
+  const mu=new Float64Array(NB),sd=new Float64Array(NB);for(const m of fr)for(let k=0;k<NB;k++)mu[k]+=db[m][k]/fr.length;for(const m of fr)for(let k=0;k<NB;k++)sd[k]+=(db[m][k]-mu[k])**2/fr.length;
+  const G=db.map(r=>Float64Array.from(r,(v,k)=>v>mu[k]+1.5*Math.sqrt(sd[k])?1:0));const sm=G.map(()=>new Float64Array(NB));for(let m=0;m<M;m++)for(let k=0;k<NB;k++){let s=0,n=0;for(let dm=-2;dm<=2;dm++)for(let dk=-1;dk<=1;dk++){const a=m+dm,b=k+dk;if(a>=0&&a<M&&b>=0&&b<NB){s+=G[a][b];n++;}}sm[m][k]=1-0.8*(1-s/n);}
+  return applyGain(S,sm,x.length);}
+function drawPipe(){[...$('pSt').children].forEach((el,i)=>{el.classList.toggle('on',STAGES[i].on);el.classList.toggle('cur',STAGES[i].on);});
+  const on=k=>STAGES.find(s=>s.k===k).on;let y=Float32Array.from(RAW);const notes=[];
+  if(on('dc')){const m=mean(y);for(let i=0;i<y.length;i++)y[i]-=m;notes.push(`DC ${m.toFixed(3)} 제거`);}
+  if(on('hp')){y=butterHP(y,80,4);notes.push('80 Hz high-pass');}
+  PSEG=[];if(on('vad')){const F=frameFeat(y);PSEG=energyVad(F.e,12,6,0.2,0.25).segs;notes.push(`VAD 구간 ${PSEG.length}개`);}
+  if(on('nr')){const inSeg=c=>!PSEG.length?c<0.5*SR:!PSEG.some(([a,b])=>c/SR>=a-0.05&&c/SR<=b+0.05);y=gateWith(y,inSeg);notes.push(PSEG.length?'잡음 견본 = VAD 무음 구간':'잡음 견본 = 앞 0.5초 (VAD 꺼짐)');}
+  if(on('norm')){const g=Math.pow(10,(-20-rmsDb(y))/20);for(let i=0;i<y.length;i++)y[i]*=g;let m=0;for(const v of y)m=Math.max(m,Math.abs(v));if(m>0.99)for(let i=0;i<y.length;i++)y[i]*=0.99/m;notes.push('RMS −20 dBFS');}
+  let segsShow=PSEG;if(on('cut')){if(!PSEG.length){const F=frameFeat(y);PSEG=energyVad(F.e,12,6,0.2,0.25).segs;}const parts=PSEG.map(([a,b])=>y.slice(Math.floor(a*SR),Math.floor(b*SR)));const n=parts.reduce((s,p)=>s+p.length+800,0);const z=new Float32Array(n);let o=0;const ns=[];for(const p of parts){z.set(p,o);ns.push([o/SR,(o+p.length)/SR]);o+=p.length+800;}y=z;segsShow=ns;notes.push(`음성만 ${(n/SR).toFixed(2)}초로 자름`);}
+  POUT=y;
+  let {c,w,h}=fit($('pWave'),150);c.clearRect(0,0,w,h);const D=y.length/SR,tx=t=>t/Math.max(D,DUR)*w;let mx=1;c.strokeStyle=css('--line');c.beginPath();c.moveTo(0,h/2);c.lineTo(w,h/2);c.stroke();
+  c.fillStyle=css('--asr');c.globalAlpha=.16;segsShow.forEach(([a,b])=>c.fillRect(tx(a),0,tx(b)-tx(a),h));c.globalAlpha=1;
+  c.strokeStyle=css('--s2s');c.lineWidth=1;c.beginPath();const pxN=Math.floor(tx(D));for(let px=0;px<pxN;px++){const i0=Math.floor(px/pxN*y.length),i1=Math.floor((px+1)/pxN*y.length);let a=1e9,b=-1e9;for(let i=i0;i<i1;i+=3){a=Math.min(a,y[i]);b=Math.max(b,y[i]);}c.moveTo(px+.5,h/2-b/mx*h*0.48);c.lineTo(px+.5,h/2-a/mx*h*0.48);}c.stroke();
+  c.fillStyle=css('--muted');c.font='10px '+FONT;c.fillText('±1.0 기준 (실제 크기)',4,12);c.fillText(`${D.toFixed(2)} s`,Math.max(40,tx(D)-40),h-4);
+  const S=stft(y);const mat=S.R.map((re,m)=>Float64Array.from({length:NB},(_,k)=>10*Math.log10(re[k]**2+S.I[m][k]**2+1e-12)));const top=Math.max(...mat.map(r=>Math.max(...r)));drawSpec($('pSpec'),190,mat,top-75,top,4000,null,segsShow);
+  $('pKv').innerHTML=`<div><span>RMS / peak</span><b>${rmsDb(y).toFixed(1)} / ${pkDb(y).toFixed(1)} dBFS</b></div><div><span>평균 (DC)</span><b>${mean(y).toFixed(4)}</b></div><div><span>60 Hz 험 크기</span><b>${(20*Math.log10(goertzel(y,60)+1e-9)).toFixed(1)} dB</b></div><div><span>길이</span><b>${D.toFixed(2)} s</b></div>`;
+  $('pFx').innerHTML=`켜진 단계: ${notes.length?notes.map(n=>`<b>${n}</b>`).join(' → '):'없음 (원본 녹음: 작고, DC 0.15, 60 Hz 험, pink 잡음 SNR 10 dB)'}<br>노트북: <code>preprocess(src, denoise=0.8)</code> = 형식 통일 → DC · high-pass → Silero VAD → 무음 구간으로 잡음 제거 → RMS 정규화 → 구간별 저장 (이 화면의 VAD는 설명용 에너지 VAD)`;}
+$('pPlay').onclick=()=>playArr(POUT);
+REDRAW.pipe=drawPipe;
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>
