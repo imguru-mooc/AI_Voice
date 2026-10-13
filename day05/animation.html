@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D5 딥러닝 오디오 분류: 인터랙티브 수업 자료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>D5 딥러닝 오디오 분류</h1>
+  <p>Speech Commands 데이터셋, 1초 Log-Mel 입력, CNN의 합성곱과 모양 계산, softmax와 cross-entropy, 경사 하강법과 학습 곡선, 혼동 행렬, SpecAugment를 직접 움직여 보는 수업 자료입니다. 탭 번호 D5-1 ~ D5-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D5-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="data"><span class="tc">D5-2</span>데이터셋과 분할</button>
+  <button role="tab" aria-selected="false" data-t="feature"><span class="tc">D5-3</span>1초 음성 → Log-Mel</button>
+  <button role="tab" aria-selected="false" data-t="conv"><span class="tc">D5-4</span>합성곱</button>
+  <button role="tab" aria-selected="false" data-t="net"><span class="tc">D5-5</span>모델 구조</button>
+  <button role="tab" aria-selected="false" data-t="softmax"><span class="tc">D5-6</span>softmax · loss</button>
+  <button role="tab" aria-selected="false" data-t="train"><span class="tc">D5-7</span>경사 하강법 · 학습 곡선</button>
+  <button role="tab" aria-selected="false" data-t="confusion"><span class="tc">D5-8</span>혼동 행렬</button>
+  <button role="tab" aria-selected="false" data-t="specaug"><span class="tc">D5-9</span>SpecAugment</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D5-1</span>오늘 만들 것: 1초 음성을 듣고 10개 단어 중 하나를 맞히는 CNN</h2>
+  <p class="lead">노트북은 여섯 단계로 진행됩니다. 단계를 눌러 무엇을 하는지 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="data">
+  <h2><span class="hc">D5-2</span>데이터셋과 분할: 화자 기준으로 나누는 이유</h2>
+  <p class="lead">점 하나가 녹음 하나, 색이 화자입니다. 무작위로 나누면 같은 사람의 목소리가 학습과 테스트에 모두 들어가 모델이 <b>목소리를 외워서</b> 맞힐 수 있습니다. 화자 기준으로 나누면 테스트는 <b>처음 듣는 사람</b>만 남습니다.</p>
+  <div class="stage">
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">분할 방법:</span>
+      <button class="chip" style="--c:var(--bad)" data-sp="random" aria-pressed="false">무작위 분할</button><button class="chip" style="--c:var(--ok)" data-sp="speaker" aria-pressed="true">화자 기준 분할 (hash mod 100)</button>
+      <button class="btn" id="spNew">다른 화자들로 다시</button>
+    </div>
+    <canvas id="splitCv" height="260"></canvas>
+    <div class="kv" id="splitKv"></div>
+    <div class="fx" id="splitFx"></div>
+    <h3 style="margin:22px 0 6px">1초로 맞추기: pad_or_trim()</h3>
+    <label class="sl"><span>원래 길이</span><input type="range" id="padSl" min="0.3" max="1.5" step="0.01" value="0.62"><output id="padO"></output></label>
+    <canvas id="padCv" height="150"></canvas>
+    <div class="fx" id="padFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="feature">
+  <h2><span class="hc">D5-3</span>1초 음성 → Log-Mel 이미지 (1 × 64 × 101)</h2>
+  <p class="lead">키워드를 고르면 설명용 합성 음성과 그 Log-Mel이 나옵니다. n_mels와 hop을 바꾸면 이미지의 세로 · 가로 크기, 즉 CNN 입력 모양이 바뀝니다.</p>
+  <div class="stage">
+    <div class="row" id="kwChips"></div>
+    <label class="sl"><span>n_mels (세로)</span><input type="range" id="nmSl" min="16" max="128" step="8" value="64"><output id="nmO"></output></label>
+    <label class="sl"><span>hop (가로 간격)</span><input type="range" id="hopSl" min="80" max="320" step="80" value="160"><output id="hopO"></output></label>
+    <div class="row"><button class="btn primary" id="featPlay">▶ 소리 듣기</button></div>
+    <canvas id="featWave" height="110"></canvas>
+    <canvas id="featCv" height="230" style="margin-top:8px"></canvas>
+    <div class="fx" id="featFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="conv">
+  <h2><span class="hc">D5-4</span>합성곱: 필터와 겹친 칸끼리 곱해서 더하기</h2>
+  <p class="lead">왼쪽 입력(Log-Mel 일부) 위를 분홍 필터가 미끄러지며 곱해서 더한 값이 오른쪽 출력 칸을 하나씩 채웁니다. K(커널) · P(패딩) · S(보폭)를 바꿔 출력 크기 공식을 확인하세요.</p>
+  <div class="stage">
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">필터:</span>
+      <button class="chip" style="--c:var(--tts)" data-kn="h" aria-pressed="true">가로 줄 찾기</button><button class="chip" style="--c:var(--s2s)" data-kn="v" aria-pressed="false">세로 경계 찾기</button><button class="chip" style="--c:var(--asr)" data-kn="avg" aria-pressed="false">평균 (흐리게)</button>
+    </div>
+    <label class="sl"><span>커널 K</span><input type="range" id="kSl" min="1" max="5" step="2" value="3"><output id="kO"></output></label>
+    <label class="sl"><span>패딩 P</span><input type="range" id="pSl" min="0" max="2" step="1" value="1"><output id="pO"></output></label>
+    <label class="sl"><span>보폭 S</span><input type="range" id="sSl" min="1" max="2" step="1" value="1"><output id="sO"></output></label>
+    <div class="row"><button class="btn primary" id="convPlay">▶ 미끄러지기</button><button class="btn" id="convStep">한 칸</button><button class="btn" id="convAll">끝까지</button></div>
+    <canvas id="convCv" height="300"></canvas>
+    <div class="fx" id="convFx"></div>
+    <h3 style="margin:18px 0 6px">파라미터 수 계산기</h3>
+    <label class="sl"><span>입력 채널 C<sub>in</sub></span><input type="range" id="ciSl" min="1" max="128" step="1" value="16"><output id="ciO"></output></label>
+    <label class="sl"><span>출력 채널 C<sub>out</sub></span><input type="range" id="coSl" min="1" max="128" step="1" value="32"><output id="coO"></output></label>
+    <div class="fx" id="parFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="net">
+  <h2><span class="hc">D5-5</span>KWSNet 모양 추적: 층마다 모양과 파라미터</h2>
+  <p class="lead">층을 누르면 그 층에서 모양이 어떻게 바뀌는지 계산 과정이 나옵니다. 기본 채널 수와 n_mels를 바꿔 모델 크기가 어떻게 달라지는지 보세요.</p>
+  <div class="stage">
+    <label class="sl"><span>기본 채널 수</span><input type="range" id="chSl" min="8" max="64" step="8" value="16"><output id="chO"></output></label>
+    <label class="sl"><span>n_mels</span><input type="range" id="nm2Sl" min="40" max="128" step="8" value="64"><output id="nm2O"></output></label>
+    <div class="pstages" id="netSt"></div>
+    <canvas id="netCv" height="170" style="margin-top:10px"></canvas>
+    <div class="fx" id="netFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="softmax">
+  <h2><span class="hc">D5-6</span>softmax와 cross-entropy</h2>
+  <p class="lead">모델이 낸 점수(logit)를 슬라이더로 바꿔 보세요. softmax 확률, 정답 칸의 손실 −log p<sub>y</sub>, 그리고 각 logit을 어느 쪽으로 밀어야 하는지(기울기 p − onehot)가 함께 바뀝니다.</p>
+  <div class="stage">
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">정답:</span><span id="tgtChips" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
+    <div class="row"><button class="btn" id="smUniform">학습 전 (모두 0)</button><button class="btn" id="smGood">잘 맞힘</button><button class="btn" id="smBad">확신 있게 틀림</button></div>
+    <div id="logitSl" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0 18px"></div>
+    <canvas id="smCv" height="230"></canvas>
+    <div class="kv" id="smKv"></div>
+    <div class="fx" id="smFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="train">
+  <h2><span class="hc">D5-7</span>경사 하강법과 학습 곡선</h2>
+  <p class="lead">위: 공(파라미터)이 손실 골짜기를 따라 θ ← θ − η∇L로 내려갑니다. 학습률 η를 바꿔 너무 작을 때 · 적당할 때 · 너무 클 때를 비교하세요. 아래: 데이터 양과 증강에 따라 학습 곡선이 어떻게 달라지는지 보여 주는 <b>예시 시뮬레이션</b>입니다.</p>
+  <div class="stage">
+    <label class="sl"><span>학습률 η</span><input type="range" id="lrSl" min="0" max="1" step="0.01" value="0.2"><output id="lrO"></output></label>
+    <div class="row"><button class="btn primary" id="gdStep">한 걸음</button><button class="btn" id="gdRun">10걸음</button><button class="btn" id="gdReset">처음으로</button></div>
+    <canvas id="gdCv" height="230"></canvas>
+    <div class="fx" id="gdFx"></div>
+    <h3 style="margin:22px 0 6px">학습 곡선 (예시)</h3>
+    <label class="sl"><span>단어당 학습 데이터</span><input type="range" id="dataSl" min="100" max="3000" step="100" value="1500"><output id="dataO"></output></label>
+    <label class="sl"><span>epoch</span><input type="range" id="epSl" min="5" max="60" step="1" value="30"><output id="epO"></output></label>
+    <div class="row"><label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="augChk"> SpecAugment 켜기</label><label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="esChk"> 조기 종료 표시</label></div>
+    <canvas id="curveCv" height="220"></canvas>
+    <div class="fx" id="curveFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="confusion">
+  <h2><span class="hc">D5-8</span>혼동 행렬: 정확도 · 정밀도 · 재현율</h2>
+  <p class="lead">행은 정답, 열은 예측입니다(예시 값). 단어를 누르면 그 단어의 행(재현율)과 열(정밀도)이 강조되고 계산 과정이 나옵니다. 칸을 누르면 "무엇을 무엇으로 헷갈렸나"가 나옵니다.</p>
+  <div class="stage">
+    <div class="row" id="cmChips"></div>
+    <canvas id="cmCv" height="420"></canvas>
+    <div class="kv" id="cmKv"></div>
+    <div class="fx" id="cmFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="specaug">
+  <h2><span class="hc">D5-9</span>SpecAugment: 가려도 알아듣게 훈련하기</h2>
+  <p class="lead">Log-Mel의 가로(시간)와 세로(주파수) 띠를 무작위로 가립니다. 학습할 때만 매번 새로 가리고, 평가 · 예측할 때는 가리지 않습니다.</p>
+  <div class="stage">
+    <div class="row" id="saChips"></div>
+    <label class="sl"><span>주파수 마스크 최대 폭 F</span><input type="range" id="saF" min="0" max="24" step="1" value="8"><output id="saFO"></output></label>
+    <label class="sl"><span>시간 마스크 최대 폭 T</span><input type="range" id="saT" min="0" max="40" step="1" value="12"><output id="saTO"></output></label>
+    <label class="sl"><span>마스크 개수 (각각)</span><input type="range" id="saN" min="1" max="3" step="1" value="1"><output id="saNO"></output></label>
+    <label class="sl"><span>시간 이동 최대</span><input type="range" id="saS" min="0" max="20" step="1" value="10"><output id="saSO"></output></label>
+    <div class="row"><button class="btn primary" id="saNew">🎲 새로 뽑기 (다음 배치)</button></div>
+    <div class="two"><div><h3>원본</h3><canvas id="saOrig" height="200"></canvas></div><div><h3>증강된 입력</h3><canvas id="saAug" height="200"></canvas></div></div>
+    <div class="fx" id="saFx"></div>
+  </div>
+</section>
+
+<footer>음성 AI 전문가 과정 160시간, 1주차 D5 실습 노트북 연계 자료 · 탭 번호 D5-1 ~ D5-9는 워크시트와 슬라이드의 🎬 번호와 같습니다 · 소리와 일부 수치는 설명용 합성 · 예시입니다</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+const SR=16000;
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+let actx=null;function ac(){if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx;}
+let curSrc=null;function playArr(data,sr=SR){const a=ac();const buf=a.createBuffer(1,data.length,sr);buf.copyToChannel(Float32Array.from(data),0);if(curSrc){try{curSrc.stop()}catch(e){}}const s=a.createBufferSource();s.buffer=buf;s.connect(a.destination);s.start();curSrc=s;}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}}
+  for(let len=2;len<=n;len<<=1){const ang=-2*Math.PI/len,wr=Math.cos(ang),wi=Math.sin(ang);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let k=0;k<len/2;k++){const ur=re[i+k],ui=im[i+k],vr=re[i+k+len/2]*cr-im[i+k+len/2]*ci,vi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;re[i+k]=ur+vr;im[i+k]=ui+vi;re[i+k+len/2]=ur-vr;im[i+k+len/2]=ui-vi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t;}}}}
+const STOPS=[[0,0,4],[59,15,112],[140,41,129],[222,73,104],[254,159,109],[252,253,191]];
+function cmap(t){t=Math.min(1,Math.max(0,t))*(STOPS.length-1);const i=Math.min(STOPS.length-2,Math.floor(t)),f=t-i;return STOPS[i].map((v,j)=>v+(STOPS[i+1][j]-v)*f);}
+function drawImg(c,x,y,w,h,mat,vmin,vmax,map){const R=mat.length,Cc=mat[0].length;const off=document.createElement('canvas');off.width=Cc;off.height=R;const oc=off.getContext('2d');const img=oc.createImageData(Cc,R);
+  for(let i=0;i<R;i++)for(let j=0;j<Cc;j++){const [r,g,b]=(map||cmap)((mat[i][j]-vmin)/(vmax-vmin));const p=((R-1-i)*Cc+j)*4;img.data[p]=r;img.data[p+1]=g;img.data[p+2]=b;img.data[p+3]=255;}
+  oc.putImageData(img,0,0);c.imageSmoothingEnabled=false;c.drawImage(off,x,y,w,h);}
+function axes(c,x,y,w,h,col){c.strokeStyle=col;c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(x,y+h);c.lineTo(x+w,y+h);c.stroke();}
+function chips(attr,cb){const bs=[...document.querySelectorAll(`[${attr}]`)];bs.forEach(b=>b.onclick=()=>{bs.forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+
+/* ===== synthetic keywords ===== */
+const KW=['yes','no','up','down','left','right','on','off','stop','go'];
+const WP={yes:[500,2000,1,0.42],no:[450,900,1,0.4],up:[650,1200,1,0.3],down:[600,1000,1,0.45],left:[550,1800,2,0.5],right:[650,1500,1,0.45],on:[550,900,1,0.35],off:[600,1000,1,0.38],stop:[600,1100,1,0.42],go:[450,800,1,0.4]};
+function syllable(f0,F1,F2,sec,fric){const n=Math.floor(SR*sec),y=new Float32Array(n);const K=Math.floor(SR/2/f0/1.1);let ph=0;const r=mulberry(Math.round(F1+F2));
+  const g=[];for(let k=1;k<=K;k++){const f=k*f0;g.push(Math.exp(-(((f-F1)/160)**2))+0.7*Math.exp(-(((f-F2)/220)**2))+0.03);}
+  for(let i=0;i<n;i++){const t=i/SR;ph+=2*Math.PI*f0*(1+0.08*Math.sin(2*Math.PI*1.5*t))/SR;let v=0;for(let k=1;k<=K;k++)v+=g[k-1]*Math.sin(k*ph);y[i]=v*Math.pow(Math.sin(Math.PI*Math.min(1,t/sec)),0.6);}return y;}
+const WCACHE={};
+function wordWave(k){if(WCACHE[k])return WCACHE[k];const [F1,F2,n,dur]=WP[k];const y=new Float32Array(SR);const r=mulberry(k.length*97+k.charCodeAt(0));
+  for(let s=0;s<n;s++){const seg=syllable(140+15*s,F1*(1+0.15*s),F2*(1-0.1*s),dur/n);const a=Math.floor((0.15+s*dur/n)*SR);for(let i=0;i<seg.length&&a+i<SR;i++)y[a+i]+=seg[i];}
+  if(k==='stop'||k==='yes'){const a=Math.floor((k==='yes'?0.5:0.05)*SR),L=Math.floor(0.09*SR);for(let i=0;i<L;i++){const e=Math.sin(Math.PI*i/L);y[a+i]+=(r()-0.5)*0.9*e*(k==='yes'?1:0.8);}}
+  if(k==='stop'){const a=Math.floor(0.6*SR);for(let i=0;i<500;i++)y[a+i]+=(r()-0.5)*1.2*Math.exp(-i/120);}
+  let m=0;for(const v of y)m=Math.max(m,Math.abs(v));for(let i=0;i<SR;i++)y[i]=y[i]/m*0.8;WCACHE[k]=y;return y;}
+const melOf=f=>2595*Math.log10(1+f/700),hzOf=m=>700*(Math.pow(10,m/2595)-1);
+function logmel(y,nMels=64,hop=160){const N=400,NF=512,M=1+Math.floor(y.length/hop);const win=Float64Array.from({length:N},(_,n)=>0.5-0.5*Math.cos(2*Math.PI*n/N));
+  const pad=N/2;const fmax=SR/2,pts=Array.from({length:nMels+2},(_,i)=>hzOf(melOf(fmax)*i/(nMels+1)));const bins=NF/2+1;
+  const P=[];for(let m=0;m<M;m++){const re=new Float64Array(NF),im=new Float64Array(NF);for(let n=0;n<N;n++){let idx=m*hop+n-pad;if(idx<0)idx=-idx;if(idx>=y.length)idx=2*y.length-idx-2;re[n]=(y[idx]||0)*win[n];}fft(re,im);
+    const row=new Float64Array(nMels);for(let k=0;k<bins;k++){const f=k*SR/NF,p=re[k]**2+im[k]**2;for(let b=0;b<nMels;b++){const lo=pts[b],ce=pts[b+1],hi=pts[b+2];if(f>lo&&f<hi){row[b]+=p*(f<=ce?(f-lo)/(ce-lo):(hi-f)/(hi-ce));}}}P.push(row);}
+  let mx=-1e9;const D=P.map(r=>Array.from(r,v=>{const d=10*Math.log10(v+1e-10);mx=Math.max(mx,d);return d;}));
+  const out=[];for(let b=0;b<nMels;b++){out.push(D.map(r=>Math.max(r[b],mx-80)));}return {img:out,max:mx,M};}
+
+/* hero */
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.016;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const cols=[css('--asr'),css('--s2s'),css('--tts'),css('--llm')];
+  for(let i=0;i<10;i++){const x=10+i*(w-20)/10,bw=(w-20)/10-6,v=0.25+0.7*Math.abs(Math.sin(heroT*0.9+i*0.8));c.fillStyle=cols[i%4];c.globalAlpha=0.75;c.fillRect(x,h-v*h,bw,v*h);}c.globalAlpha=1;
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+/* tabs */
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+
+/* ===== D5-1 flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'Speech Commands',c:'--net',go:'data',items:['1초 · 16 kHz · 35단어 · 2,600명 이상','화자 hash로 학습 80 · 검증 10 · 테스트 10','10개 키워드 고르기, 1초 맞추기'],q:'🧩 빈칸 실습 1: np.pad(y, (0, n − len(y)))'},
+ {p:'Part 2',t:'Log-Mel 특징',c:'--asr',go:'feature',items:['torchaudio MelSpectrogram + AmplitudeToDB','모양 (1, 64, 101): 1 + 16000 // 160 = 101','학습 세트 μ, σ로 정규화, Dataset · DataLoader'],q:'🧩 빈칸 실습 2, 3: HOP, self.X[i]'},
+ {p:'Part 3',t:'CNN · softmax',c:'--s2s',go:'conv',items:['합성곱 = 곱해서 더하기, ⌊(H + 2P − K)/S⌋ + 1','파라미터 C_in·C_out·K² + C_out, 약 6만 개','softmax, cross-entropy −log p_y, 기울기 p − onehot'],q:'🧩 빈칸 실습 4, 5: n_classes, dim=1'},
+ {p:'Part 4',t:'학습 루프',c:'--llm',go:'train',items:['θ ← θ − η∇L, 미니배치, epoch, Adam','forward → loss → backward → step','학습 곡선, 과적합과 과소적합'],q:'🧩 빈칸 실습 6: backward, step'},
+ {p:'Part 5',t:'평가',c:'--tts',go:'confusion',items:['테스트 세트 = 처음 보는 화자','혼동 행렬, 정밀도(열) · 재현율(행) · F1','헷갈리는 쌍: no↔go, on↔off'],q:'🧩 빈칸 실습 7: argmax(dim=1)'},
+ {p:'Part 6',t:'SpecAugment · 미니 프로젝트',c:'--ink',go:'specaug',items:['주파수 · 시간 마스크 + 시간 이동 (학습 때만)','predict_keyword(): 1초 맞추기 → 같은 정규화 → top-3','모델 + μ, σ, 키워드를 함께 저장'],q:'🧩 빈칸 실습 8, 9: augment, MU'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${x}</li>`).join('')}</ul><p style="margin:8px 0 0">${r.q}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${i===2?'<button class="btn" data-go="net">모델 구조</button><button class="btn" data-go="softmax">softmax · loss</button>':''}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== D5-2 data split ===== */
+let SPM='speaker',spSeed=1;
+chips('data-sp',v=>{SPM=v;drawSplit();});$('spNew').onclick=()=>{spSeed++;drawSplit();};
+function hashStr(s){let h=5381;for(const ch of s)h=((h<<5)+h+ch.charCodeAt(0))>>>0;return h;}
+function drawSplit(){const r=mulberry(spSeed*7919);const NS=24,U=6;const spk=Array.from({length:NS},(_,i)=>({id:(r()*1e9|0).toString(16).padStart(8,'0'),hue:Math.round(i*360/NS)}));
+  const cols={train:[],val:[],test:[]};spk.forEach(s=>{for(let u=0;u<U;u++){let part;if(SPM==='speaker'){const h=hashStr(s.id)%100;part=h<10?'val':h<20?'test':'train';}else{const x=r();part=x<0.1?'val':x<0.2?'test':'train';}cols[part].push(s);}});
+  const {c,w,h}=fit($('splitCv'),260);c.clearRect(0,0,w,h);const parts=[['train','학습 (train)',0.6],['val','검증 (val)',0.2],['test','테스트 (test)',0.2]];let x0=10;
+  const trainSet=new Set(cols.train.map(s=>s.id));
+  parts.forEach(([k,lab,frac])=>{const W=(w-40)*frac;c.fillStyle=css('--soft');c.fillRect(x0,24,W,h-34);c.fillStyle=css('--ink');c.font='700 13px '+FONT;c.fillText(`${lab} · ${cols[k].length}개`,x0+6,16);
+    const per=Math.max(1,Math.floor((W-10)/14));cols[k].forEach((s,i)=>{const cx=x0+10+(i%per)*14,cy=36+Math.floor(i/per)*14;if(cy>h-14)return;c.fillStyle=`hsl(${s.hue} 65% 55%)`;c.beginPath();c.arc(cx,cy,5.5,0,7);c.fill();
+      if(k!=='train'&&trainSet.has(s.id)){c.strokeStyle=css('--bad');c.lineWidth=2;c.beginPath();c.arc(cx,cy,7.5,0,7);c.stroke();}});x0+=W+10;});
+  const testSpk=new Set(cols.test.map(s=>s.id)),valSpk=new Set(cols.val.map(s=>s.id));const leakT=[...testSpk].filter(s=>trainSet.has(s)).length,leakV=[...valSpk].filter(s=>trainSet.has(s)).length;
+  $('splitKv').innerHTML=`<div><span>테스트 화자 수</span><b>${testSpk.size}명</b></div><div><span>그중 학습에도 있는 화자</span><b style="color:var(${leakT?'--bad':'--ok'})">${leakT}명</b></div><div><span>검증 화자 중 학습에도 있는</span><b style="color:var(${leakV?'--bad':'--ok'})">${leakV}명</b></div>`;
+  $('splitFx').innerHTML=SPM==='speaker'?`split = hash(speaker) mod 100 → <b>0~9</b> 검증, <b>10~19</b> 테스트, 나머지 학습 &nbsp;·&nbsp; 같은 화자는 항상 같은 쪽 → 테스트 = <b>처음 듣는 목소리</b> (빨간 테두리 없음)`:`녹음마다 무작위로 나눔 → 빨간 테두리 = <b>학습에서 이미 들은 목소리</b>가 테스트에 섞임 → 정확도가 실제보다 높게 나오는 <b>데이터 누수</b>`;}
+$('padSl').oninput=drawPad;
+function drawPad(){const L=+$('padSl').value;$('padO').textContent=L.toFixed(2)+' s';const n=Math.round(L*SR);const src=wordWave('no');
+  const {c,w,h}=fit($('padCv'),150);c.clearRect(0,0,w,h);const D=1.5,tx=t=>20+t/D*(w-40),mid=h/2;
+  c.fillStyle=css('--llm');c.globalAlpha=.16;if(n<SR)c.fillRect(tx(L),10,tx(1)-tx(L),h-30);c.fillStyle=css('--bad');if(n>SR)c.fillRect(tx(1),10,tx(L)-tx(1),h-30);c.globalAlpha=1;
+  c.strokeStyle=css('--asr');c.beginPath();for(let px=0;px<tx(L)-20;px++){const t=px/(w-40)*D;const i=Math.floor(t/L*0.95*SR);const v=src[Math.min(SR-1,i)]||0;c.moveTo(20+px,mid-v*h*0.35);c.lineTo(20+px,mid+v*h*0.35);}c.stroke();
+  c.strokeStyle=css('--bad');c.setLineDash([5,4]);c.beginPath();c.moveTo(tx(1),6);c.lineTo(tx(1),h-18);c.stroke();c.setLineDash([]);
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('1초 = 16,000 샘플',tx(1)+4,16);for(let t=0;t<=1.5;t+=0.5)c.fillText(t+'s',tx(t)-6,h-4);
+  if(n<SR){c.fillStyle=css('--llm');c.fillText(`0으로 채움 ${SR-n}개`,tx(L)+6,h/2-30);}if(n>SR){c.fillStyle=css('--bad');c.fillText(`잘라 냄 ${n-SR}개`,tx(1)+6,h/2-30);}
+  $('padFx').innerHTML=n<SR?`len = <b>${n}</b> &lt; 16000 → np.pad(y, (0, <b>16000 − ${n} = ${SR-n}</b>))`:n>SR?`len = <b>${n}</b> &gt; 16000 → y[:16000] (뒤 <b>${n-SR}</b>개 버림)`:`len = 16000 → 그대로`;}
+REDRAW.data=()=>{drawSplit();drawPad();};
+
+/* ===== D5-3 feature ===== */
+let FK='yes';$('kwChips').innerHTML=KW.map((k,i)=>`<button class="chip" style="--c:var(${['--asr','--llm','--tts','--s2s','--net'][i%5]})" data-fk="${k}" aria-pressed="${k==='yes'}">${k}</button>`).join('');
+chips('data-fk',v=>{FK=v;drawFeat();playArr(wordWave(v));});['nmSl','hopSl'].forEach(id=>$(id).oninput=drawFeat);$('featPlay').onclick=()=>playArr(wordWave(FK));
+function drawFeat(){const nm=+$('nmSl').value,hop=+$('hopSl').value;$('nmO').textContent=nm;$('hopO').textContent=`${hop} (${hop/16} ms)`;const y=wordWave(FK);
+  let {c,w,h}=fit($('featWave'),110);c.clearRect(0,0,w,h);c.strokeStyle=css('--asr');c.beginPath();for(let px=0;px<w;px++){let a=1,b=-1;for(let i=Math.floor(px/w*SR);i<Math.floor((px+1)/w*SR);i+=2){a=Math.min(a,y[i]);b=Math.max(b,y[i]);}c.moveTo(px+.5,h/2-b*h*0.45);c.lineTo(px+.5,h/2-a*h*0.45);}c.stroke();
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText(`"${FK}" 파형 · 1초 · 16,000 샘플 (설명용 합성)`,6,14);
+  const L=logmel(y,nm,hop);({c,w,h}=fit($('featCv'),230));c.clearRect(0,0,w,h);drawImg(c,40,6,w-50,h-30,L.img,L.max-80,L.max);
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('mel',6,h/2);c.fillText(`0`,28,h-26);c.fillText(`${nm-1}`,14,14);c.fillText(`frame 0 … ${L.M-1}`,w/2-30,h-6);
+  $('featFx').innerHTML=`MelSpectrogram(n_fft=400, hop_length=<b>${hop}</b>, n_mels=<b>${nm}</b>) → AmplitudeToDB &nbsp;·&nbsp; frame 수 M = 1 + ⌊16000 / ${hop}⌋ = <b>${L.M}</b><br>CNN 입력 모양 = <b>(1, ${nm}, ${L.M})</b> &nbsp;·&nbsp; 숫자 ${(nm*L.M).toLocaleString()}개 ${nm===64&&hop===160?'= 노트북 설정 (1, 64, 101)':''}`;}
+REDRAW.feature=drawFeat;
+
+/* ===== D5-4 conv ===== */
+const KERN={h:[[-1,-1,-1],[2,2,2],[-1,-1,-1]],v:[[1,0,-1],[1,0,-1],[1,0,-1]],avg:[[1,1,1],[1,1,1],[1,1,1]].map(r=>r.map(v=>v/9))};
+let KN='h',convPos=0,convTimer=null;
+const INP=(()=>{const L=logmel(wordWave('left'),64,160).img;const out=[];for(let i=0;i<8;i++){out.push([]);for(let j=0;j<12;j++){const v=L[10+i*2][28+j*3];out[i].push(Math.round((v-L.reduce((a,r)=>Math.min(a,...r),1e9))/12));}}return out;})();
+function kernelK(K){if(K===3)return KERN[KN];if(K===1)return [[KN==='avg'?1:1]];const k=[];for(let i=0;i<5;i++){k.push([]);for(let j=0;j<5;j++){k[i].push(KN==='h'?(i===2?2:-0.5):KN==='v'?(j<2?1:j>2?-1:0):1/25);}}return k;}
+function convOut(){const K=+$('kSl').value,P=+$('pSl').value,S=+$('sSl').value;const H=INP.length,W=INP[0].length;const Ho=Math.floor((H+2*P-K)/S)+1,Wo=Math.floor((W+2*P-K)/S)+1;const k=kernelK(K);
+  const get=(i,j)=>(i<0||j<0||i>=H||j>=W)?0:INP[i][j];const out=[];for(let i=0;i<Ho;i++){out.push([]);for(let j=0;j<Wo;j++){let s=0;for(let u=0;u<K;u++)for(let v=0;v<K;v++)s+=k[u][v]*get(i*S+u-P,j*S+v-P);out[i].push(s);}}return {out,Ho,Wo,K,P,S,H,W,k};}
+chips('data-kn',v=>{KN=v;convPos=0;drawConv();});['kSl','pSl','sSl'].forEach(id=>$(id).oninput=()=>{convPos=0;drawConv();});
+$('convStep').onclick=()=>{const o=convOut();convPos=Math.min(o.Ho*o.Wo,convPos+1);drawConv();};
+$('convAll').onclick=()=>{const o=convOut();convPos=o.Ho*o.Wo;drawConv();};
+$('convPlay').onclick=()=>{clearInterval(convTimer);convPos=0;convTimer=setInterval(()=>{const o=convOut();convPos++;drawConv();if(convPos>=o.Ho*o.Wo||!$('conv').classList.contains('active'))clearInterval(convTimer);},RM?1:140);};
+function drawConv(){const o=convOut();$('kO').textContent=o.K+'×'+o.K;$('pO').textContent=o.P;$('sO').textContent=o.S;
+  const {c,w,h}=fit($('convCv'),300);c.clearRect(0,0,w,h);const cell=Math.min(26,(w*0.5-20)/(o.W+2*o.P),(h-40)/(o.H+2*o.P));const ox=10,oy=24;
+  c.fillStyle=css('--ink');c.font='700 12px '+FONT;c.fillText(`입력 ${o.H}×${o.W}${o.P?` (+패딩 ${o.P})`:''}`,ox,14);
+  for(let i=-o.P;i<o.H+o.P;i++)for(let j=-o.P;j<o.W+o.P;j++){const x=ox+(j+o.P)*cell,y=oy+(i+o.P)*cell;const pad=i<0||j<0||i>=o.H||j>=o.W;const v=pad?0:INP[i][j];
+    c.fillStyle=pad?css('--soft'):`rgb(${255-v*28},${255-v*28},${255-v*24})`;c.fillRect(x,y,cell-1,cell-1);c.fillStyle=pad?css('--muted'):(v>4?'#fff':'#1B2336');c.font=`${Math.max(8,cell*0.42)}px `+FONT;c.fillText(v,x+cell*0.32,y+cell*0.66);}
+  const n=Math.min(convPos,o.Ho*o.Wo);if(n>0&&n<=o.Ho*o.Wo){const idx=n-1,i=Math.floor(idx/o.Wo),j=idx%o.Wo;c.strokeStyle=css('--tts');c.lineWidth=3;c.strokeRect(ox+j*o.S*cell,oy+i*o.S*cell,o.K*cell-1,o.K*cell-1);}
+  const ox2=ox+(o.W+2*o.P)*cell+40,cell2=Math.min(26,(w-ox2-10)/o.Wo,(h-40)/o.Ho);c.fillStyle=css('--ink');c.font='700 12px '+FONT;c.fillText(`출력 ${o.Ho}×${o.Wo}`,ox2,14);
+  let mx=1e-9;o.out.forEach(r=>r.forEach(v=>mx=Math.max(mx,Math.abs(v))));
+  for(let i=0;i<o.Ho;i++)for(let j=0;j<o.Wo;j++){const x=ox2+j*cell2,y=oy+i*cell2,k=i*o.Wo+j;if(k<n){const t=o.out[i][j]/mx;c.fillStyle=t>=0?`rgba(194,65,122,${0.15+0.85*t})`:`rgba(30,158,143,${0.15-0.85*t})`;}else c.fillStyle=css('--soft');c.fillRect(x,y,cell2-1,cell2-1);
+    if(k===n-1){c.strokeStyle=css('--tts');c.lineWidth=2.5;c.strokeRect(x,y,cell2-1,cell2-1);}}
+  let calc='';if(n>0){const idx=n-1,i=Math.floor(idx/o.Wo),j=idx%o.Wo;calc=`<br>출력[${i},${j}] = Σ 필터 × 입력 = <b>${o.out[i][j].toFixed(1)}</b> (필터: ${KN==='h'?'가로 줄':KN==='v'?'세로 경계':'평균'})`;}
+  $('convFx').innerHTML=`H<sub>out</sub> = ⌊(H + 2P − K)/S⌋ + 1 = ⌊(${o.H} + ${2*o.P} − ${o.K})/${o.S}⌋ + 1 = <b>${o.Ho}</b> &nbsp;·&nbsp; W<sub>out</sub> = ⌊(${o.W} + ${2*o.P} − ${o.K})/${o.S}⌋ + 1 = <b>${o.Wo}</b>${o.K===3&&o.P===1&&o.S===1?' &nbsp;(K=3, P=1, S=1 → 크기 유지 = KWSNet 설정)':''}${calc}`;
+  drawPar();}
+['ciSl','coSl'].forEach(id=>$(id).oninput=drawPar);
+function drawPar(){const ci=+$('ciSl').value,co=+$('coSl').value,K=+$('kSl').value;$('ciO').textContent=ci;$('coO').textContent=co;
+  $('parFx').innerHTML=`Conv2d(${ci}, ${co}, kernel_size=${K}) 파라미터 = C<sub>in</sub>·C<sub>out</sub>·K² + C<sub>out</sub> = ${ci}·${co}·${K*K} + ${co} = <b>${(ci*co*K*K+co).toLocaleString()}</b><br>필터가 C<sub>out</sub>=${co}개, 각 필터는 ${ci}채널 × ${K}×${K} 크기 + 편향 1개 &nbsp;·&nbsp; 입력 이미지 크기와는 <b>무관</b>`;}
+REDRAW.conv=drawConv;
+
+/* ===== D5-5 net ===== */
+let NETSEL=0;
+function netLayers(){const b=+$('chSl').value,nm=+$('nm2Sl').value;const ch=[1,b,2*b,4*b,4*b];let H=nm,W=101;const L=[{n:'입력',d:'Log-Mel 이미지',shape:[1,H,W],p:0,calc:`(1, n_mels, 101) = (1, ${nm}, 101)`}];
+  for(let i=1;i<=4;i++){const ci=ch[i-1],co=ch[i];const pc=ci*co*9+co,pb=2*co;const H2=Math.floor(H/2),W2=Math.floor(W/2);
+    L.push({n:`Block ${i}`,d:`Conv 3×3 (${ci}→${co}) · BN · ReLU · MaxPool 2`,shape:[co,H2,W2],p:pc+pb,calc:`Conv: ⌊(${H} + 2 − 3)/1⌋ + 1 = ${H} (유지) → Pool: ⌊${H}/2⌋ = ${H2}, ⌊${W}/2⌋ = ${W2}<br>파라미터 = ${ci}·${co}·9 + ${co} = ${pc.toLocaleString()} (+ BN 2·${co} = ${pb})`});H=H2;W=W2;}
+  const c4=ch[4];L.push({n:'GAP',d:'채널마다 평균 하나',shape:[c4],p:0,calc:`(${c4}, ${H}, ${W}) → 칸 ${H*W}개 평균 → (${c4},). 파라미터 없음`});
+  L.push({n:'Linear',d:`Dropout 0.3 + Linear ${c4}→10`,shape:[10],p:c4*10+10,calc:`파라미터 = ${c4}·10 + 10 = ${c4*10+10} → logit 10개`});return L;}
+['chSl','nm2Sl'].forEach(id=>$(id).oninput=drawNet);
+function drawNet(){$('chO').textContent=$('chSl').value;$('nm2O').textContent=$('nm2Sl').value;const L=netLayers();const tot=L.reduce((s,l)=>s+l.p,0);
+  const cols=['--net','--asr','--asr','--s2s','--s2s','--llm','--tts'];
+  $('netSt').innerHTML=L.map((l,i)=>`<div class="pst ${i<=NETSEL?'on':''} ${i===NETSEL?'cur':''}" style="--c:var(${cols[i]});cursor:pointer" data-ni="${i}"><b>${i}</b><span><b style="color:var(${cols[i]})">${l.n}</b> — ${l.d} &nbsp;→&nbsp; <code>(${l.shape.join(', ')})</code> &nbsp;<span style="color:var(--muted)">params ${l.p.toLocaleString()}</span></span></div>`).join('');
+  [...$('netSt').children].forEach(el=>el.onclick=()=>{NETSEL=+el.dataset.ni;drawNet();});
+  const {c,w,h}=fit($('netCv'),170);c.clearRect(0,0,w,h);const mx=Math.max(...L.map(l=>l.p));const bw=(w-40)/L.length;
+  L.forEach((l,i)=>{const bh=l.p/mx*(h-50);c.fillStyle=css(cols[i]);c.globalAlpha=i===NETSEL?1:0.55;c.fillRect(20+i*bw+6,h-24-bh,bw-12,bh);c.globalAlpha=1;c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText(l.n,20+i*bw+8,h-8);c.fillStyle=css('--ink');c.fillText(l.p?l.p.toLocaleString():'0',20+i*bw+8,h-28-bh);});
+  c.fillStyle=css('--ink');c.font='700 12px '+FONT;c.fillText(`층별 파라미터 수 · 전체 ${tot.toLocaleString()}개 (${(tot*4/1024).toFixed(0)} KB, float32)`,20,14);
+  $('netFx').innerHTML=`<b>${L[NETSEL].n}</b>: ${L[NETSEL].calc}<br>전체 파라미터 <b>${tot.toLocaleString()}</b>개 ${+$('chSl').value===16&&+$('nm2Sl').value===64?'= 노트북 KWSNet (61,226개)':''} &nbsp;·&nbsp; n_mels를 바꿔도 파라미터 수는 그대로(GAP 덕분), 채널을 2배로 하면 conv 파라미터는 약 4배`;}
+REDRAW.net=drawNet;
+
+/* ===== D5-6 softmax ===== */
+let Z=[2.6,0.3,-0.5,1.2,0.1,-1.0,0.4,-0.2,0.9,0.0],TGT=0;
+$('tgtChips').innerHTML=KW.map((k,i)=>`<button class="chip" style="--c:var(--ok)" data-tg="${i}" aria-pressed="${i===0}">${k}</button>`).join('');
+chips('data-tg',v=>{TGT=+v;drawSm();});
+$('logitSl').innerHTML=KW.map((k,i)=>`<label class="sl" style="grid-template-columns:60px 1fr 50px"><span>${k}</span><input type="range" id="z${i}" min="-4" max="6" step="0.1" value="${Z[i]}"><output id="zo${i}"></output></label>`).join('');
+KW.forEach((_,i)=>$('z'+i).oninput=()=>{Z[i]=+$('z'+i).value;drawSm();});
+const setZ=a=>{Z=a.slice();Z.forEach((v,i)=>$('z'+i).value=v);drawSm();};
+$('smUniform').onclick=()=>setZ(Array(10).fill(0));$('smGood').onclick=()=>setZ(KW.map((_,i)=>i===TGT?4.5:-0.5+((i*37)%10)/10));$('smBad').onclick=()=>setZ(KW.map((_,i)=>i===(TGT+1)%10?5:i===TGT?-2:0));
+function drawSm(){Z.forEach((v,i)=>$('zo'+i).textContent=v.toFixed(1));const m=Math.max(...Z),e=Z.map(v=>Math.exp(v-m)),s=e.reduce((a,b)=>a+b,0),p=e.map(v=>v/s);const loss=-Math.log(p[TGT]+1e-12);const pred=p.indexOf(Math.max(...p));
+  const {c,w,h}=fit($('smCv'),230);c.clearRect(0,0,w,h);const pw_=(w-40)/3;
+  const panel=(x0,title,vals,lo,hi,colF,fmt)=>{c.fillStyle=css('--ink');c.font='700 12px '+FONT;c.fillText(title,x0,14);const bw=(pw_-20)/10,base=lo<0?24+(h-50)*hi/(hi-lo):h-26;c.strokeStyle=css('--line');c.beginPath();c.moveTo(x0,base);c.lineTo(x0+pw_-20,base);c.stroke();
+    vals.forEach((v,i)=>{const y=24+(h-50)*(hi-v)/(hi-lo);c.fillStyle=colF(i,v);c.fillRect(x0+i*bw+2,Math.min(y,base),bw-4,Math.abs(base-y));c.fillStyle=css('--muted');c.font='9px '+FONT;c.save();c.translate(x0+i*bw+bw/2+3,h-2);c.rotate(-Math.PI/3);c.fillText(KW[i],0,0);c.restore();if(fmt)c.fillText(fmt(v),x0+i*bw+1,Math.min(y,base)-3);});};
+  panel(10,'logit z',Z,-4,6,(i)=>i===TGT?css('--ok'):css('--net'));
+  panel(20+pw_,'softmax 확률 p',p,0,1,(i)=>i===TGT?css('--ok'):i===pred?css('--llm'):css('--net'),v=>v>0.05?v.toFixed(2):'');
+  const g=p.map((v,i)=>v-(i===TGT?1:0));panel(30+2*pw_,'기울기 ∂L/∂z = p − onehot',g,-1,1,(i,v)=>v<0?css('--ok'):css('--bad'));
+  $('smKv').innerHTML=`<div><span>정답 "${KW[TGT]}"의 확률 p<sub>y</sub></span><b>${p[TGT].toFixed(3)}</b></div><div><span>손실 L = −log p<sub>y</sub></span><b>${loss.toFixed(3)}</b></div><div><span>예측 (argmax)</span><b style="color:var(${pred===TGT?'--ok':'--bad'})">${KW[pred]} ${pred===TGT?'✓ 맞음':'✗ 틀림'}</b></div><div><span>확률 합</span><b>${p.reduce((a,b)=>a+b,0).toFixed(3)}</b></div>`;
+  $('smFx').innerHTML=`p<sub>k</sub> = e<sup>z<sub>k</sub></sup> / Σ e<sup>z<sub>j</sub></sup> &nbsp;·&nbsp; L = −log p<sub>${KW[TGT]}</sub> = −log ${p[TGT].toFixed(3)} = <b>${loss.toFixed(3)}</b> ${Z.every(v=>v===0)?'= log 10 (학습 전, 고르게 찍음)':''}<br>기울기: 정답 칸은 <b>${g[TGT].toFixed(2)}</b> (음수 → 경사 하강으로 z를 <b>올림</b>), 나머지는 + (z를 <b>내림</b>) &nbsp;·&nbsp; 모든 logit에 같은 수를 더해도 확률은 그대로`;}
+REDRAW.softmax=drawSm;
+
+/* ===== D5-7 train ===== */
+const Lf=w=>0.15*(w-1)**2*(1+0.25*Math.sin(w*1.3)**2)+0.25,dLf=w=>(Lf(w+1e-4)-Lf(w-1e-4))/2e-4;
+let GW=-3.2,GP=[GW];
+$('lrSl').oninput=()=>{$('lrO').textContent=(+$('lrSl').value*10).toFixed(2);drawGd();};
+const gdStep=()=>{const eta=+$('lrSl').value*10;GW=GW-eta*dLf(GW);GW=Math.max(-8,Math.min(10,GW));GP.push(GW);};
+$('gdStep').onclick=()=>{gdStep();drawGd();};$('gdRun').onclick=()=>{let n=0;const it=setInterval(()=>{gdStep();drawGd();if(++n>=10)clearInterval(it);},RM?1:120);};$('gdReset').onclick=()=>{GW=-3.2;GP=[GW];drawGd();};
+function drawGd(){const eta=+$('lrSl').value*10;$('lrO').textContent=eta.toFixed(2);const {c,w,h}=fit($('gdCv'),230);c.clearRect(0,0,w,h);const x0=40,pw_=w-60,ph=h-40,wx=v=>x0+(v+5)/13*pw_,ly=v=>10+ph-(v/6)*ph;
+  axes(c,x0,10,pw_,ph,css('--line'));c.strokeStyle=css('--muted');c.lineWidth=2;c.beginPath();for(let i=0;i<=300;i++){const v=-5+13*i/300;const y=ly(Math.min(6,Lf(v)));i?c.lineTo(wx(v),y):c.moveTo(wx(v),y);}c.stroke();
+  c.strokeStyle=css('--llm');c.lineWidth=1.4;c.beginPath();GP.forEach((v,i)=>{const X=wx(Math.max(-5,Math.min(8,v))),Y=ly(Math.min(6,Lf(v)));i?c.lineTo(X,Y):c.moveTo(X,Y);});c.stroke();
+  GP.forEach((v,i)=>{c.fillStyle=i===GP.length-1?css('--tts'):css('--llm');c.beginPath();c.arc(wx(Math.max(-5,Math.min(8,v))),ly(Math.min(6,Lf(v))),i===GP.length-1?7:3.5,0,7);c.fill();});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('파라미터 θ →',w-100,h-6);c.fillText('손실 L',4,18);
+  const g=dLf(GW);const status=eta<0.6?'너무 작음: 아주 천천히 내려감':eta<4.5?'적당함: 골짜기로 빠르게 수렴':eta<7.5?'큼: 골짜기를 넘나들며 흔들림':'너무 큼: 발산(손실이 커짐)';
+  $('gdFx').innerHTML=`θ ← θ − η·∇L = ${(GP.length>1?GP[GP.length-2]:GW).toFixed(2)} − ${eta.toFixed(2)} × ${(GP.length>1?dLf(GP[GP.length-2]):g).toFixed(2)} = <b>${GW.toFixed(2)}</b> &nbsp;·&nbsp; L = <b>${Lf(GW).toFixed(3)}</b> &nbsp;·&nbsp; ${GP.length-1}걸음<br>η = ${eta.toFixed(2)} → <b>${status}</b> (Adam은 파라미터마다 걸음 크기를 자동 조절, 보통 10⁻³에서 시작)`;}
+['dataSl','epSl'].forEach(id=>$(id).oninput=drawCurve);['augChk','esChk'].forEach(id=>$(id).onchange=drawCurve);
+function drawCurve(){const D=+$('dataSl').value,E=+$('epSl').value,aug=$('augChk').checked,es=$('esChk').checked;$('dataO').textContent=D+'개';$('epO').textContent=E;
+  const cap=Math.min(0.97,0.72+0.08*Math.log10(D/100)*3.2/1.5)+(aug?0.015:0);const speed=aug?5:4;const ofit=(aug?0.25:1)*0.35/Math.sqrt(D/100);
+  const tr=[],va=[];for(let e=1;e<=E;e++){const t=1-Math.exp(-e/speed);tr.push(Math.min(0.999,0.1+0.9*t*(aug?0.97:1.0)));va.push(Math.max(0.1,0.1+(cap-0.1)*t-ofit*Math.max(0,e-12)/30));}
+  const best=va.indexOf(Math.max(...va));const {c,w,h}=fit($('curveCv'),220);c.clearRect(0,0,w,h);const x0=40,pw_=w-60,ph=h-40,ex=e=>x0+(e-1)/Math.max(1,E-1)*pw_,ay=v=>10+ph-v*ph;
+  axes(c,x0,10,pw_,ph,css('--line'));c.fillStyle=css('--bad');c.globalAlpha=.1;c.beginPath();tr.forEach((v,i)=>i?c.lineTo(ex(i+1),ay(v)):c.moveTo(ex(1),ay(v)));for(let i=E-1;i>=0;i--)c.lineTo(ex(i+1),ay(va[i]));c.fill();c.globalAlpha=1;
+  [[tr,'--asr','train acc'],[va,'--tts','val acc']].forEach(([a,col,lab],j)=>{c.strokeStyle=css(col);c.lineWidth=2.2;c.beginPath();a.forEach((v,i)=>i?c.lineTo(ex(i+1),ay(v)):c.moveTo(ex(1),ay(v)));c.stroke();c.fillStyle=css(col);c.font='700 11px '+FONT;c.fillText(lab,x0+8+j*90,22);});
+  if(es){c.strokeStyle=css('--llm');c.setLineDash([5,4]);c.beginPath();c.moveTo(ex(best+1),10);c.lineTo(ex(best+1),10+ph);c.stroke();c.setLineDash([]);c.fillStyle=css('--llm');c.fillText(`조기 종료: epoch ${best+1}`,ex(best+1)+4,40);}
+  c.fillStyle=css('--muted');c.font='10px '+FONT;[0,0.5,1].forEach(v=>c.fillText(v,20,ay(v)+3));c.fillText('epoch',w-50,h-6);
+  const gap=tr[E-1]-va[E-1];$('curveFx').innerHTML=`마지막 epoch: train <b>${(tr[E-1]*100).toFixed(1)}%</b> · val <b>${(va[E-1]*100).toFixed(1)}%</b> · 차이 <b>${(gap*100).toFixed(1)}%p</b> &nbsp;·&nbsp; val 최고 ${(Math.max(...va)*100).toFixed(1)}% (epoch ${best+1})<br>${gap>0.1?'⚠️ 차이가 큼 → <b>과적합</b>: 데이터 늘리기, SpecAugment, Dropout, 조기 종료':gap<0.04&&va[E-1]<0.8?'둘 다 낮음 → <b>과소적합</b>: epoch · 모델 크기 늘리기':'적당한 일반화'} &nbsp;(예시 시뮬레이션: 실제 숫자는 노트북 결과로 확인)`;}
+REDRAW.train=()=>{drawGd();drawCurve();};
+
+/* ===== D5-8 confusion ===== */
+const CM=KW.map((_,i)=>KW.map((_,j)=>i===j?[285,270,262,268,280,276,255,250,284,250][i]:0));
+[['no','go',18],['go','no',22],['on','off',14],['off','on',12],['off','up',15],['up','off',13],['down','go',9],['no','down',6],['go','down',10],['on','down',9],['left','yes',6],['right','left',5],['stop','up',4],['yes','left',3]].forEach(([a,b,v])=>CM[KW.indexOf(a)][KW.indexOf(b)]=v);
+let CK=1,CELL=null;$('cmChips').innerHTML=KW.map((k,i)=>`<button class="chip" style="--c:var(--s2s)" data-ck="${i}" aria-pressed="${i===1}">${k}</button>`).join('');
+chips('data-ck',v=>{CK=+v;CELL=null;drawCm();});
+$('cmCv').addEventListener('click',e=>{const r=$('cmCv').getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;const g=CMG;if(!g)return;const j=Math.floor((x-g.x0)/g.cs),i=Math.floor((y-g.y0)/g.cs);if(i>=0&&i<10&&j>=0&&j<10){CELL=[i,j];CK=i;document.querySelectorAll('[data-ck]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.ck===CK));drawCm();}});
+let CMG=null;
+function drawCm(){const {c,w,h}=fit($('cmCv'),420);c.clearRect(0,0,w,h);const cs=Math.min((w-120)/10,(h-70)/10),x0=60,y0=30;CMG={x0,y0,cs};let mx=0;CM.forEach(r=>r.forEach(v=>mx=Math.max(mx,v)));
+  for(let i=0;i<10;i++)for(let j=0;j<10;j++){const v=CM[i][j],t=v/mx;c.fillStyle=v?`rgba(106,79,207,${0.08+0.92*Math.sqrt(t)})`:css('--soft');c.fillRect(x0+j*cs,y0+i*cs,cs-2,cs-2);if(v){c.fillStyle=t>0.4?'#fff':css('--ink');c.font=`${Math.max(9,cs*0.28)}px `+FONT;c.fillText(v,x0+j*cs+cs*0.18,y0+i*cs+cs*0.6);}}
+  c.strokeStyle=css('--ok');c.lineWidth=3;c.strokeRect(x0,y0+CK*cs,10*cs-2,cs-2);c.strokeStyle=css('--llm');c.strokeRect(x0+CK*cs,y0,cs-2,10*cs-2);
+  if(CELL){c.strokeStyle=css('--bad');c.lineWidth=3;c.strokeRect(x0+CELL[1]*cs,y0+CELL[0]*cs,cs-2,cs-2);}
+  c.fillStyle=css('--muted');c.font='11px '+FONT;KW.forEach((k,i)=>{c.fillText(k,6,y0+i*cs+cs*0.6);c.save();c.translate(x0+i*cs+cs*0.35,y0+10*cs+12);c.rotate(Math.PI/4);c.fillText(k,0,0);c.restore();});
+  c.font='700 12px '+FONT;c.fillStyle=css('--ink');c.fillText('예측 →',x0+10*cs+6,y0+10*cs+14);c.fillText('정답 ↓',6,20);
+  const k=CK,tp=CM[k][k],row=CM[k].reduce((a,b)=>a+b,0),col=CM.reduce((a,r)=>a+r[k],0),tot=CM.reduce((a,r)=>a+r.reduce((x,y)=>x+y,0),0),diag=CM.reduce((a,r,i)=>a+r[i],0);const P=tp/col,R=tp/row,F=2*P*R/(P+R);
+  $('cmKv').innerHTML=`<div><span>정확도 (대각합 / 전체)</span><b>${(diag/tot*100).toFixed(1)}%</b></div><div><span>"${KW[k]}" 재현율 (행)</span><b style="color:var(--ok)">${(R*100).toFixed(1)}%</b></div><div><span>"${KW[k]}" 정밀도 (열)</span><b style="color:var(--llm)">${(P*100).toFixed(1)}%</b></div><div><span>F1</span><b>${(F*100).toFixed(1)}%</b></div>`;
+  const cellTxt=CELL?(CELL[0]===CELL[1]?`<br>칸 [${KW[CELL[0]]}, ${KW[CELL[1]]}] = <b>${CM[CELL[0]][CELL[1]]}</b>: 맞힌 개수 (대각선)`:`<br>칸 [${KW[CELL[0]]} → ${KW[CELL[1]]}] = <b>${CM[CELL[0]][CELL[1]]}</b>: 진짜 "${KW[CELL[0]]}"를 "${KW[CELL[1]]}"로 잘못 예측`):'';
+  $('cmFx').innerHTML=`recall<sub>${KW[k]}</sub> = C[k,k] / 행 합 = ${tp} / ${row} = <b>${(R*100).toFixed(1)}%</b> &nbsp;·&nbsp; precision<sub>${KW[k]}</sub> = C[k,k] / 열 합 = ${tp} / ${col} = <b>${(P*100).toFixed(1)}%</b> &nbsp;·&nbsp; F1 = 2PR/(P+R) = <b>${(F*100).toFixed(1)}%</b>${cellTxt}<br>예시 값 · 자주 헷갈리는 쌍: no ↔ go, on ↔ off, up ↔ off (모음이 비슷하고 자음 차이가 짧음)`;}
+REDRAW.confusion=drawCm;
+
+/* ===== D5-9 specaug ===== */
+let SAK='left',SAseed=1;
+{for(let sd=1;sd<60;sd++){const r=mulberry(sd*131);const f=Math.floor(r()*9);r();const t=Math.floor(r()*13);if(f>=5&&t>=8){SAseed=sd;break;}}}$('saChips').innerHTML=KW.map((k,i)=>`<button class="chip" style="--c:var(--tts)" data-sak="${k}" aria-pressed="${k==='left'}">${k}</button>`).join('');
+chips('data-sak',v=>{SAK=v;drawSa();});['saF','saT','saN','saS'].forEach(id=>$(id).oninput=drawSa);$('saNew').onclick=()=>{SAseed++;drawSa();};
+const SAC={};
+function drawSa(){const F=+$('saF').value,Tm=+$('saT').value,N=+$('saN').value,Sh=+$('saS').value;$('saFO').textContent=F;$('saTO').textContent=Tm+` (${Tm*10} ms)`;$('saNO').textContent=N;$('saSO').textContent='±'+Sh+` (${Sh*10} ms)`;
+  if(!SAC[SAK])SAC[SAK]=logmel(wordWave(SAK),64,160);const L=SAC[SAK],X=L.img.map(r=>r.slice());const r=mulberry(SAseed*131);let meanV=0,cnt=0;X.forEach(rr=>rr.forEach(v=>{meanV+=v;cnt++;}));meanV/=cnt;
+  const masks=[];for(let n=0;n<N;n++){const f=Math.floor(r()*(F+1)),f0=Math.floor(r()*(64-f));for(let i=f0;i<f0+f;i++)X[i]=X[i].map(()=>meanV);if(f)masks.push(`주파수 [${f0}, ${f0+f})`);
+    const t=Math.floor(r()*(Tm+1)),t0=Math.floor(r()*(101-t));for(let i=0;i<64;i++)for(let j=t0;j<t0+t;j++)X[i][j]=meanV;if(t)masks.push(`시간 [${t0}, ${t0+t})`);}
+  const sh=Math.round((r()*2-1)*Sh);const Y=X.map(rr=>rr.map((_,j)=>rr[((j-sh)%101+101)%101]));
+  let a=fit($('saOrig'),200);a.c.clearRect(0,0,a.w,a.h);drawImg(a.c,0,0,a.w,a.h,L.img,L.max-80,L.max);
+  a=fit($('saAug'),200);a.c.clearRect(0,0,a.w,a.h);drawImg(a.c,0,0,a.w,a.h,Y,L.max-80,L.max);
+  $('saFx').innerHTML=`FrequencyMasking(freq_mask_param=<b>${F}</b>) · TimeMasking(time_mask_param=<b>${Tm}</b>) × ${N} · roll ±${Sh} &nbsp;→&nbsp; 이번 배치: ${masks.join(', ')||'가린 곳 없음 (폭 0이 뽑힘)'} · 이동 <b>${sh}</b> 프레임<br>폭 f ~ U[0, F], 시작 f₀ ~ U[0, 64 − f) &nbsp;·&nbsp; 🎲를 누를 때마다 다른 마스크 = 매 배치 새 데이터처럼 보임 &nbsp;·&nbsp; <b>평가 · 예측 때는 끔</b>${F>16||Tm>30?'<br>⚠️ 너무 넓게 가리면 단어 자체가 사라져 오히려 학습이 어려워집니다.':''}`;}
+REDRAW.specaug=drawSa;
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>
