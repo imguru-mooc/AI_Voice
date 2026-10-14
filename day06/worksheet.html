@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음성 AI Day 6 개념 워크시트 — ASR 원리</title>
+<style>
+  :root{--bg:#0b1220;--panel:#111a2e;--line:#1f2b45;--text:#dbe4f0;--dim:#8a9bb8;--amber:#f5b942;--teal:#2dd4bf;--blue:#60a5fa;--green:#4ade80;--red:#f87171;--purple:#c084fc;--mono:"Consolas","D2Coding","JetBrains Mono",monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;font-size:15px;line-height:1.55}
+  .app{max-width:900px;margin:0 auto;padding:22px 20px 40px}
+  h1{color:var(--amber);font-size:24px;margin:0 0 6px}
+  .sub{color:var(--dim);margin:0 0 14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .panel h2{font-size:14px;color:var(--dim);margin:0 0 10px;font-weight:600}
+  button{background:#172239;border:1px solid #2a3a5c;color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--amber)}button.active{background:#3a2e12;border-color:var(--amber);color:var(--amber)}
+  button.primary{background:#123d33;border-color:var(--teal);color:var(--teal);font-weight:700;padding:9px 18px;font-size:14px}
+  button.submit{background:#3a2e12;border-color:var(--amber);color:var(--amber);font-weight:700;padding:9px 18px;font-size:14px}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  input[type=text]{background:#0a0f1c;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:14px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .tabs button .s{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+  .tabs button.graded .s{color:var(--green)}
+  .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .head .t{color:var(--amber);font-size:17px}
+  .head .a{font-size:13px;color:var(--teal);font-family:var(--mono)}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1628}
+  .q.unans{border-color:#5a3a1a}
+  .q .n{font-family:var(--mono);color:var(--dim);font-size:12px}
+  .q .p{margin:4px 0 10px;font-size:15px}
+  .q .p code,.opt code,.fb code,td code{font-family:var(--mono);color:var(--blue);background:#0a0f1c;padding:1px 5px;border-radius:4px}
+  .q pre.qc{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:10px 12px;margin:4px 0 12px;font-size:13.5px;line-height:1.5;white-space:pre;overflow-x:auto;color:#dbe4f3}
+  .q pre{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0 10px;font-size:14px;white-space:pre;overflow-x:auto}
+  .opts{display:grid;gap:6px}
+  .opt{text-align:left;padding:8px 12px;font-size:14px;font-family:inherit}
+  .opt.sel{border-color:var(--amber);background:#1f1a0c}
+  .opt.ok{border-color:var(--green);color:var(--green);background:#0d2216}
+  .opt.bad{border-color:var(--red);color:var(--red);background:#2a1212}
+  .opt:disabled{cursor:default;opacity:.9}
+  .fb{margin-top:8px;font-size:13px;color:var(--dim);border-left:3px solid var(--line);padding-left:10px}
+  .fb.ok{border-left-color:var(--green)}.fb.bad{border-left-color:var(--red)}
+  .fb .anim{color:var(--teal);font-family:var(--mono);font-size:12px;display:block;margin-top:3px}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .code{font-family:var(--mono);font-size:20px;color:var(--amber);letter-spacing:1px}
+  .score{font-family:var(--mono);color:var(--green);font-size:16px}
+  .hint{color:var(--dim);font-size:13px}
+  details{color:var(--dim);font-size:13px}
+  details summary{cursor:pointer;color:var(--dim)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* dialog */
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0;max-width:820px;width:92vw;max-height:88vh}
+  dialog::backdrop{background:#000a}
+  .dg{padding:18px 20px}
+  .dg h3{color:var(--amber);margin:0 0 4px;font-size:20px}
+  .dg .meta{color:var(--dim);font-size:13px;margin-bottom:12px;font-family:var(--mono)}
+  .dg .sec{margin:14px 0 6px;color:var(--teal);font-weight:700;font-size:14px}
+  .dg table{width:100%;border-collapse:collapse;font-size:13px}
+  .dg th{text-align:left;color:var(--dim);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12px}
+  .dg td{padding:5px 8px;border-bottom:1px solid #16203a;vertical-align:top}
+  .dg td.r{font-family:var(--mono)}
+  .dg .ok{color:var(--green)}.dg .bad{color:var(--red)}.dg .none{color:var(--dim)}
+  .dg .sum{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-family:var(--mono)}
+  .dgbar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .toast{color:var(--green);font-size:13px;margin-right:auto}
+  .body{overflow:auto;max-height:calc(88vh - 60px)}
+
+.q .n .ty{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;font-family:inherit}
+.ty-mc{background:#1b2a4a;color:var(--blue)} .ty-ox{background:#2a2410;color:var(--amber)} .ty-match{background:#13302c;color:var(--teal)}
+.ty-order{background:#2a1a3a;color:var(--purple)} .ty-multi{background:#2a1616;color:#fca5a5}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:360px}
+.oxrow .opt{text-align:center;font-size:22px;font-weight:700;padding:10px}
+.reflist{display:grid;gap:4px;margin:2px 0 10px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;font-size:14px;color:var(--text)}
+.reflist b{color:var(--teal);font-family:var(--mono);margin-right:6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow .l{font-size:14px} .mrow .l b{font-family:var(--mono);color:var(--dim);margin-right:6px}
+.mrow select{width:100%;background:#0a0f1c;color:var(--text);border:1px solid #2a3a5c;border-radius:6px;padding:6px 8px;font:inherit;font-size:13.5px}
+.mrow select.ok{border-color:var(--green);color:var(--green)} .mrow select.bad{border-color:var(--red);color:var(--red)}
+.steps{display:grid;gap:6px}
+.step{display:flex;gap:10px;align-items:center;text-align:left;padding:8px 12px;font-size:14px}
+.step .badge{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid #2a3a5c;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.step.on{border-color:var(--purple)} .step.on .badge{background:var(--purple);border-color:var(--purple);color:#0b1220;font-weight:700}
+.step.ok{border-color:var(--green)} .step.ok .badge{background:var(--green);color:#0b1220;border-color:var(--green)}
+.step.bad{border-color:var(--red)} .step.bad .badge{background:var(--red);color:#0b1220;border-color:var(--red)}
+.seqbar{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.seqbar button{padding:4px 10px;font-size:12px}
+.multi .opt::before{content:"☐ ";color:var(--dim)} .multi .opt.sel::before{content:"☑ ";color:var(--amber)}
+.multi .opt.ok::before{content:"☑ ";color:var(--green)} .multi .opt.miss::before{content:"☐ ";color:var(--green)}
+.multi .opt.miss{border-color:var(--green);border-style:dashed}
+.typeinfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>음성 AI Day 6 개념 워크시트</h1>
+  <p class="sub">ASR 원리 — 정렬 문제 · CTC blank와 접기 규칙 · forward α · Wav2Vec2 프레임 수 · greedy 디코딩 · 타임스탬프 · Attention Encoder-Decoder · √d 스케일 · Transducer 격자 · 세 방식 비교 · wav2vec 2.0 대조 학습 · HuBERT 가짜 라벨 · 4교시 × 10문항 (객관식 5 · OX 2 · 선잇기 1 · 순서 맞추기 1 · 모두 고르기 1). 🎬 표시는 같은 폴더 <a href="animation.html" style="color:var(--teal)">animation.html</a>의 애니메이션 번호입니다. 선잇기는 드롭다운으로, 순서 맞추기는 단계를 일어나는 순서대로 눌러서, 모두 고르기는 여러 개를 눌러서 답합니다. 답을 고른 뒤 아래 <b style="color:var(--teal)">채점하기</b>를 누르면 정오·해설과 결과 코드가 나타납니다. 채점 전에는 답을 바꿀 수 있고, 채점 후에는 잠깁니다. 모든 교시를 마치면 <b style="color:var(--amber)">제출</b>로 오답 정리를 열고, <b>캡처</b>로 복사해 노션에 붙여 넣으세요.</p>
+
+  <div class="panel">
+    <div class="row"><label style="color:var(--dim);font-size:13px">이름 <input type="text" id="name" placeholder="홍길동"></label><span class="hint">이름은 결과 코드 계산에만 쓰이며 저장되지 않습니다.</span></div>
+  </div>
+  <div class="panel"><h2>교시</h2><div class="tabs" id="tabs"></div></div>
+  <div class="panel" id="sheet"></div>
+  <div class="panel">
+    <div class="actions">
+      <button class="primary" id="gradeBtn">채점하기</button>
+      <span class="code" id="rcode">—</span><span class="score" id="rscore"></span><span class="hint" id="rhint"></span>
+      <button class="submit" id="submitBtn" style="margin-left:auto">제출</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="body"><div class="dg" id="dgBody"></div></div>
+  <div class="dgbar"><span class="toast" id="toast"></span><button id="captureBtn" class="primary">📋 캡처 (노션용 복사)</button><button id="closeBtn">닫기</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const Q=[{"t": "1교시 · 정렬 문제 · CTC", "anim": "D6-2 정렬 문제 · D6-3 CTC 접기 · D6-4 CTC 격자 · α", "qs": [{"ty": "mc", "p": "2초 음성을 Wav2Vec2(20 ms마다 한 프레임)에 넣으면 프레임은 대략 몇 개입니까?", "o": ["11개", "약 100개", "200개", "32,000개"], "a": 1, "w": "2초 / 20 ms ≈ 100 (정확히는 ⌊(32000 − 400)/320⌋ + 1 = 99). 글자 수 U보다 훨씬 많습니다(T ≫ U).", "an": "D6-2 · 노트북 Part 1"}, {"ty": "ox", "p": "받아쓰기 학습 데이터에는 보통 '몇 번째 프레임이 어떤 글자인지'(정렬)가 함께 들어 있습니다.", "a": false, "w": "라벨은 '이 녹음 = hello world' 뿐입니다. 정렬을 모르는 채로 학습하는 것이 ASR의 핵심 문제입니다.", "an": "D6-2 · 노트북 1-1"}, {"ty": "mc", "p": "CTC 접기 규칙으로 경로 <code>aa-b-bb--c</code>를 접은 결과는? (<code>-</code> = blank)", "o": ["abbc", "abc", "aabbc", "ab-c"], "a": 0, "w": "① 반복 합치기: a - b - b - c → ② blank 지우기: abbc. 두 b 사이에 blank가 있어서 b가 두 번 남습니다.", "an": "빈칸 실습 1 · D6-3"}, {"ty": "mc", "p": "CTC에 blank가 꼭 필요한 가장 중요한 이유는?", "o": ["무음 구간을 표시하려고만", "같은 글자가 연속될 때(예: hello의 ll) 둘을 나누려고", "글자 수를 늘리려고", "학습 속도를 높이려고"], "a": 1, "w": "blank 없이 ll을 내면 반복 합치기에서 l 하나가 됩니다. l-l처럼 사이에 blank가 있어야 두 글자로 남습니다.", "an": "D6-3 · 노트북 2-1 💡"}, {"ty": "mc", "p": "CTC의 '조건부 독립 가정'이 뜻하는 것은?", "o": ["모든 화자가 독립적이다", "글자와 소리가 서로 관계없다", "학습과 테스트 데이터가 독립이다", "프레임마다 앞에서 무엇을 냈는지 모른 채 독립적으로 글자 확률을 낸다"], "a": 3, "w": "P(π|X) = Π p_t(π_t). 그래서 문맥(앞 글자)을 보지 못해 동음이의어 · 철자 실수에 약합니다. AED와 Transducer는 이 가정을 버립니다.", "an": "노트북 2-1 · 5-2 비교표"}, {"ty": "match", "p": "기호와 뜻을 이으세요.", "left": ["ε (blank)", "𝓑", "l′", "α<sub>t</sub>(s)"], "right": ["프레임 t까지 보고 l′의 s번째 칸에 와 있는 경로들의 확률 합", "반복 합치기 → blank 지우기", "이 프레임에는 새 글자 없음", "글자 사이와 양끝에 blank를 넣은 확장 라벨 (길이 2U+1)"], "a": [2, 1, 3, 0], "w": "CTC를 이루는 네 가지 기호입니다.", "an": "노트북 2-1 · 2-3"}, {"ty": "order", "p": "CTC forward(α) 알고리즘의 순서대로 놓으세요.", "steps": ["P(Y|X) = α<sub>T</sub>(S−1) + α<sub>T</sub>(S−2)", "확장 라벨 l′ 만들기", "α<sub>1</sub>(0) = p<sub>1</sub>(ε), α<sub>1</sub>(1) = p<sub>1</sub>(y<sub>1</sub>)로 시작", "t = 2 … T 동안 점화식으로 채우기"], "a": [1, 2, 3, 0], "w": "라벨 확장 → 첫 프레임 → 점화식 → 마지막 두 칸의 합.", "an": "빈칸 실습 2 · D6-4"}, {"ty": "mc", "p": "정답 'cat'의 확장 라벨 l′의 길이는?", "o": ["3", "6", "7", "8"], "a": 2, "w": "− c − a − t −, 즉 2U + 1 = 7입니다.", "an": "D6-4 · 노트북 2-3"}, {"ty": "ox", "p": "정답 'baa'에서 첫 번째 a 칸(s=3)에서 두 번째 a 칸(s=5)으로 두 칸 건너뛰기를 해도 됩니다.", "a": false, "w": "건너뛰면 경로가 …aa…가 되어 접을 때 a 하나로 합쳐집니다. l′<sub>s</sub> = l′<sub>s−2</sub>이면 건너뛰기 금지 (빈칸 2).", "an": "빈칸 실습 2 · D6-4 baa"}, {"ty": "multi", "p": "<code>F.ctc_loss</code> 사용법으로 옳은 것을 모두 고르세요.", "o": ["log_probs는 (T, N, C) 모양이고 log_softmax를 거친 값이다", "targets에는 blank 번호도 함께 넣는다", "input_lengths는 샘플마다 실제(패딩 제외) 프레임 수다", "zero_infinity=True는 가능한 경로가 없어 손실이 ∞일 때 0으로 처리한다"], "a": [0, 2, 3], "w": "targets에는 정답 글자 번호만 넣습니다. blank는 손실 함수가 알아서 끼워 넣습니다.", "an": "F.ctc_loss 코드 해설"}]}, {"t": "2교시 · Wav2Vec2 + CTC 실전", "anim": "D6-5 Wav2Vec2 프레임 · 디코딩", "qs": [{"ty": "mc", "p": "Wav2Vec2 CNN 특징 추출기의 전체 보폭(stride)은 몇 샘플입니까? (보폭 5 · 2 · 2 · 2 · 2 · 2 · 2)", "o": ["160", "320", "400", "512"], "a": 1, "w": "5 × 2⁶ = 320 샘플 = 20 ms. 출력 한 칸이 입력에서 320샘플씩 이동합니다.", "an": "D6-5 · 노트북 3-1"}, {"ty": "mc", "p": "수용 영역 400 샘플은 16 kHz에서 몇 ms입니까?", "o": ["10 ms", "20 ms", "25 ms", "32 ms"], "a": 2, "w": "400 / 16000 = 0.025초. D3의 STFT 창 25 ms와 같습니다.", "an": "빈칸 실습 3"}, {"ty": "mc", "p": "1초(16,000 샘플) 음성에서 Wav2Vec2 프레임 수는?", "o": ["49", "50", "100", "101"], "a": 0, "w": "T = ⌊(16000 − 400)/320⌋ + 1 = 48 + 1 = 49.", "an": "빈칸 실습 3 · D6-5 슬라이더"}, {"ty": "ox", "p": "wav2vec2-base-960h 토크나이저에서 <code>&lt;pad&gt;</code> 토큰이 CTC blank 역할을 합니다.", "a": true, "w": "번호 0인 &lt;pad&gt;가 blank이고, | 는 띄어쓰기입니다.", "an": "노트북 3-1 어휘 출력"}, {"ty": "match", "p": "Wav2Vec2ForCTC의 구성 요소와 역할을 이으세요.", "left": ["CNN 7층", "Transformer 12층", "Linear 768 → 32", "Processor"], "right": ["앞뒤 전체 문맥을 섞어 프레임 표현을 만듦", "파형 → 20 ms 프레임 특징", "파형 정규화 + 글자 ↔ 번호 변환", "프레임마다 어휘 32개의 점수(logit)"], "a": [1, 0, 3, 2], "w": "CNN이 프레임을 만들고, Transformer가 문맥을 섞고, Linear가 CTC 점수를 냅니다.", "an": "D6-5 · 노트북 3-1 그림"}, {"ty": "mc", "p": "logits 모양이 (1, T, 32)일 때 greedy 디코딩의 첫 단계로 알맞은 것은?", "o": ["logits.argmax(dim=1)", "logits.argmax(dim=-1)[0]", "logits.max()", "logits.softmax(0)"], "a": 1, "w": "어휘 방향(마지막 축)에서 가장 큰 번호 → (T,)개의 프레임별 번호.", "an": "빈칸 실습 4"}, {"ty": "order", "p": "CTC greedy 디코딩의 순서대로 놓으세요.", "steps": ["| 를 띄어쓰기로 바꾸기", "프레임마다 argmax", "연속 반복 합치기", "&lt;pad&gt;(blank) 지우기"], "a": [1, 2, 3, 0], "w": "argmax → 반복 합치기 → blank 지우기 → | 를 공백으로. processor.batch_decode도 같은 일을 합니다.", "an": "빈칸 실습 4"}, {"ty": "mc", "p": "학습된 CTC 출력이 '뾰족(peaky)'하다는 것은 무슨 뜻입니까?", "o": ["확률이 항상 균등하다", "모든 프레임에서 글자가 나온다", "blank가 한 번도 나오지 않는다", "대부분 프레임은 blank이고 글자는 한두 프레임에서만 높은 확률로 나온다"], "a": 3, "w": "그래서 스파이크가 나온 프레임 번호로 글자의 대략적인 시각을 알 수 있습니다.", "an": "D6-5 · CTC 스파이크 그림"}, {"ty": "ox", "p": "Wav2Vec2에서 글자가 튀어나온 프레임 t의 대략적인 시각은 t × 0.01초입니다.", "a": false, "w": "한 프레임 = 320 / 16000 = 0.02초입니다. 10 ms는 D3 Log-Mel의 hop입니다.", "an": "빈칸 실습 5"}, {"ty": "multi", "p": "CTC 디코딩에 대한 설명으로 옳은 것을 모두 고르세요.", "o": ["greedy는 가장 확률이 큰 '경로'를 고르는 것이지, 가장 확률이 큰 '글자열'을 보장하지는 않는다", "processor.batch_decode도 반복 합치기와 blank 제거를 한다", "Wav2Vec2에 넣는 음성은 16 kHz여야 한다", "CTC greedy 디코딩은 디코더를 글자 수만큼 반복 실행한다"], "a": [0, 1, 2], "w": "CTC는 모든 프레임 출력을 한 번에 내므로 반복 실행이 필요 없습니다. 반복 실행은 AED의 특징입니다.", "an": "노트북 3-2 · 코드 해설"}]}, {"t": "3교시 · Attention Enc-Dec · Transducer", "anim": "D6-6 Cross-attention · D6-7 Transducer 격자 · D6-8 세 방식 비교", "qs": [{"ty": "mc", "p": "Attention Encoder-Decoder가 쓰는 P(Y|X)의 분해는?", "o": ["Σ<sub>π</sub> Π<sub>t</sub> p<sub>t</sub>(π<sub>t</sub>)", "Π<sub>u</sub> P(y<sub>u</sub> | y<sub>&lt;u</sub>, X)", "Π<sub>t</sub> p<sub>t</sub>(y<sub>t</sub>)", "Σ<sub>격자 경로</sub> Π P(· | t, u)"], "a": 1, "w": "확률의 연쇄 법칙 그대로입니다. 앞 글자 y<sub>&lt;u</sub>를 보고 다음 글자를 고릅니다.", "an": "노트북 4-1"}, {"ty": "mc", "p": "디코더의 cross-attention에서 Q, K, V는 각각 무엇입니까?", "o": ["Q, K, V 모두 인코더 출력", "Q = 인코더, K · V = 디코더", "Q = 디코더 상태, K · V = 인코더 출력", "Q · K = 디코더, V = 인코더"], "a": 2, "w": "디코더가 질문(Q)을 던지고, 소리 프레임(K)과 비교해 그 내용(V)을 가져옵니다.", "an": "D6-6 · 노트북 4-1 그림"}, {"ty": "mc", "p": "scaled dot-product attention에서 √d<sub>k</sub>로 나누는 이유는?", "o": ["q·k의 분산이 d<sub>k</sub>라서 차원이 크면 softmax가 한 칸에 몰리기(포화) 때문", "계산을 빠르게 하려고", "가중치 합을 1로 만들려고", "음수를 없애려고"], "a": 0, "w": "나누면 분산이 1로 돌아와 기울기가 살아 있습니다. 합을 1로 만드는 것은 softmax의 일입니다.", "an": "빈칸 실습 6 · 수식 검증 2 · D6-6 아래"}, {"ty": "ox", "p": "attention 가중치 w<sub>u,t</sub>는 글자 u마다 프레임 방향으로 더하면 1입니다.", "a": true, "w": "softmax를 프레임 방향(dim=−1)으로 하기 때문입니다.", "an": "빈칸 실습 6"}, {"ty": "mc", "p": "디코더 출력 logits의 모양이 (1, 지금까지 토큰 수, 어휘)일 때, 다음 토큰을 고를 점수는?", "o": ["logits[0, 0]", "logits[0, :, -1]", "logits[-1]", "logits[0, -1]"], "a": 3, "w": "마지막 위치(-1)의 점수가 '그다음 토큰'에 대한 예측입니다.", "an": "빈칸 실습 7"}, {"ty": "ox", "p": "AED(Whisper형)는 소리를 다 듣기 전에도 정확한 글자를 낼 수 있어서 스트리밍 자막에 가장 적합합니다.", "a": false, "w": "인코더가 입력 전체를 본 뒤에 디코딩을 시작하므로 스트리밍에 불리합니다. 스트리밍은 CTC · Transducer.", "an": "D6-8 · 비교표"}, {"ty": "match", "p": "Transducer의 구성 요소와 역할을 이으세요.", "left": ["Encoder", "Prediction network", "Joint network", "∅ (blank) 출력"], "right": ["지금까지 낸 글자로 g<sub>u</sub>를 만듦 (언어 모델 역할)", "지금까지의 소리로 f<sub>t</sub>를 만듦", "z = W·tanh(f<sub>t</sub> + g<sub>u</sub>) → softmax", "다음 프레임으로 이동 (격자에서 오른쪽)"], "a": [1, 0, 2, 3], "w": "Prediction network가 CTC에 없는 '앞 글자 참고'를 담당합니다.", "an": "D6-7 · 노트북 5-1 그림"}, {"ty": "order", "p": "Whisper를 한 토큰씩 직접 디코딩하는 순서대로 놓으세요.", "steps": ["마지막 위치 점수에서 argmax로 다음 토큰 고르기", "인코더를 한 번 실행", "시작 토큰 4개로 decoder_input_ids 만들기", "토큰을 붙이고, &lt;eos&gt;면 멈추기 (아니면 반복)"], "a": [1, 2, 0, 3], "w": "인코더는 처음 한 번만, 디코더는 토큰마다 반복합니다.", "an": "빈칸 실습 7"}, {"ty": "mc", "p": "Transducer 격자에서 T = 5, U = 3일 때 가능한 경로 수 C(T+U−1, U)는?", "o": ["35", "56", "120", "15"], "a": 0, "w": "C(7, 3) = 35. 마지막 걸음은 항상 ∅이므로 나머지 7걸음 중 글자 3개의 위치를 고릅니다.", "an": "빈칸 실습 8 · D6-7 숫자"}, {"ty": "multi", "p": "말하는 동안 실시간 자막(스트리밍)에 알맞은 것을 모두 고르세요.", "o": ["CTC", "Transducer (RNN-T)", "Whisper 같은 AED를 30초 창 그대로 사용", "프레임이 들어올 때마다 바로 글자를 낼 수 있는 방식"], "a": [0, 1, 3], "w": "CTC와 Transducer는 프레임 단위로 출력합니다. AED는 전체 입력을 본 뒤 생성합니다(D7 · D8에서 청크 스트리밍으로 보완).", "an": "D6-8"}]}, {"t": "4교시 · 자기지도 학습", "anim": "D6-9 자기지도 학습", "qs": [{"ty": "mc", "p": "자기지도 사전학습(wav2vec 2.0 · HuBERT)의 가장 큰 장점은?", "o": ["라벨이 많을수록 필요 없어진다", "모델이 작아진다", "라벨 없는 대량 음성으로 소리 표현을 먼저 배워, 적은 라벨로 미세조정할 수 있다", "디코딩이 빨라진다"], "a": 2, "w": "논문에서는 라벨 10분만으로도 받아쓰기가 동작했습니다. 라벨이 적은 한국어에서 특히 중요합니다.", "an": "노트북 6-1"}, {"ty": "mc", "p": "wav2vec 2.0에서 시작 확률 p = 0.065, 길이 M = 10으로 가릴 때 한 프레임이 가려질 확률은?", "o": ["6.5%", "약 49%", "65%", "10%"], "a": 1, "w": "1 − (1 − 0.065)¹⁰ ≈ 0.49.", "an": "수식 검증 4 · D6-9 ①"}, {"ty": "mc", "p": "양자화 코드북이 G = 2개, 각 V = 320개 항목이면 가능한 '소리 코드' 조합은?", "o": ["640", "320", "102,400", "1,024"], "a": 2, "w": "320 × 320 = 102,400. 코드북마다 하나씩 골라 이어 붙입니다.", "an": "노트북 6-2 ②"}, {"ty": "ox", "p": "wav2vec 2.0의 대조 손실(InfoNCE)은 정답 칸이 항상 0번(진짜 q<sub>t</sub>)인 cross-entropy와 같은 모양입니다.", "a": true, "w": "−log softmax(sim/κ)[진짜] = F.cross_entropy(sims/κ, 0).", "an": "빈칸 실습 9"}, {"ty": "mc", "p": "InfoNCE에서 온도 κ를 작게 하면?", "o": ["손실이 항상 0이 된다", "가짜 후보 수가 늘어난다", "코사인 유사도가 바뀐다", "유사도 차이가 확대되어 softmax가 더 뾰족해진다"], "a": 3, "w": "sim/κ에서 κ가 작을수록 값의 차이가 커집니다. 논문은 κ = 0.1.", "an": "빈칸 실습 9 · D6-9 ②"}, {"ty": "match", "p": "모델과 학습 목표를 이으세요.", "left": ["wav2vec 2.0 (사전학습)", "HuBERT (사전학습)", "Whisper", "wav2vec2-base-960h"], "right": ["가린 자리의 k-means 번호 맞히기", "받아쓰기 자체 (인터넷 자막 68만 시간, 약한 지도)", "가린 자리에서 진짜 양자화 코드를 가짜들 사이에서 고르기", "사전학습 + 960시간 라벨로 CTC 미세조정한 받아쓰기 모델"], "a": [2, 0, 1, 3], "w": "대조(wav2vec 2.0) · 예측(HuBERT) · 지도(Whisper) · 미세조정(-960h).", "an": "노트북 6-4 표"}, {"ty": "order", "p": "HuBERT 학습 과정의 순서대로 놓으세요.", "steps": ["2회차 라벨: 1회차 모델 6층 특징 → k-means 500", "1회차 라벨: MFCC → k-means 100", "CTC 미세조정", "1회차 학습: 가린 프레임의 번호 맞히기", "2회차 학습: 더 좋은 라벨로 다시"], "a": [1, 3, 0, 4, 2], "w": "라벨 → 학습 → 더 좋은 라벨 → 다시 학습 → 미세조정.", "an": "노트북 6-4 그림"}, {"ty": "ox", "p": "HuBERT의 손실은 가린 프레임과 가리지 않은 프레임 모두에서 계산합니다.", "a": false, "w": "가린 자리 𝓜만 계산합니다. 그래야 앞뒤 문맥으로 가려진 소리를 추론하는 법을 배웁니다.", "an": "노트북 6-4 수식"}, {"ty": "mc", "p": "transformers의 <code>_compute_mask_indices(..., mask_prob=0.65, mask_length=10)</code>은 무엇에 해당합니까?", "o": ["논문의 p = 0.065, M = 10 (mask_prob ≈ p × M)", "프레임의 정확히 65%를 가림", "p = 0.65", "가짜 후보 65개"], "a": 0, "w": "transformers의 mask_prob는 '대략 가릴 비율'로, 논문의 p에 M을 곱한 값입니다. 겹침 때문에 실제로는 약 48%.", "an": "노트북 6-3 💡"}, {"ty": "multi", "p": "노트북 6-4의 '피치 +4' 실험 해석으로 옳은 것을 모두 고르세요.", "o": ["MFCC는 목소리(피치 · 음색)가 바뀌면 값이 크게 달라진다", "사전학습 특징은 '무슨 소리인가'를 더 많이 담는다", "같은 번호 비율이 높을수록 화자 변화에 덜 민감한 특징이다", "HuBERT 특징은 화자 정보만 담는다"], "a": [0, 1, 2], "w": "그래서 HuBERT는 2회차에 자기 특징으로 라벨을 다시 만듭니다. 이 번호는 음성 토큰으로도 쓰입니다.", "an": "노트북 6-4 · D6-9 ③"}]}];
+
+const TYNAME={mc:'객관식',ox:'OX',match:'선잇기',order:'순서 맞추기',multi:'모두 고르기'};
+let tab=0;
+const ans=Q.map(s=>s.qs.map(q=>q.ty==='multi'?[]:(q.ty==='match'?q.left.map(()=>null):(q.ty==='order'?[]:null))));
+const graded=Q.map(()=>false);
+function hash(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16).padStart(8,'0').slice(-4);}
+function codeFor(name,t,score){return `${t}${'ABCDEFGHIJK'[10-score]||'K'}-${hash(`${name.trim()}|${t}|${score}|voice-day6`)}`;}
+function strip(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent;}
+const eqArr=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+function answered(q,a){if(q.ty==='mc'||q.ty==='ox')return a!==null;if(q.ty==='multi')return a.length>0;if(q.ty==='match')return a.every(x=>x!==null);return a.length===q.steps.length;}
+function correct(q,a){if(!answered(q,a))return false;if(q.ty==='multi')return eqArr([...a].sort((x,y)=>x-y),q.a);if(q.ty==='match'||q.ty==='order')return eqArr(a,q.a);return a===q.a;}
+function scoreOf(i){return ans[i].filter((a,k)=>correct(Q[i].qs[k],a)).length;}
+function nAns(i){return ans[i].filter((a,k)=>answered(Q[i].qs[k],a)).length;}
+function txt(q,a){ /* 답을 문자열로 (오답 정리 · 해설용) */
+  if(!answered(q,a))return '미응답';
+  if(q.ty==='mc')return '①②③④'[a]+' '+strip(q.o[a]);
+  if(q.ty==='ox')return a?'O':'X';
+  if(q.ty==='multi')return [...a].sort((x,y)=>x-y).map(j=>'ABCDEFGH'[j]).join(', ');
+  if(q.ty==='match')return a.map((r,i)=>(i+1)+'-'+'ABCDEFGH'[r]).join(' · ');
+  return a.map(j=>'ABCDEFGH'[j]).join(' → ');}
+function renderTabs(){$('#tabs').innerHTML=Q.map((s,i)=>`<button class="${i===tab?'active':''} ${graded[i]?'graded':''}" data-i="${i}">${s.k||(i+1)+'교시'}<span class="s">${graded[i]?scoreOf(i)+'/10':nAns(i)+'/10'}</span></button>`).join('');$('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=+b.dataset.i;render();window.scrollTo({top:0});});}
+function body(q,k,a,g){
+  if(q.ty==='mc'){return `<div class="opts">${q.o.map((o,j)=>{let c='';if(g){if(j===q.a)c='ok';else if(j===a)c='bad';}else if(j===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-j="${j}" ${g?'disabled':''}>${'①②③④'[j]} ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='ox'){return `<div class="oxrow">${[true,false].map(v=>{let c='';if(g){if(v===q.a)c='ok';else if(v===a)c='bad';}else if(v===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-v="${v?1:0}" ${g?'disabled':''}>${v?'O':'X'}</button>`;}).join('')}</div>`;}
+  if(q.ty==='multi'){return `<div class="opts multi">${q.o.map((o,j)=>{const on=a.includes(j),ri=q.a.includes(j);let c='';if(g){if(on&&ri)c='ok';else if(on&&!ri)c='bad';else if(!on&&ri)c='miss';}else if(on)c='sel';return `<button class="opt ${c}" data-k="${k}" data-m="${j}" ${g?'disabled':''}>${'ABCDEFGH'[j]}. ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='match'){return `<div class="reflist">${q.right.map((r,j)=>`<div><b>${'ABCDEFGH'[j]}</b>${r}</div>`).join('')}</div>`+q.left.map((l,i)=>{let c='';if(g)c=a[i]===q.a[i]?'ok':'bad';return `<div class="mrow"><div class="l"><b>${i+1}.</b>${l}</div><select class="${c}" data-k="${k}" data-i="${i}" ${g?'disabled':''}><option value="">— 고르기 —</option>${q.right.map((r,j)=>`<option value="${j}" ${a[i]===j?'selected':''}>${'ABCDEFGH'[j]}. ${strip(r)}</option>`).join('')}</select></div>`;}).join('');}
+  /* order */
+  return `<div class="steps">${q.steps.map((s,j)=>{const pos=a.indexOf(j);let c=pos>=0?'on':'';if(g){c=(pos>=0&&a[pos]===q.a[pos])?'ok':'bad';}return `<button class="opt step ${c}" data-k="${k}" data-s="${j}" ${g?'disabled':''}><span class="badge">${pos>=0?pos+1:'ABCDEFGH'[j]}</span><span>${'ABCDEFGH'[j]}. ${s}</span></button>`;}).join('')}</div><div class="seqbar">순서: ${a.length?a.map(j=>'ABCDEFGH'[j]).join(' → '):'단계를 일어나는 순서대로 누르세요'}${g?'':` <button data-k="${k}" data-reset="1">다시</button>`}</div>`;
+}
+function render(){renderTabs();const s=Q[tab];const g=graded[tab];
+  $('#sheet').innerHTML=`<div class="head"><span class="t">${s.t}</span><span class="a">🎬 ${s.anim}</span></div>`+s.qs.map((q,k)=>{const a=ans[tab][k];const ok=correct(q,a);
+    return `<div class="q ${g&&!answered(q,a)?'unans':''}"><div class="n">문항 ${k+1}<span class="ty ty-${q.ty}">${TYNAME[q.ty]}</span></div><div class="p">${q.p}</div>${q.c?`<pre class="qc">${q.c}</pre>`:``}${body(q,k,a,g)}${g?`<div class="fb ${ok?'ok':'bad'}">${!answered(q,a)?'미응답. ':(ok?'정답. ':'오답. ')}${q.ty!=='mc'&&!ok?`<b>정답: ${txt(q,q.a)}</b> · `:''}${q.w}<span class="anim">확인: ${q.an}</span></div>`:''}</div>`;}).join('');
+  if(!g){
+    $('#sheet').querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.j;ans[tab][k]=(ans[tab][k]===j?null:j);render();});
+    $('#sheet').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,v=b.dataset.v==='1';ans[tab][k]=(ans[tab][k]===v?null:v);render();});
+    $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.m;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p,1);else a.push(j);render();});
+    $('#sheet').querySelectorAll('select[data-i]').forEach(sl=>sl.onchange=()=>{const k=+sl.dataset.k,i=+sl.dataset.i;ans[tab][k][i]=sl.value===''?null:+sl.value;renderTabs();updHint();});
+    $('#sheet').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.s;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p);else a.push(j);render();});
+    $('#sheet').querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{ans[tab][+b.dataset.k]=[];render();});
+  }
+  $('#gradeBtn').disabled=g;$('#gradeBtn').textContent=g?'채점 완료':'채점하기';updHint();
+}
+function updHint(){const g=graded[tab];const nm=$('#name').value;
+  if(g){const sc=scoreOf(tab);$('#rscore').textContent=`${sc}/10`;if(nm.trim()){$('#rcode').textContent=codeFor(nm,tab+1,sc);$('#rhint').textContent='결과 코드';}else{$('#rcode').textContent='—';$('#rhint').textContent='이름을 입력하면 결과 코드가 나옵니다.';}}
+  else{$('#rcode').textContent='—';$('#rscore').textContent='';$('#rhint').textContent=`${Q[tab].k||(tab+1)+'교시'}: ${nAns(tab)}/10 답했습니다. 채점하기를 누르면 잠깁니다.`;}}
+$('#gradeBtn').onclick=()=>{const n=nAns(tab);if(n<10&&!confirm(`아직 ${10-n}문항을 끝까지 답하지 않았습니다. 그래도 채점할까요? (미응답은 오답 처리)`))return;graded[tab]=true;render();};
+$('#name').addEventListener('input',updHint);
+
+/* ── 제출 대화상자 ── */
+let lastHtml='',lastText='';
+function buildReport(){
+  const nm=$('#name').value.trim()||'(이름 없음)';const ds=new Date().toLocaleString('ko-KR');
+  let h=`<h3>음성 AI Day 6 개념 워크시트 — 오답 정리</h3><div class="meta">${nm} · ${ds}</div>`;
+  let t=`음성 AI Day 6 개념 워크시트 — 오답 정리\n이름: ${nm}\n일시: ${ds}\n\n`;
+  Q.forEach((s,i)=>{if(!graded[i])return;
+    const wrong=s.qs.map((q,k)=>({q,k,a:ans[i][k]})).filter(x=>!correct(x.q,x.a));
+    h+=`<div class="sec">${s.t} — ${scoreOf(i)}/10</div>`;t+=`### ${s.t} — ${scoreOf(i)}/10\n`;
+    if(!wrong.length){h+=`<div class="ok" style="margin:4px 0 8px">오답 없음</div>`;t+=`오답 없음\n\n`;return;}
+    h+=`<table><tr><th>#</th><th>유형</th><th>문항</th><th>내 답</th><th>정답</th></tr>`;t+=`| # | 유형 | 문항 | 내 답 | 정답 |\n|---|---|---|---|---|\n`;
+    wrong.forEach(({q,k,a})=>{const my=txt(q,a),co=txt(q,q.a);const qt=strip(q.p).replace(/\s+/g,' ').slice(0,60);
+      h+=`<tr><td class="r">${k+1}</td><td>${TYNAME[q.ty]}</td><td>${qt}</td><td class="bad">${my}</td><td class="ok">${co}</td></tr>`;
+      t+=`| ${k+1} | ${TYNAME[q.ty]} | ${qt.replace(/\|/g,'/')} | ${my.replace(/\|/g,'/')} | ${co.replace(/\|/g,'/')} |\n`;});
+    h+=`</table>`;t+=`\n`;});
+  const ng=Q.map((s,i)=>graded[i]?null:(s.k||(i+1)+'교시')).filter(x=>x);
+  if(ng.length){h+=`<div class="meta" style="margin-top:10px">미채점: ${ng.join(', ')}</div>`;t+=`미채점: ${ng.join(', ')}\n`;}
+  lastHtml=h;lastText=t;return h;
+}
+$('#submitBtn').onclick=()=>{if(!graded.some(x=>x)){alert('먼저 채점하기를 눌러 주세요.');return;}$('#dgBody').innerHTML=buildReport();$('#toast').textContent='';$('#dlg').showModal();};
+$('#closeBtn').onclick=()=>$('#dlg').close();
+function copyRich(html,text){
+  // 1) copy 이벤트에 두 형식을 직접 실어 보내기 (사용자 클릭 안에서 동기 실행 — file:// 에서도 동작)
+  let done=false;
+  const onCopy=e=>{e.clipboardData.setData('text/html',html);e.clipboardData.setData('text/plain',text);e.preventDefault();done=true;};
+  document.addEventListener('copy',onCopy);
+  try{
+    const body=$('#dgBody');const sel=window.getSelection();const range=document.createRange();range.selectNodeContents(body);sel.removeAllRanges();sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }catch(e){}
+  document.removeEventListener('copy',onCopy);
+  return done;
+}
+$('#captureBtn').onclick=async()=>{
+  const htmlDoc=`<meta charset="utf-8">`+lastHtml.replace(/ class="[^"]*"/g,'').replace(/<table>/g,'<table border="1" style="border-collapse:collapse">');
+  if(copyRich(htmlDoc,lastText)){$('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;}
+  // 2) 비동기 Clipboard API
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([htmlDoc],{type:'text/html'}),'text/plain':new Blob([lastText],{type:'text/plain'})})]);
+    }else{await navigator.clipboard.writeText(lastText);}
+    $('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;
+  }catch(e){}
+  // 3) 최종: 텍스트 영역 선택 복사
+  try{
+    const ta=document.createElement('textarea');ta.value=lastText;ta.style.position='fixed';ta.style.opacity='0';$('#dlg').appendChild(ta);ta.focus();ta.select();
+    const ok=document.execCommand('copy');ta.remove();
+    $('#toast').textContent=ok?'텍스트(마크다운 표)로 복사됨 — 노션에서 Ctrl+V.':'복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';
+  }catch(e){$('#toast').textContent='복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';}
+};
+render();
+</script>
+</body>
+</html>
