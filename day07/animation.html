@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D7 Whisper 심층 분석: 인터랙티브 수업 자료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style>
+<style>
+.tokrow{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.tk{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88rem;padding:6px 10px;border-radius:8px;border:2px solid var(--c);background:var(--panel);color:var(--ink);transition:all .25s}
+.tk.fade{opacity:.25;text-decoration:line-through}
+.tk small{display:block;font-family:inherit;font-size:.7rem;color:var(--muted)}
+.outbox{background:var(--soft);border-radius:12px;padding:14px 16px;font-size:1.05rem;line-height:1.7;min-height:56px;border-left:5px solid var(--c,var(--asr))}
+.outbox .ts{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--s2s);font-size:.85rem}
+.outbox .bad{background:color-mix(in srgb,var(--bad) 25%,transparent);border-radius:4px;padding:0 3px}
+.outbox .good{background:color-mix(in srgb,var(--ok) 22%,transparent);border-radius:4px;padding:0 3px}
+.ctrlgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 18px;margin-bottom:12px}
+.ctrlgrid .grp{display:flex;flex-direction:column;gap:6px}
+.ctrlgrid .grp>span{font-size:.85rem;color:var(--muted)}
+.ctrlgrid .grp .row{margin:0}
+.reco{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px}
+.mcard{border:2px solid var(--line);border-radius:12px;padding:10px 12px;opacity:.45;transition:all .25s}
+.mcard.ok{opacity:1;border-color:var(--asr)}
+.mcard.best{opacity:1;border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,var(--panel))}
+.mcard b{display:block;font-size:1rem}
+.mcard span{display:block;font-size:.8rem;color:var(--muted)}
+.mcard em{display:block;font-style:normal;font-size:.78rem;color:var(--bad);margin-top:4px}
+.beamcols{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.bcol h4{margin:0 0 6px;font-size:.85rem;color:var(--muted)}
+.bcand{border:2px solid var(--line);border-radius:10px;padding:6px 9px;margin-bottom:6px;font-size:.88rem;opacity:.35;transition:all .3s;display:flex;justify-content:space-between;gap:6px}
+.bcand.keep{opacity:1;border-color:var(--asr)}
+.bcand.best{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,var(--panel))}
+.bcand.greedy{box-shadow:inset 0 0 0 2px var(--bad)}
+.bcand b{font-variant-numeric:tabular-nums}
+@media (max-width:700px){.beamcols{grid-template-columns:1fr 1fr}}
+.ladder{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.rung{border:2px solid var(--line);border-radius:10px;padding:8px 10px;min-width:120px;font-size:.85rem;opacity:.4;transition:all .25s}
+.rung.fail{opacity:1;border-color:var(--bad)}
+.rung.pass{opacity:1;border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,var(--panel))}
+.rung b{display:block;font-family:ui-monospace,Menlo,Consolas,monospace}
+.guard{display:flex;flex-direction:column;gap:6px}
+.guard label{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;cursor:pointer}
+.guard label small{color:var(--muted);display:block}
+textarea{font:inherit;width:100%;min-height:70px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>D7 Whisper 심층 분석</h1>
+  <p>Whisper의 30초 창과 특수 토큰, 모델 크기 고르기, 언어 감지, beam search와 temperature, 타임스탬프와 프롬프트, 그리고 환각을 막는 안전장치를 직접 눌러 보는 수업 자료입니다. 탭 번호 D7-1 ~ D7-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D7-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="arch"><span class="tc">D7-2</span>30초 창과 구조</button>
+  <button role="tab" aria-selected="false" data-t="tokens"><span class="tc">D7-3</span>특수 토큰 주문서</button>
+  <button role="tab" aria-selected="false" data-t="sizes"><span class="tc">D7-4</span>모델 고르기</button>
+  <button role="tab" aria-selected="false" data-t="langid"><span class="tc">D7-5</span>언어 감지</button>
+  <button role="tab" aria-selected="false" data-t="beam"><span class="tc">D7-6</span>빔 서치</button>
+  <button role="tab" aria-selected="false" data-t="temp"><span class="tc">D7-7</span>temperature · fallback</button>
+  <button role="tab" aria-selected="false" data-t="stamp"><span class="tc">D7-8</span>타임스탬프 · 프롬프트</button>
+  <button role="tab" aria-selected="false" data-t="halluc"><span class="tc">D7-9</span>환각 실험실</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D7-1</span>오늘 할 것: Whisper 하나를 다섯 방향에서 뜯어보기</h2>
+  <p class="lead">노트북은 다섯 단계로 진행됩니다. 단계를 눌러 무엇을 하는지 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="arch">
+  <h2><span class="hc">D7-2</span>30초 창: 짧으면 채우고, 길면 자른다</h2>
+  <p class="lead">음성 길이를 바꿔 보세요. Whisper는 언제나 30초 단위로 일합니다. 아래 단계 버튼을 누르면 그 단계에서 데이터 모양이 어떻게 바뀌는지 나옵니다.</p>
+  <div class="stage">
+    <label class="sl"><span>음성 길이</span><input type="range" id="arL" min="1" max="95" step="1" value="4"><output id="arLO"></output></label>
+    <canvas id="arCv" height="150"></canvas>
+    <div class="kv" id="arKv"></div>
+    <h3 class="sub3">한 창(30초)이 지나가는 길</h3>
+    <div class="pstages" id="arSt"></div>
+    <div class="fx" id="arFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="tokens">
+  <h2><span class="hc">D7-3</span>특수 토큰 = Decoder에게 주는 주문서</h2>
+  <p class="lead">같은 한국어 음성("안녕하세요. 오늘은 음성 인식 모델 위스퍼를 자세히 알아보겠습니다.")에 주문서만 바꿔 넣습니다. 버튼을 바꾸면 맨 앞 토큰과 출력(예시)이 함께 바뀝니다.</p>
+  <div class="stage">
+    <div class="ctrlgrid">
+      <div class="grp"><span>② 언어 (language=)</span><div class="row" id="tkLang"></div></div>
+      <div class="grp"><span>③ 할 일 (task=)</span><div class="row" id="tkTask"></div></div>
+      <div class="grp"><span>④ 타임스탬프 (return_timestamps=)</span><div class="row" id="tkTs"></div></div>
+      <div class="grp"><span>앞에 깔 프롬프트 (prompt_ids=)</span><div class="row" id="tkPr"></div></div>
+    </div>
+    <div class="tokrow" id="tkRow"></div>
+    <div class="outbox" id="tkOut"></div>
+    <div class="fx" id="tkFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="sizes">
+  <h2><span class="hc">D7-4</span>모델 고르기: 내 상황엔 어떤 크기?</h2>
+  <p class="lead">조건을 고르면 쓸 수 있는 모델(파란 테두리)과 추천 모델(초록)이 표시됩니다. 아래 계산기로 RTF(실시간 배율)를 읽는 법도 연습하세요. (모델 수치는 OpenAI 공개 대략값, CER은 설명용 예시)</p>
+  <div class="stage">
+    <div class="ctrlgrid">
+      <div class="grp"><span>사용할 수 있는 GPU 메모리</span><div class="row" id="szGpu"></div></div>
+      <div class="grp"><span>실시간 자막이 필요한가?</span><div class="row" id="szRt"></div></div>
+      <div class="grp"><span>영어 번역이 필요한가?</span><div class="row" id="szTr"></div></div>
+      <div class="grp"><span>더 중요한 것</span><div class="row" id="szPri"></div></div>
+    </div>
+    <div class="reco" id="szCards"></div>
+    <div class="fx" id="szFx"></div>
+    <h3 class="sub3">RTF 계산기</h3>
+    <label class="sl"><span>음성 길이 (초)</span><input type="range" id="rtLen" min="5" max="600" step="5" value="60"><output id="rtLenO"></output></label>
+    <label class="sl"><span>받아 적는 데 걸린 시간 (초)</span><input type="range" id="rtTime" min="0.5" max="300" step="0.5" value="12"><output id="rtTimeO"></output></label>
+    <canvas id="rtCv" height="90"></canvas>
+    <div class="fx" id="rtFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="langid">
+  <h2><span class="hc">D7-5</span>언어 감지: SOT 다음 첫 토큰의 언어 확률</h2>
+  <p class="lead">음성을 고르면 Whisper가 99개 언어 토큰에 매기는 확률(예시)이 나옵니다. 막대가 한 언어로 몰리면 확신, 여러 언어로 나뉘면 헷갈리는 상황입니다.</p>
+  <div class="stage">
+    <div class="row" id="liChips"></div>
+    <div class="row"><label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="liFix"> language="ko"로 고정하기</label></div>
+    <canvas id="liCv" height="240"></canvas>
+    <div class="fx" id="liFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="beam">
+  <h2><span class="hc">D7-6</span>빔 서치: 후보 여러 줄을 끝까지 들고 가기</h2>
+  <p class="lead">빔 폭을 고르고 "한 걸음"을 누르세요. 걸음마다 후보 문장의 점수(확률의 곱)를 계산해 상위 폭 개만 남깁니다(파란 테두리). 빨간 안쪽선은 greedy가 가는 길입니다.</p>
+  <div class="stage">
+    <label class="sl"><span>빔 폭 (num_beams)</span><input type="range" id="bmW" min="1" max="4" step="1" value="2"><output id="bmWO"></output></label>
+    <div class="row"><button class="btn primary" id="bmStep">한 걸음 ▶</button><button class="btn" id="bmAll">끝까지</button><button class="btn" id="bmReset">처음으로</button></div>
+    <div class="beamcols" id="bmCols"></div>
+    <div class="fx" id="bmFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="temp">
+  <h2><span class="hc">D7-7</span>temperature와 fallback</h2>
+  <p class="lead">위: 다음 토큰 후보의 점수를 T로 나눈 뒤 확률로 바꿉니다. T를 움직이고 주사위를 굴려 보세요. 아래: 결과가 수상하면 T를 0.2씩 올려 다시 받아 적는 Whisper의 안전장치입니다.</p>
+  <div class="stage">
+    <label class="sl"><span>temperature T</span><input type="range" id="tpT" min="0" max="2" step="0.05" value="1"><output id="tpTO"></output></label>
+    <div class="row"><button class="btn primary" id="tpRoll">🎲 20번 뽑기</button><button class="btn" id="tpClr">지우기</button></div>
+    <canvas id="tpCv" height="230"></canvas>
+    <div class="fx" id="tpFx"></div>
+    <h3 class="sub3">temperature fallback 사다리</h3>
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">상황:</span>
+      <button class="chip" style="--c:var(--llm)" data-fb="loop" aria-pressed="true">반복 고리에 빠진 구간</button><button class="chip" style="--c:var(--llm)" data-fb="unsure" aria-pressed="false">잡음이 심한 구간</button><button class="chip" style="--c:var(--llm)" data-fb="clean" aria-pressed="false">깨끗한 구간</button>
+      <button class="btn primary" id="fbPlay">▶ 받아 적기</button></div>
+    <div class="ladder" id="fbLadder"></div>
+    <div class="fx" id="fbFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="stamp">
+  <h2><span class="hc">D7-8</span>타임스탬프와 프롬프트</h2>
+  <p class="lead">위: 시각 토큰이 섞인 Whisper 출력을 타임라인으로 펼칩니다. 구간을 누르면 그 부분이 강조됩니다. 아래: 용어 쪽지(프롬프트)를 켜고 끄며 결과를 비교합니다(예시).</p>
+  <div class="stage">
+    <div class="row"><label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="stRaw" checked> 시각 토큰 그대로 보기</label></div>
+    <div class="outbox" id="stOut" style="--c:var(--s2s)"></div>
+    <canvas id="stCv" height="120" style="margin-top:10px"></canvas>
+    <div class="fx" id="stFx"></div>
+    <h3 class="sub3">프롬프트 = 용어 쪽지</h3>
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">음성:</span>
+      <button class="chip" style="--c:var(--tts)" data-pa="speech" aria-pressed="true">용어가 있는 말</button><button class="chip" style="--c:var(--tts)" data-pa="silence" aria-pressed="false">10초 무음</button>
+      <label style="font-size:.9rem;display:flex;gap:6px;align-items:center;margin-left:8px"><input type="checkbox" id="prOn"> 프롬프트 켜기</label></div>
+    <div class="outbox" id="prOut" style="--c:var(--tts)"></div>
+    <div class="fx" id="prFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="halluc">
+  <h2><span class="hc">D7-9</span>환각 실험실: 안전장치를 하나씩 켜 보기</h2>
+  <p class="lead">상황을 고르고 오른쪽 안전장치를 켜고 꺼 보세요. 빨간 글자는 소리에 없던 말(환각), 초록은 제대로 받아 적은 말입니다. (예시 시뮬레이션)</p>
+  <div class="stage">
+    <div class="row" id="haChips"></div>
+    <div class="two" style="margin-top:4px">
+      <div><canvas id="haCv" height="120"></canvas><div class="outbox" id="haOut" style="margin-top:10px"></div></div>
+      <div class="guard" id="haGuard"></div>
+    </div>
+    <div class="kv" id="haKv"></div>
+    <div class="fx" id="haFx"></div>
+    <h3 class="sub3">압축률 계산기 (브라우저 zlib)</h3>
+    <textarea id="crIn">네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네.</textarea>
+    <div class="row" style="margin-top:8px"><button class="keybtn" data-cr="보통">보통 문장</button><button class="keybtn" data-cr="반복">반복 고리</button><button class="keybtn" data-cr="영어">Thank you × 30</button></div>
+    <div class="fx" id="crFx"></div>
+  </div>
+</section>
+
+<footer>음성 AI 전문가 과정 160시간, 2주차 D7 실습 노트북 연계 자료 · 탭 번호 D7-1 ~ D7-9는 워크시트와 슬라이드의 🎬 번호와 같습니다 · 출력 문장, 확률, CER 값은 설명용 예시입니다</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+const MONO='ui-monospace, Menlo, Consolas, monospace';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${l}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function chips(attr,cb){const bs=[...document.querySelectorAll(`[${attr}]`)];bs.forEach(b=>b.onclick=()=>{bs.forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function rr(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* hero: 30초 창이 지나가는 모양 */
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.01;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const n=Math.floor((w-20)/8);const win=Math.floor(n*0.3);const off=Math.floor((heroT*20)%n);
+  for(let i=0;i<n;i++){const x=10+i*8;const v=0.15+0.75*Math.abs(Math.sin(i*0.37)*Math.sin(i*0.11+1));const inWin=((i-off+n)%n)<win;c.fillStyle=inWin?css('--asr'):css('--line');c.fillRect(x,h-v*h,5,v*h);}
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+/* tabs */
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+
+/* ===== D7-1 flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'구조와 30초 창',c:'--asr',go:'arch',items:['귀(Encoder)가 30초를 한 번 듣고, 손(Decoder)이 한 토큰씩','짧으면 0으로 채우고, 길면 30초씩 자름','Log-Mel 80 × 3000 → Encoder 1500칸 (20 ms)','특수 토큰 4개 = 주문서'],q:'🧩 빈칸 1, 2: 30, "<|ko|>"',more:['tokens','특수 토큰 주문서']},
+ {p:'Part 2',t:'모델 크기',c:'--s2s',go:'sizes',items:['tiny 39M ~ large-v3 1550M, turbo = Decoder 4층','RTF = 걸린 시간 ÷ 음성 길이 (1보다 작으면 실시간보다 빠름)','CER = 고쳐야 할 글자 비율'],q:'🧩 빈칸 3: elapsed'},
+ {p:'Part 3',t:'언어 감지 · 번역',c:'--llm',go:'langid',items:['SOT 다음 토큰에서 언어 99개의 확률','짧은 말 · 섞인 말은 흔들림 → 언어 고정','task="translate": 어떤 언어 → 영어만, turbo는 번역 X'],q:'🧩 빈칸 4, 5: LANG_IDS, "translate"'},
+ {p:'Part 4',t:'디코딩 옵션',c:'--tts',go:'beam',items:['greedy vs beam search (원본 CLI 기본 beam 5)','temperature: 점수를 T로 나눠 확률을 퍼뜨림','시각 토큰 0.02초 간격 · 프롬프트 = 용어 쪽지'],q:'🧩 빈칸 6, 7: 5, PROMPT',more:['temp','temperature'],more2:['stamp','타임스탬프 · 프롬프트']},
+ {p:'Part 5',t:'환각 대응',c:'--bad',go:'halluc',items:['무음 → "시청해 주셔서 감사합니다", 반복 고리','P(<|nospeech|>) > 0.6, 압축률 > 2.4, 평균 확신 < −1.0','temperature fallback, VAD 먼저'],q:'🧩 빈칸 8, 9: NOSPEECH, compress'}];
+$('road').style.gridTemplateColumns='repeat(5,1fr)';
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=[r.more,r.more2].filter(Boolean).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== D7-2 arch ===== */
+const ST=[['--net','파형','(L,) 샘플','16,000 × 30 = 480,000 샘플로 맞춤. 짧으면 뒤를 0으로, 길면 30초에서 자름'],
+ ['--asr','Log-Mel','(80, 3000)','25 ms 창을 10 ms씩 밀며 80칸 mel 에너지. large-v3 · turbo는 128칸'],
+ ['--net','Conv × 2','(d, 1500)','두 번째 합성곱의 보폭이 2 → 길이가 절반. 한 칸 = 20 ms'],
+ ['--asr','Encoder (귀)','(1500, d)','Transformer 층(small 12, large 32)이 1500칸끼리 문맥을 섞음. 30초에 한 번만 계산'],
+ ['--llm','Decoder (손)','토큰 1개씩','주문서(SOT · 언어 · 할 일 · 타임스탬프) 뒤에 한 토큰씩. 토큰마다 Decoder를 다시 돌림'],
+ ['--tts','글자','문장','BPE 조각을 이어 붙여 글자로. 특수 토큰은 빼고 보여 줌']];
+let arCur=0;$('arSt').innerHTML=ST.map((s,i)=>`<div class="pst" style="--c:var(${s[0]})" data-i="${i}" role="button" tabindex="0"><b>${i+1}</b><span><strong>${s[1]}</strong> · <code>${s[2]}</code></span></div>`).join('');
+[...$('arSt').children].forEach(d=>{d.onclick=()=>{arCur=+d.dataset.i;drawAr();};d.onkeydown=e=>{if(e.key==='Enter'){arCur=+d.dataset.i;drawAr();}};});
+$('arL').oninput=drawAr;
+function drawAr(){const L=+$('arL').value;$('arLO').textContent=L+'초';const nW=Math.ceil(L/30);const tot=nW*30;
+  const {c,w,h}=fit($('arCv'),150);c.clearRect(0,0,w,h);const X=s=>10+(w-20)*s/Math.max(90,tot);
+  const cols=[css('--asr'),css('--llm'),css('--tts'),css('--s2s')];
+  for(let k=0;k<nW;k++){const a=k*30,b=Math.min(L,a+30);c.fillStyle=cols[k%4];c.globalAlpha=0.85;c.fillRect(X(a),30,X(b)-X(a),46);c.globalAlpha=1;
+    if(b<a+30){c.fillStyle=css('--soft');c.fillRect(X(b),30,X(a+30)-X(b),46);c.strokeStyle=css('--line');c.strokeRect(X(b),30,X(a+30)-X(b),46);c.fillStyle=css('--muted');c.font='11px '+FONT;if(X(a+30)-X(b)>60)c.fillText('0 패딩',X(b)+6,58);}
+    c.fillStyle='#fff';c.font='700 12px '+FONT;if(X(b)-X(a)>50)c.fillText(`창 ${k+1}`,X(a)+6,58);
+    c.strokeStyle=css('--ink');c.lineWidth=1;c.strokeRect(X(a),26,X(a+30)-X(a),54);}
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=Math.max(90,tot);s+=15)c.fillText(s+'s',X(s)-6,h-40);
+  c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(`실제 말 ${L}초 → 계산하는 양 ${tot}초 (창 ${nW}개)`,10,16);
+  const eff=L/tot;
+  $('arKv').innerHTML=`<div><span>30초 창 개수</span><b>${nW}</b></div><div><span>Log-Mel 칸 (창마다)</span><b>80 × 3000</b></div><div><span>Encoder 칸 (창마다)</span><b>1500</b></div><div><span>쓸모 있는 계산 비율</span><b style="color:${eff<0.5?css('--bad'):css('--ok')}">${Math.round(eff*100)}%</b></div>`;
+  [...$('arSt').children].forEach((d,i)=>{d.classList.toggle('on',i<=arCur);d.classList.toggle('cur',i===arCur);});
+  const s=ST[arCur];
+  $('arFx').innerHTML=`<b>${arCur+1}. ${s[1]}</b> — 모양 ${esc(s[2])}<br>${esc(s[3])}<br>${L<30?`💡 ${L}초를 넣어도 30초만큼 계산합니다. 짧은 명령어가 많은 서비스라면 낭비가 큽니다 (D8에서 개선).`:L===30?'딱 30초: 패딩도 잘림도 없음.':`💡 ${L}초는 창 ${nW}개로 나눠 차례로 받아 적습니다 (long-form). 그냥 넣으면 앞 30초만 남고 잘립니다(truncation=True가 기본).`}`;}
+REDRAW.arch=drawAr;
+
+/* ===== D7-3 tokens ===== */
+let TK={lang:'ko',task:'transcribe',ts:'off',pr:'off'};
+chipRow($('tkLang'),'data-tl',[['auto','자동 감지'],['ko','<|ko|>'],['en','<|en|>'],['ja','<|ja|>']],'ko','--llm',v=>{TK.lang=v;drawTk();});
+chipRow($('tkTask'),'data-tt',[['transcribe','transcribe'],['translate','translate']],'transcribe','--tts',v=>{TK.task=v;drawTk();});
+chipRow($('tkTs'),'data-tz',[['off','끔'],['on','켬']],'off','--s2s',v=>{TK.ts=v;drawTk();});
+chipRow($('tkPr'),'data-tp',[['off','없음'],['on','"위스퍼, Whisper"']],'off','--asr',v=>{TK.pr=v;drawTk();});
+const OUT={
+ 'ko|transcribe':'안녕하세요. 오늘은 음성 인식 모델 위스퍼를 자세히 알아보겠습니다.',
+ 'ko|translate':'Hello. Today, we will take a closer look at the speech recognition model Whisper.',
+ 'en|transcribe':'Hello. Today, we will learn about the speech recognition model, Whisper, in detail.',
+ 'en|translate':'Hello. Today, we will learn about the speech recognition model, Whisper, in detail.',
+ 'ja|transcribe':'こんにちは。今日は音声認識モデルのウィスパーを詳しく見ていきます。',
+ 'ja|translate':'Hello. Today, we will take a closer look at the speech recognition model Whisper.'};
+function drawTk(){const lang=TK.lang==='auto'?'ko':TK.lang;const key=lang+'|'+TK.task;let txt=OUT[key];
+  if(TK.pr==='on'&&key==='ko|transcribe')txt=txt.replace('위스퍼','Whisper');
+  const toks=[];if(TK.pr==='on')toks.push(['<|startofprev|>','이전 문장 표시','--net'],['위스퍼, Whisper','프롬프트','--net']);
+  toks.push(['<|startoftranscript|>','① 시작','--net']);
+  toks.push([TK.lang==='auto'?'<|??|>':`<|${TK.lang}|>`,TK.lang==='auto'?'② 모델이 고름 → <|ko|> 94%':'② 언어 (고정)','--llm']);
+  toks.push([`<|${TK.task}|>`,'③ 할 일','--tts']);
+  if(TK.ts==='off')toks.push(['<|notimestamps|>','④ 시각 표시 안 함','--s2s']);
+  $('tkRow').innerHTML=toks.map(([t,l,c])=>`<span class="tk" style="--c:var(${c})">${esc(t)}<small>${esc(l)}</small></span>`).join('')+`<span class="tk" style="--c:var(--asr)">… 받아 쓴 토큰 …<small>모델이 씀</small></span><span class="tk" style="--c:var(--net)">&lt;|endoftext|&gt;<small>⑤ 끝</small></span>`;
+  let html=esc(txt);
+  if(TK.ts==='on'){const parts=txt.split(/(?<=\.)\s/);const tsv=[[0.0,1.42],[1.42,4.96]];html=parts.map((p,i)=>`<span class="ts">&lt;|${tsv[i%2][0].toFixed(2)}|&gt;</span>${esc(p)}<span class="ts">&lt;|${tsv[i%2][1].toFixed(2)}|&gt;</span>`).join(' ');}
+  $('tkOut').innerHTML=html;$('tkOut').style.setProperty('--c',`var(${lang!=='ko'||TK.task==='translate'?'--llm':'--asr'})`);
+  let note='';
+  if(TK.task==='translate')note='③ translate: 받아 적는 대신 <b>영어로 번역</b>합니다. language=는 "들어오는 음성의 언어"이지 출력 언어가 아닙니다. 영어 외 언어로는 번역하지 못합니다. turbo는 번역 학습을 안 해서 잘 못합니다.';
+  else if(lang==='en')note='⚠️ 한국어 음성에 <b>&lt;|en|&gt;</b>을 강제했습니다. "영어로 받아 적어라"는 지시라서, 모델이 영어 문장으로 번역해 버리거나 엉뚱한 글자를 냅니다 (환각 유형 ④).';
+  else if(lang==='ja')note='⚠️ 한국어 음성에 <b>&lt;|ja|&gt;</b>을 강제했습니다. 일본어로 옮겨 적으려 합니다. <b>언어 토큰을 잘못 주면 결과가 크게 망가집니다.</b>';
+  else if(TK.lang==='auto')note='② 자동: Decoder가 SOT 다음 토큰으로 언어를 먼저 고릅니다(D7-5). 짧은 말이나 섞인 말에서는 틀릴 수 있어, 서비스 언어를 알면 고정하는 것이 안전합니다.';
+  else note='기본 주문서: 시작 → 한국어 → 받아쓰기 → 시각 표시 안 함. generate(language="ko")가 속으로 만드는 4개입니다.';
+  if(TK.ts==='on')note+='<br>④ 켬: &lt;|notimestamps|&gt;가 빠지고, 0.02초 간격의 시각 토큰이 문장 앞뒤에 끼워져 나옵니다 (D7-8).';
+  if(TK.pr==='on')note+='<br>프롬프트: &lt;|startofprev|&gt; 뒤에 깐 문장을 "바로 앞에 받아 쓴 내용"으로 여겨 표기를 따라 합니다. 여기서는 "위스퍼"가 "Whisper"로 바뀌었습니다.';
+  $('tkFx').innerHTML=note;}
+REDRAW.tokens=drawTk;
+
+/* ===== D7-4 sizes ===== */
+const MD=[['tiny',39,10,1,32,true],['base',74,7,1,22,true],['small',244,4,2,12,true],['medium',769,2,5,8,true],['large-v3',1550,1,10,6,true],['turbo',809,8,6,7,false]];
+let SZ={gpu:'4',rt:'yes',tr:'no',pri:'acc'};
+chipRow($('szGpu'),'data-g',[['0','없음 (CPU)'],['2','2 GB'],['4','4 GB'],['8','8 GB'],['16','16 GB+']],'4','--s2s',v=>{SZ.gpu=v;drawSz();});
+chipRow($('szRt'),'data-r',[['yes','예'],['no','아니오 (녹음 파일)']],'yes','--s2s',v=>{SZ.rt=v;drawSz();});
+chipRow($('szTr'),'data-x',[['no','아니오'],['yes','예']],'no','--s2s',v=>{SZ.tr=v;drawSz();});
+chipRow($('szPri'),'data-p',[['acc','정확도'],['speed','속도 · 비용']],'acc','--s2s',v=>{SZ.pri=v;drawSz();});
+function drawSz(){const gpu=+SZ.gpu;const ok=MD.map(([n,p,sp,mem,cer,tr])=>{const why=[];
+    if(gpu===0&&p>250)why.push('CPU에선 너무 느림');if(gpu>0&&mem>gpu)why.push(`메모리 ~${mem} GB 필요`);
+    if(SZ.rt==='yes'&&sp<2&&gpu<16)why.push('실시간엔 느림');if(SZ.tr==='yes'&&!tr)why.push('번역 학습 안 함');return why;});
+  const cand=MD.map((m,i)=>i).filter(i=>!ok[i].length);
+  let best=null;if(cand.length){best=SZ.pri==='acc'?cand.reduce((a,b)=>MD[b][4]<MD[a][4]?b:a):cand.reduce((a,b)=>MD[b][2]>MD[a][2]?b:a);}
+  $('szCards').innerHTML=MD.map(([n,p,sp,mem,cer],i)=>`<div class="mcard ${i===best?'best':(ok[i].length?'':'ok')}"><b>${n}${i===best?' ✓ 추천':''}</b><span>${p}M · ~${mem} GB · ${sp}배 속도</span><span>CER 예시 ${cer}%</span>${ok[i].length?`<em>${ok[i].join(', ')}</em>`:''}</div>`).join('');
+  $('szFx').innerHTML=best===null?'조건을 모두 만족하는 모델이 없습니다. GPU를 늘리거나, D8의 <b>faster-whisper · 양자화</b>로 같은 모델을 더 가볍게 만듭니다.':
+    `추천: <b>${MD[best][0]}</b> — ${SZ.pri==='acc'?'쓸 수 있는 모델 중 가장 정확':'쓸 수 있는 모델 중 가장 빠름'}. ${MD[best][0]==='turbo'?'turbo = large의 Encoder 32층은 그대로, Decoder만 4층 → 정확도는 large에 가깝고 속도는 8배.':''}${SZ.tr==='yes'?' 번역이 필요하면 turbo는 빼야 합니다.':''}<br>표의 CER은 깨끗한 한국어 음성을 가정한 <b>설명용 예시</b>입니다. 실제 값은 노트북 빈칸 3에서 직접 잽니다.`;}
+REDRAW.sizes=()=>{drawSz();drawRt();};
+['rtLen','rtTime'].forEach(id=>$(id).oninput=drawRt);
+function drawRt(){const L=+$('rtLen').value,T=+$('rtTime').value;$('rtLenO').textContent=L+'초';$('rtTimeO').textContent=T+'초';const R=T/L;
+  const {c,w,h}=fit($('rtCv'),90);c.clearRect(0,0,w,h);const X=v=>10+(w-20)*Math.min(v,2)/2;
+  c.fillStyle=css('--soft');c.fillRect(10,24,w-20,30);c.fillStyle=R<1?css('--ok'):css('--bad');c.fillRect(10,24,X(R)-10,30);
+  c.strokeStyle=css('--ink');c.setLineDash([4,4]);c.beginPath();c.moveTo(X(1),16);c.lineTo(X(1),62);c.stroke();c.setLineDash([]);
+  c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText('RTF = 1 (실시간)',X(1)+4,14);c.fillText('0',8,76);c.fillText('2+',w-24,76);
+  $('rtFx').innerHTML=`RTF = 걸린 시간 ÷ 음성 길이 = ${T} ÷ ${L} = <b>${R.toFixed(3)}</b> → ${R<1?`실시간보다 <b>${(1/R).toFixed(1)}배</b> 빠름`:`실시간보다 <b>${R.toFixed(1)}배</b> 느림 ⚠️ 실시간 자막 불가`}<br>${R<1?`GPU 한 대로 이론상 동시에 약 ${Math.floor(1/R)}개의 실시간 흐름을 처리할 수 있는 속도입니다(실제로는 그보다 적음).`:'모델을 줄이거나(turbo · small), GPU를 쓰거나, D8의 최적화를 적용해야 합니다.'}`;}
+
+/* ===== D7-5 langid ===== */
+const LI={ko:['한국어 문장',[['ko',.94],['ja',.03],['zh',.015],['en',.01],['jw',.005]],'한국어로 거의 확신합니다. 이런 경우는 자동 감지도 괜찮습니다.'],
+ en:['영어 문장',[['en',.97],['cy',.01],['de',.008],['nl',.007],['ko',.005]],'영어 확신. 영어는 학습 데이터가 가장 많아 감지가 가장 안정적입니다.'],
+ ja:['일본어 문장',[['ja',.95],['ko',.02],['zh',.02],['en',.006],['vi',.004]],'일본어 확신. 한국어 · 중국어가 2등 · 3등인 것은 소리가 닮은 이웃 언어라서입니다.'],
+ mix:['섞인 말 "meeting은 three o\'clock에"',[['ko',.58],['en',.36],['ja',.03],['zh',.02],['ms',.01]],'두 언어로 확률이 나뉩니다. 처음 몇 초에 영어 단어가 많으면 en으로 뒤집힐 수도 있습니다 → <b>주 언어로 고정</b>.'],
+ short:['1초짜리 "네"',[['ko',.41],['ja',.27],['zh',.12],['en',.1],['vi',.05]],'단서가 너무 적어 확률이 흩어집니다. 일본어 "네(ね)"와도 닮았습니다. 짧은 명령어 서비스라면 반드시 고정.'],
+ music:['처음 5초가 음악',[['en',.33],['ko',.22],['ja',.12],['es',.08],['nn',.05]],'앞부분에 말이 없으면 영어 같은 흔한 언어로 기웁니다 → <b>VAD로 말 구간부터</b> 넣기 (Part 5).']};
+let LIK='ko';chipRow($('liChips'),'data-li',Object.entries(LI).map(([k,v])=>[k,v[0]]),'ko','--llm',v=>{LIK=v;drawLi();});$('liFix').onchange=drawLi;
+function drawLi(){const [name,rows,note]=LI[LIK];const fix=$('liFix').checked;const {c,w,h}=fit($('liCv'),240);c.clearRect(0,0,w,h);
+  const bw=(w-80)/rows.length;rows.forEach(([l,p],i)=>{const x=50+i*bw,bh=(h-60)*p;c.fillStyle=i===0?css('--llm'):css('--net');c.globalAlpha=fix?0.25:1;rr(c,x+8,h-30-bh,bw-16,bh,6);c.fill();c.globalAlpha=1;
+    c.fillStyle=css('--ink');c.font='700 13px '+MONO;c.fillText(l,x+bw/2-8,h-12);c.font='12px '+FONT;c.fillText((p*100).toFixed(1)+'%',x+bw/2-14,h-36-bh);});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('언어 토큰 99개 중 상위 5개 (예시)',10,14);
+  if(fix){c.fillStyle=css('--ok');c.font='700 15px '+FONT;c.fillText('language="ko" 고정 → 이 단계를 건너뜀',60,h/2);}
+  const top=rows[0][1],sec=rows[1][1];
+  $('liFx').innerHTML=fix?`언어를 고정하면 주문서 ②번 칸에 바로 &lt;|ko|&gt;를 넣으므로 <b>감지 계산을 하지 않습니다</b>(조금 더 빠름). 실제로 다른 언어가 들어오면 그 언어를 한국어로 옮겨 적으려 해서 이상한 결과가 나오니, 서비스 언어가 정해져 있을 때만 고정하세요.`:
+    `[${esc(name)}] 1등 <b>${rows[0][0]} ${(top*100).toFixed(0)}%</b> · 2등 ${rows[1][0]} ${(sec*100).toFixed(0)}% → 차이 ${((top-sec)*100).toFixed(0)}%p ${top-sec<0.3?'⚠️ 애매함':'✓ 확실함'}<br>${note}<br>계산: SOT 하나만 넣고 → 다음 토큰 점수 중 언어 토큰 99칸만 골라 → softmax (빈칸 4)`;}
+REDRAW.langid=drawLi;
+
+/* ===== D7-6 beam ===== */
+const TREE={'':[['I',.55],['Ice',.40],['Eye',.05]],'I':[['scream',.40],['see',.35],['am',.25]],'Ice':[['cream',.90],['age',.10]],'Eye':[['see',.70],['sight',.30]],
+ 'I scream':[['loudly',.50],['.',.50]],'I see':[['it',.60],['.',.40]],'I am':[['here',.70],['.',.30]],'Ice cream':[['is',.60],['and',.40]],'Ice age':[['.',1]],'Eye see':[['.',1]],'Eye sight':[['.',1]]};
+let bmStep=0,bmTimer=null;
+$('bmW').oninput=()=>{bmStep=0;drawBm();};$('bmReset').onclick=()=>{clearInterval(bmTimer);bmStep=0;drawBm();};
+$('bmStep').onclick=()=>{if(bmStep<3)bmStep++;drawBm();};$('bmAll').onclick=()=>{clearInterval(bmTimer);bmTimer=setInterval(()=>{if(bmStep>=3){clearInterval(bmTimer);return;}bmStep++;drawBm();},RM?0:700);};
+function beamRun(W){const steps=[];let beams=[['',1]];for(let s=0;s<3;s++){const all=[];beams.forEach(([seq,p])=>{(TREE[seq]||[]).forEach(([t,q])=>all.push([seq?seq+' '+t:t,p*q,seq]));});all.sort((a,b)=>b[1]-a[1]);steps.push({all,keep:all.slice(0,W).map(x=>x[0])});beams=all.slice(0,W).map(x=>[x[0],x[1]]);}return steps;}
+function drawBm(){const W=+$('bmW').value;$('bmWO').textContent=W+(W===1?' (= greedy)':'');const steps=beamRun(W);const gsteps=beamRun(1);const gpath=gsteps.map(s=>s.keep[0]);
+  let html=`<div class="bcol"><h4>시작</h4><div class="bcand keep"><span>&lt;sot&gt;</span><b>1.00</b></div></div>`;
+  for(let s=0;s<3;s++){if(s>=bmStep){html+=`<div class="bcol"><h4>걸음 ${s+1}</h4><div class="bcand"><span>…</span></div></div>`;continue;}
+    const st=steps[s];const fin=s===2&&bmStep===3;
+    html+=`<div class="bcol"><h4>걸음 ${s+1}: 후보 ${st.all.length}개 → ${W}개 남김</h4>`+st.all.slice(0,8).map((x,i)=>{const keep=st.keep.includes(x[0]);const best=fin&&i===0;const g=gpath[s]===x[0];return `<div class="bcand ${keep?'keep':''} ${best?'best':''} ${g?'greedy':''}"><span>${esc(x[0])}</span><b>${x[1].toFixed(3)}</b></div>`;}).join('')+'</div>';}
+  $('bmCols').innerHTML=html;
+  const gb=gsteps[2].all[0];const bb=steps[2].all[0];
+  $('bmFx').innerHTML=bmStep<3?`걸음 ${bmStep}/3 — 점수 = 지금까지 고른 토큰 확률의 곱. 폭 ${W}개만 다음 걸음으로 가져갑니다. 빨간 안쪽선 = greedy(폭 1)의 길.`:
+    `폭 ${W} 결과: <b>"${esc(bb[0])}"</b> ${bb[1].toFixed(3)} &nbsp;vs&nbsp; greedy: "${esc(gb[0])}" ${gb[1].toFixed(3)}<br>${W>1&&bb[1]>gb[1]?'✅ greedy는 첫 걸음에서 "I"(0.55)를 고른 뒤 돌아오지 못했고, beam은 "Ice"(0.40)를 버리지 않아 더 좋은 문장을 찾았습니다.':'폭 1은 greedy와 같습니다. 폭을 2 이상으로 올려 보세요.'}<br>계산량: 걸음마다 Decoder를 <b>${W}배</b> 돌립니다. Whisper 원본 CLI 기본값 beam 5, transformers generate() 기본값 greedy.`;}
+REDRAW.beam=drawBm;
+
+/* ===== D7-7 temperature + fallback ===== */
+const TW=['안녕하세요','안녕하세용','안녕하십니까','앙녕하세요','안냥','감사합니다'];const TZ=[3.0,1.6,1.2,0.4,-0.5,-1.0];let tpHist=new Array(6).fill(0),tpSeed=1;
+$('tpT').oninput=drawTp;$('tpClr').onclick=()=>{tpHist.fill(0);drawTp();};
+function tpProbs(T){if(T<0.02){return TZ.map((_,i)=>i===0?1:0);}const e=TZ.map(z=>Math.exp(z/T));const s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s);}
+$('tpRoll').onclick=()=>{const p=tpProbs(+$('tpT').value);const r=mulberry(tpSeed++*97);for(let k=0;k<20;k++){let u=r(),i=0;while(i<5&&u>p[i]){u-=p[i];i++;}tpHist[i]++;}drawTp();};
+function drawTp(){const T=+$('tpT').value;$('tpTO').textContent=T.toFixed(2)+(T<0.02?' (= greedy)':'');const p=tpProbs(T);const {c,w,h}=fit($('tpCv'),230);c.clearRect(0,0,w,h);
+  const bw=(w-20)/6;const n=tpHist.reduce((a,b)=>a+b,0);
+  p.forEach((v,i)=>{const x=10+i*bw,bh=(h-70)*v;c.fillStyle=i===0?css('--llm'):css('--asr');rr(c,x+8,h-40-bh,bw-16,bh,6);c.fill();
+    c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText((v*100).toFixed(0)+'%',x+bw/2-12,h-46-bh);c.font='12px '+FONT;c.fillText(TW[i],x+6,h-24);
+    if(n){c.fillStyle=css('--tts');c.font='700 12px '+FONT;c.fillText(`🎲 ${tpHist[i]}`,x+bw/2-14,h-6);}});
+  const wrong=n?n-tpHist[0]:0;
+  $('tpFx').innerHTML=`p<sub>k</sub> = softmax(z<sub>k</sub> / T) &nbsp;·&nbsp; 1등 "${TW[0]}"의 확률 <b>${(p[0]*100).toFixed(0)}%</b>${n?` &nbsp;·&nbsp; 주사위 ${n}번 중 1등이 아닌 것 <b>${wrong}번</b>`:''}<br>${T<0.02?'T = 0: 언제나 1등 → 받아쓰기의 기본값. 같은 음성은 같은 결과.':T<0.7?'T가 작음: 거의 1등. 가끔 2등.':T<=1.2?'T ≈ 1: 모델 원래 확률 그대로 뽑기. 실행마다 결과가 달라짐.':'T가 큼: 확률이 평평해져 "안냥", "감사합니다" 같은 엉뚱한 토큰도 자주 나옴 ⚠️'}`;}
+let FB='loop';chips('data-fb',v=>{FB=v;fbIdx=-1;drawFb();});let fbIdx=-1,fbTimer=null;
+const FBS={loop:[[3.8,-0.4],[3.1,-0.6],[1.2,-0.5]],unsure:[[1.1,-1.6],[1.2,-1.3],[1.1,-1.2],[1.0,-0.8]],clean:[[1.1,-0.2]]};
+const FBT={loop:['네. 네. 네. 네. 네. 네. 네. 네. …','네. 네. 그렇게 하면 네. 네. 네. …','네, 그렇게 진행하면 됩니다.'],unsure:['아이 구로 교 유 센터','아이구로 교육 센터에서','아이구루 교육센터에서 라이브 킷','아이구루 교육센터에서 라이브킷과 파이프캣으로'],clean:['안녕하세요. 오늘은 위스퍼를 알아보겠습니다.']};
+$('fbPlay').onclick=()=>{clearInterval(fbTimer);fbIdx=-1;drawFb();fbTimer=setInterval(()=>{if(fbIdx>=FBS[FB].length-1){clearInterval(fbTimer);return;}fbIdx++;drawFb();},RM?0:800);};
+function drawFb(){const S=FBS[FB];$('fbLadder').innerHTML=[0,0.2,0.4,0.6,0.8,1.0].map((T,i)=>{let cls='',txt='대기';if(i<=fbIdx&&i<S.length){const [cr,lp]=S[i];const pass=cr<=2.4&&lp>=-1;cls=pass?'pass':'fail';txt=`압축률 ${cr} · 확신 ${lp}<br>${pass?'✓ 채택':'✗ 다시'}`;}return `<div class="rung ${cls}"><b>T = ${T.toFixed(1)}</b>${txt}</div>`;}).join('');
+  if(fbIdx<0){$('fbFx').innerHTML='▶ 받아 적기를 누르세요. 각 단계에서 ① 압축률 > 2.4 (반복 의심) ② 평균 확신 < −1.0 (자신 없음)을 검사합니다.';return;}
+  const [cr,lp]=S[fbIdx];const pass=cr<=2.4&&lp>=-1;
+  $('fbFx').innerHTML=`T = ${(fbIdx*0.2).toFixed(1)} 결과: "${esc(FBT[FB][fbIdx])}"<br>${cr>2.4?`① 압축률 ${cr} > 2.4 → 같은 말 반복 의심`:`① 압축률 ${cr} ✓`} &nbsp;·&nbsp; ${lp<-1?`② 평균 확신 ${lp} < −1.0 → 자신 없음`:`② 평균 확신 ${lp} ✓`}<br>${pass?`✅ 채택. ${fbIdx?'온도를 조금 올려 반복 고리에서 빠져나왔습니다.':'T = 0에서 바로 통과 → 평소에는 안전장치가 아무것도 하지 않습니다.'}`:'다음 칸으로: T를 0.2 올려 같은 구간을 다시 받아 적습니다.'}`;}
+REDRAW.temp=()=>{drawTp();drawFb();};
+
+/* ===== D7-8 stamp + prompt ===== */
+const SEG=[[0.00,4.86,'안녕하세요. 오늘은 음성 인식 모델 위스퍼를 자세히 알아보겠습니다.'],[5.56,10.30,'아이구루 교육센터에서 라이브킷과 파이프캣으로 음성 에이전트를 만듭니다.'],[11.00,16.84,'오늘 미팅은 three o\'clock에 시작하고 agenda는 이메일로 보내 드릴게요.']];
+let stSel=-1;$('stRaw').onchange=drawSt;
+$('stCv').addEventListener('click',e=>{const r=$('stCv').getBoundingClientRect();const x=e.clientX-r.left;const t=(x-10)/(r.width-20)*18;stSel=SEG.findIndex(s=>t>=s[0]&&t<=s[1]);drawSt();});
+function drawSt(){const raw=$('stRaw').checked;
+  $('stOut').innerHTML=SEG.map((s,i)=>{const t=`<span class="${i===stSel?'good':''}">${esc(s[2])}</span>`;return raw?`<span class="ts">&lt;|${s[0].toFixed(2)}|&gt;</span>${t}<span class="ts">&lt;|${s[1].toFixed(2)}|&gt;</span>`:`<span class="ts">[${s[0].toFixed(2)} → ${s[1].toFixed(2)}]</span> ${t}`;}).join(raw?'':'<br>');
+  const {c,w,h}=fit($('stCv'),120);c.clearRect(0,0,w,h);const X=t=>10+(w-20)*t/18;const r=mulberry(4);
+  for(let i=0;i<300;i++){const t=i/300*18;const sp=SEG.some(s=>t>=s[0]+0.1&&t<=s[1]-0.1);const a=sp?0.25+0.7*Math.abs(Math.sin(t*7+r())):0.03;c.fillStyle=css('--line');c.fillRect(X(t),50-a*28,(w-20)/300,a*56);}
+  const cols=[css('--llm'),css('--asr'),css('--tts')];SEG.forEach((s,i)=>{c.fillStyle=cols[i];c.globalAlpha=i===stSel?0.45:0.2;c.fillRect(X(s[0]),12,X(s[1])-X(s[0]),76);c.globalAlpha=1;c.fillStyle=cols[i];c.font='700 12px '+FONT;c.fillText(`구간 ${i+1}`,X(s[0])+4,26);});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=18;s+=2)c.fillText(s+'s',X(s)-6,h-6);
+  $('stFx').innerHTML=`시각 토큰: &lt;|0.00|&gt;, &lt;|0.02|&gt;, …, &lt;|30.00|&gt; — <b>0.02초 간격 1501개</b> (Encoder 한 칸 = 20 ms와 같은 간격)<br>`+(stSel>=0?`구간 ${stSel+1}: ${SEG[stSel][0].toFixed(2)}초 ~ ${SEG[stSel][1].toFixed(2)}초 (${(SEG[stSel][1]-SEG[stSel][0]).toFixed(2)}초)`:'타임라인의 구간을 눌러 보세요.')+`<br>⚠️ 문장(구간) 단위이고 ±0.5초쯤 틀릴 수 있습니다. 단어 단위 시각은 D9 WhisperX.`;}
+let PA='speech';chips('data-pa',v=>{PA=v;drawPr();});$('prOn').onchange=drawPr;
+function drawPr(){const on=$('prOn').checked;let html,note;
+  if(PA==='speech'){html=on?'<span class="good">아이구루</span> 교육센터에서 <span class="good">라이브킷</span>과 <span class="good">파이프캣</span>으로 음성 에이전트를 만듭니다.':'<span class="bad">아이 구로</span> 교육센터에서 <span class="bad">라이브 킷</span>과 <span class="bad">파이프 캣</span>으로 음성 에이전트를 만듭니다.';
+    note=on?'프롬프트 "아이구루 교육센터, 라이브킷, 파이프캣, 음성 에이전트."를 &lt;|startofprev|&gt; 뒤에 깔았습니다. 모델이 이것을 "바로 앞 문장"으로 여겨 같은 표기를 고르기 쉬워졌습니다.':'처음 듣는 고유명사는 소리 나는 대로 쪼개 적기 쉽습니다. 프롬프트를 켜 보세요.';}
+  else{html=on?'<span class="bad">아이구루 교육센터, 라이브킷, 파이프캣, 음성 에이전트.</span>':'<span style="color:var(--muted)">(빈 문자열)</span> 또는 <span class="bad">시청해 주셔서 감사합니다.</span>';
+    note=on?'⚠️ 환각 유형 ③: 소리가 없으니 모델이 <b>프롬프트를 그대로 베껴</b> 적었습니다. 프롬프트를 쓸 때는 반드시 <b>VAD로 무음 구간을 먼저 빼세요</b>.':'무음에는 빈 결과가 이상적이지만, 상투 문장(유형 ①)이 나올 수 있습니다.';}
+  $('prOut').innerHTML=html;$('prFx').innerHTML=note+'<br>프롬프트 규칙: 짧게(최대 약 224토큰), "받아 쓴 문장"처럼. "다음을 받아 적어라" 같은 지시문은 효과가 없습니다.';}
+REDRAW.stamp=()=>{drawSt();drawPr();};
+
+/* ===== D7-9 hallucination lab ===== */
+const HS={
+ silence:{n:'통화 대기 10초 (무음)',wave:[[0,2,1],[2,12,0],[12,14,1]],ref:'네 확인했습니다. 잠시만요.',raw:[['네 확인했습니다.','ok'],['시청해 주셔서 감사합니다.','bad'],['잠시만요.','ok']],ns:0.82,cr:1.1,lp:-1.4},
+ loop:{n:'긴 회의 · 맞장구 반복',wave:[[0,14,1]],ref:'네 맞습니다. 그렇게 진행하겠습니다.',raw:[['네 맞습니다.','ok'],['네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네. 네.','bad']],ns:0.02,cr:6.2,lp:-0.3},
+ prompt:{n:'프롬프트 + 무음 구간',wave:[[0,3,1],[3,14,0]],ref:'회의를 시작하겠습니다.',raw:[['회의를 시작하겠습니다.','ok'],['아이구루, 라이브킷, 파이프캣.','bad']],ns:0.75,cr:1.0,lp:-1.2},
+ short:{n:'1초 "네" (언어 미지정)',wave:[[0,1,1]],ref:'네.',raw:[['はい。','bad']],ns:0.3,cr:1.0,lp:-0.9}};
+const GU=[['lang','language="ko" 고정','④ 언어 혼동 방지'],['vad','VAD로 말 구간만','① ③의 원인(무음) 제거'],['ns','no_speech_threshold=0.6 (+ logprob −1.0)','무음 확률 높고 자신 없는 구간 버림'],['fb','compression_ratio + temperature fallback','반복이면 T를 올려 다시'],['prev','condition_on_prev_tokens=False','앞 구간의 반복이 번지지 않게']];
+let HK='silence';const HG={};GU.forEach(g=>HG[g[0]]=false);
+$('haChips').innerHTML='<span style="color:var(--muted);font-size:.9rem">상황:</span>'+Object.entries(HS).map(([k,v])=>`<button class="chip" style="--c:var(--bad)" data-hs="${k}" aria-pressed="${k==='silence'}">${v.n}</button>`).join('');
+chips('data-hs',v=>{HK=v;drawHa();});
+$('haGuard').innerHTML='<b style="font-size:.95rem">안전장치</b>'+GU.map(([k,l,d])=>`<label><input type="checkbox" data-g="${k}"><span>${esc(l)}<small>${esc(d)}</small></span></label>`).join('')+'<div class="row" style="margin-top:6px"><button class="btn" id="haAll">모두 켜기</button><button class="btn" id="haNone">모두 끄기</button></div>';
+document.querySelectorAll('[data-g]').forEach(b=>b.onchange=()=>{HG[b.dataset.g]=b.checked;drawHa();});
+$('haAll').onclick=()=>{document.querySelectorAll('[data-g]').forEach(b=>{b.checked=true;HG[b.dataset.g]=true;});drawHa();};
+$('haNone').onclick=()=>{document.querySelectorAll('[data-g]').forEach(b=>{b.checked=false;HG[b.dataset.g]=false;});drawHa();};
+function drawHa(){const S=HS[HK];const {c,w,h}=fit($('haCv'),120);c.clearRect(0,0,w,h);const L=S.wave[S.wave.length-1][1];const X=t=>10+(w-20)*t/L;const r=mulberry(7);
+  for(let i=0;i<240;i++){const t=i/240*L;const seg=S.wave.find(s=>t>=s[0]&&t<s[1]);const sp=seg&&seg[2];const a=sp?0.25+0.7*Math.abs(Math.sin(t*6+r())):0.03;c.fillStyle=sp?css('--asr'):css('--line');c.fillRect(X(t),60-a*40,(w-20)/240,a*80);}
+  if(HG.vad){S.wave.forEach(([a,b,sp])=>{c.fillStyle=sp?css('--ok'):css('--bad');c.globalAlpha=0.15;c.fillRect(X(a),8,X(b)-X(a),104);c.globalAlpha=1;});c.fillStyle=css('--ink');c.font='11px '+FONT;c.fillText('VAD: 초록만 Whisper로',12,112);}
+  // 결과 계산
+  const kill=[];let parts=S.raw.map(x=>x.slice());
+  if(HK==='silence'){if(HG.vad){parts=parts.filter(p=>p[1]==='ok');kill.push('VAD가 무음 10초를 Whisper에 넣지 않아 상투 문장이 생길 자리가 없어짐');}else if(HG.ns){parts=parts.filter(p=>p[1]==='ok');kill.push(`P(무음) ${S.ns} > 0.6 그리고 평균 확신 ${S.lp} < −1.0 → 그 구간을 무음으로 보고 버림`);}}
+  if(HK==='loop'){if(HG.fb){parts[1]=['그렇게 진행하겠습니다.','ok'];kill.push(`압축률 ${S.cr} > 2.4 → T를 올려 다시 받아 적어 반복 고리에서 탈출`);}else if(HG.prev){parts[1]=['네. 네. 네. 그렇게 진행하겠습니다.','bad'];kill.push('이전 문장 참고를 꺼서 반복이 다음 구간으로 번지는 것은 막았지만, 이 구간 안의 반복은 남음 → fallback도 켜 보세요');}}
+  if(HK==='prompt'){if(HG.vad){parts=parts.filter(p=>p[1]==='ok');kill.push('VAD로 무음을 빼서 프롬프트를 베낄 자리가 없어짐');}else if(HG.ns){parts=parts.filter(p=>p[1]==='ok');kill.push('무음 구간 버림 (무음 확률 높음)');}}
+  if(HK==='short'){if(HG.lang){parts=[['네.','ok']];kill.push('language="ko" 고정 → 일본어 "はい"로 옮겨 적지 않음');}}
+  $('haOut').innerHTML=parts.length?parts.map(([t,k])=>`<span class="${k==='ok'?'good':'bad'}">${esc(t)}</span>`).join(' '):'<span style="color:var(--muted)">(빈 결과)</span>';
+  const bad=parts.filter(p=>p[1]==='bad').length;
+  $('haKv').innerHTML=`<div><span>P(&lt;|nospeech|&gt;)</span><b style="color:${S.ns>0.6?css('--bad'):css('--ink')}">${S.ns}</b></div><div><span>압축률</span><b style="color:${S.cr>2.4?css('--bad'):css('--ink')}">${S.cr}</b></div><div><span>평균 확신 (log)</span><b style="color:${S.lp<-1?css('--bad'):css('--ink')}">${S.lp}</b></div><div><span>환각 조각</span><b style="color:${bad?css('--bad'):css('--ok')}">${bad?bad+'개':'없음 ✓'}</b></div>`;
+  const hint={silence:'추천: VAD 또는 no_speech_threshold',loop:'추천: compression_ratio + temperature fallback (+ 이전 문장 참고 끄기)',prompt:'추천: VAD (프롬프트는 무음과 만나면 위험)',short:'추천: language 고정'}[HK];
+  $('haFx').innerHTML=`정답: "${esc(S.ref)}"<br>${kill.length?kill.map(k=>'✅ '+esc(k)).join('<br>'):`안전장치가 이 상황을 잡지 못했습니다. ${hint}`}<br>💡 평균 확신 −1.0 ≈ 토큰 하나당 평균 확률 37% (e<sup>−1</sup>). 그보다 낮으면 "자신 없이 지어냈다"는 신호.`;}
+REDRAW.halluc=()=>{drawHa();drawCr();};
+const CRS={보통:'오늘은 위스퍼 모델의 구조와 디코딩 옵션, 그리고 환각 문제를 차례로 알아보겠습니다.',반복:'네. '.repeat(40).trim(),영어:'Thank you. '.repeat(30).trim()};
+document.querySelectorAll('[data-cr]').forEach(b=>b.onclick=()=>{$('crIn').value=CRS[b.dataset.cr];drawCr();});$('crIn').oninput=drawCr;
+async function drawCr(){const s=$('crIn').value;const b=new TextEncoder().encode(s);if(!b.length){$('crFx').innerHTML='글을 입력하세요.';return;}
+  let n=null;try{if(window.CompressionStream){const cs=new CompressionStream('deflate');const st=new Blob([b]).stream().pipeThrough(cs);const buf=await new Response(st).arrayBuffer();n=buf.byteLength;}}catch(e){}
+  if(n===null){$('crFx').innerHTML='이 브라우저는 압축 기능(CompressionStream)을 지원하지 않습니다. 노트북 빈칸 9로 계산해 보세요.';return;}
+  const r=b.length/n;$('crFx').innerHTML=`원래 ${b.length} 바이트 ÷ 압축 ${n} 바이트 = 압축률 <b>${r.toFixed(2)}</b> ${r>2.4?'⚠️ 2.4 초과 → Whisper라면 "반복 의심"으로 다시 받아 적음':'✓ 2.4 이하'}<br>한글은 한 글자 = 3바이트. 브라우저 압축은 파이썬 zlib과 설정이 조금 달라 값이 약간 다를 수 있습니다.`;}
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>
