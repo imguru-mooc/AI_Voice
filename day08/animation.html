@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D8 추론 최적화 · 스트리밍: 인터랙티브 수업 자료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style>
+<style>
+.ctrlgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 18px;margin-bottom:12px}
+.ctrlgrid .grp{display:flex;flex-direction:column;gap:6px}
+.ctrlgrid .grp>span{font-size:.85rem;color:var(--muted)}
+.ctrlgrid .grp .row{margin:0}
+.toggles{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.toggles label{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;cursor:pointer}
+.toggles label small{display:block;color:var(--muted)}
+.outbox{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:1.02rem;line-height:1.8;min-height:52px}
+.wd{display:inline-block;padding:1px 7px;margin:2px 2px;border-radius:6px;border:1.5px solid var(--line);transition:all .25s}
+.wd.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel))}
+.wd.pend{border-style:dashed;color:var(--muted)}
+.wd.cut{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 18%,var(--panel))}
+.steplist{display:grid;gap:6px;margin-top:8px}
+.stp{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.4;transition:all .25s;font-size:.92rem}
+.stp.on{opacity:1}.stp.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 10%,var(--panel))}
+.stp code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;color:var(--s2s)}
+.qtab{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:10px}
+.qtab th,.qtab td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+.qtab th{color:var(--muted);font-weight:600}
+.qtab tr.sel td{background:color-mix(in srgb,var(--s2s) 12%,var(--panel));font-weight:700}
+.tblwrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>D8 추론 최적화 & Streaming ASR</h1>
+  <p>Whisper가 시간을 쓰는 곳, faster-whisper 엔진, 양자화 눈금, VAD와 배치, whisper.cpp, 그리고 말하는 도중 자막을 띄우는 청크 스트리밍과 LocalAgreement를 직접 움직여 보는 수업 자료입니다. 탭 번호 D8-1 ~ D8-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D8-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="bottleneck"><span class="tc">D8-2</span>병목 찾기</button>
+  <button role="tab" aria-selected="false" data-t="engine"><span class="tc">D8-3</span>실행 엔진</button>
+  <button role="tab" aria-selected="false" data-t="quant"><span class="tc">D8-4</span>양자화 눈금</button>
+  <button role="tab" aria-selected="false" data-t="batch"><span class="tc">D8-5</span>VAD · 배치</button>
+  <button role="tab" aria-selected="false" data-t="wcpp"><span class="tc">D8-6</span>whisper.cpp</button>
+  <button role="tab" aria-selected="false" data-t="chunk"><span class="tc">D8-7</span>고정 청크 vs 끝점</button>
+  <button role="tab" aria-selected="false" data-t="agree"><span class="tc">D8-8</span>LocalAgreement</button>
+  <button role="tab" aria-selected="false" data-t="latency"><span class="tc">D8-9</span>지연 비교</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D8-1</span>오늘 할 것: 같은 Whisper를 더 빠르게, 더 가볍게, 말하는 도중에</h2>
+  <p class="lead">노트북은 여섯 단계로 진행됩니다. 단계를 눌러 무엇을 하는지 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="bottleneck">
+  <h2><span class="hc">D8-2</span>병목 찾기: 시간은 어디로 가나</h2>
+  <p class="lead">음성 길이를 고르고 최적화를 하나씩 켜 보세요. 막대 하나가 받아쓰기 한 번의 처리 시간입니다. 어떤 도구가 어떤 조각을 줄이는지 보세요. (설명용 예시 값)</p>
+  <div class="stage">
+    <div class="row" id="bnLen"></div>
+    <div class="toggles" id="bnTg"></div>
+    <canvas id="bnCv" height="190"></canvas>
+    <div class="kv" id="bnKv"></div>
+    <div class="fx" id="bnFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="engine">
+  <h2><span class="hc">D8-3</span>실행 엔진: 연산을 하나씩 부르기 vs 묶어서 부르기</h2>
+  <p class="lead">"▶ 실행"을 누르면 Decoder 한 층을 계산합니다. 위는 transformers(파이썬이 연산마다 호출), 아래는 CTranslate2(묶어서 한 번에). 회색 칸은 호출 준비 · 메모리 왕복에 쓰는 시간입니다. (설명용)</p>
+  <div class="stage">
+    <label class="sl"><span>토큰 수 (Decoder 반복)</span><input type="range" id="enTok" min="1" max="60" step="1" value="20"><output id="enTokO"></output></label>
+    <div class="row"><button class="btn primary" id="enPlay">▶ 실행</button><button class="btn" id="enReset">처음으로</button></div>
+    <canvas id="enCv" height="200"></canvas>
+    <div class="fx" id="enFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="quant">
+  <h2><span class="hc">D8-4</span>양자화 눈금: 비트를 줄이면 자가 성글어진다</h2>
+  <p class="lead">가중치(점) 하나하나를 가장 가까운 눈금으로 옮깁니다. 비트 수를 줄이면 눈금 칸 수(2<sup>비트</sup>)가 줄어 오차가 커지고, 파일은 작아집니다.</p>
+  <div class="stage">
+    <label class="sl"><span>비트 수</span><input type="range" id="qtB" min="2" max="16" step="1" value="8"><output id="qtBO"></output></label>
+    <div class="row"><label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="qtOut"> 아주 큰 값(이상치) 하나 넣기</label><label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="qtBlk"> 블록마다 따로 눈금 (q5_0 방식)</label><button class="btn" id="qtNew">🎲 다른 가중치</button></div>
+    <canvas id="qtCv" height="230"></canvas>
+    <div class="kv" id="qtKv"></div>
+    <div class="fx" id="qtFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="batch">
+  <h2><span class="hc">D8-5</span>VAD와 배치: 무음은 빼고, 남은 구간은 묶어서</h2>
+  <p class="lead">46초 녹음입니다. VAD를 켜면 무음이 빠지고, 묶음 크기를 키우면 GPU에 한꺼번에 넣는 구간 수가 늘어납니다. 너무 크면 메모리가 넘칩니다. (설명용 예시)</p>
+  <div class="stage">
+    <div class="row"><label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="btVad" checked> VAD 켜기 (vad_filter=True)</label>
+      <span style="color:var(--muted);font-size:.9rem;margin-left:8px">장치:</span><span id="btDev" style="display:flex;gap:6px"></span></div>
+    <label class="sl"><span>묶음 크기 batch_size</span><input type="range" id="btB" min="1" max="32" step="1" value="1"><output id="btBO"></output></label>
+    <canvas id="btCv" height="220"></canvas>
+    <div class="kv" id="btKv"></div>
+    <div class="fx" id="btFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="wcpp">
+  <h2><span class="hc">D8-6</span>whisper.cpp 길잡이</h2>
+  <p class="lead">단계를 누르면 명령과 설명이 나옵니다. 아래 표에서 양자화 형식과 기기를 고르면 예상 파일 크기와 쓸 만한 상황이 나옵니다. (크기는 small 기준 대략값)</p>
+  <div class="stage">
+    <div class="steplist" id="wcSteps"></div>
+    <div class="fx" id="wcFx"></div>
+    <h3 class="sub3">양자화 형식 고르기</h3>
+    <div class="row" id="wcQ"></div>
+    <div class="row" id="wcDev"></div>
+    <canvas id="wcCv" height="150"></canvas>
+    <div class="fx" id="wcFx2"></div>
+  </div>
+</section>
+
+<section class="panel" id="chunk">
+  <h2><span class="hc">D8-7</span>고정 청크 vs VAD 끝점: 어디서 자를까</h2>
+  <p class="lead">"아이구루 교육센터에서 라이브킷과 파이프캣으로 음성 에이전트를 만듭니다." 청크 길이를 바꾸면 경계(빨간 선)에 걸려 잘리는 단어(빨강)와 평균 대기 시간이 바뀝니다. 끝점 방식은 쉬는 곳(초록 선)에서만 자릅니다.</p>
+  <div class="stage">
+    <div class="row"><span style="color:var(--muted);font-size:.9rem">방식:</span><button class="chip" style="--c:var(--llm)" data-cm="fixed" aria-pressed="true">고정 청크</button><button class="chip" style="--c:var(--ok)" data-cm="vad" aria-pressed="false">VAD 끝점 (쉬는 곳에서)</button></div>
+    <label class="sl"><span>청크 길이</span><input type="range" id="chL" min="1" max="8" step="0.5" value="3"><output id="chLO"></output></label>
+    <canvas id="chCv" height="150"></canvas>
+    <div class="outbox" id="chOut"></div>
+    <div class="fx" id="chFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="agree">
+  <h2><span class="hc">D8-8</span>LocalAgreement: 두 번 같은 말이 나오면 확정</h2>
+  <p class="lead">"1초 ▶"을 누를 때마다 소리가 1초 더 들어오고, 버퍼 전체를 다시 받아 적은 가설이 나옵니다. 지난 가설과 앞에서부터 같은 단어만 초록(확정)이 됩니다. 점선은 아직 바뀔 수 있는 단어입니다. (예시 가설)</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="agStep">1초 ▶</button><button class="btn" id="agAll">끝까지</button><button class="btn" id="agReset">처음으로</button>
+      <label style="font-size:.9rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="agOne"> 한 번만 보고 바로 확정 (비교용)</label></div>
+    <canvas id="agCv" height="90"></canvas>
+    <div class="outbox" id="agOut"></div>
+    <div class="tblwrap"><table class="qtab" id="agTab"></table></div>
+    <div class="fx" id="agFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="latency">
+  <h2><span class="hc">D8-9</span>지연 비교: 말한 순간부터 글자가 확정되기까지</h2>
+  <p class="lead">위쪽 파형은 8초짜리 말입니다. "▶ 말하기"를 누르면 방식마다 글자가 언제 확정되는지 타임라인에 쌓입니다. 손잡이를 바꿔 지연과 실시간 여부를 비교하세요. (설명용 시뮬레이션)</p>
+  <div class="stage">
+    <label class="sl"><span>LocalAgreement 간격</span><input type="range" id="ltStep" min="0.5" max="3" step="0.5" value="1"><output id="ltStepO"></output></label>
+    <label class="sl"><span>받아쓰기 계산 시간 (1초 버퍼당)</span><input type="range" id="ltComp" min="0.1" max="2" step="0.1" value="0.4"><output id="ltCompO"></output></label>
+    <div class="row"><button class="btn primary" id="ltPlay">▶ 말하기</button><button class="btn" id="ltReset">처음으로</button></div>
+    <canvas id="ltCv" height="290"></canvas>
+    <div class="kv" id="ltKv"></div>
+    <div class="fx" id="ltFx"></div>
+  </div>
+</section>
+
+<footer>음성 AI 전문가 과정 160시간, 2주차 D8 실습 노트북 연계 자료 · 탭 번호 D8-1 ~ D8-9는 워크시트와 슬라이드의 🎬 번호와 같습니다 · 시간 · 크기 · 가설 문장은 설명용 예시입니다</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+const MONO='ui-monospace, Menlo, Consolas, monospace';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(2*Math.PI*r());}
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${l}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function chips(attr,cb){const bs=[...document.querySelectorAll(`[${attr}]`)];bs.forEach(b=>b.onclick=()=>{bs.forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function rr(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* hero: 소리가 들어오는 대로 확정되는 막대 */
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const n=Math.floor((w-20)/8);const head=Math.floor((heroT*14)%(n+20));
+  for(let i=0;i<n;i++){const x=10+i*8;const v=0.15+0.75*Math.abs(Math.sin(i*0.37)*Math.sin(i*0.11+1));c.fillStyle=i<head-6?css('--ok'):(i<head?css('--llm'):css('--line'));c.fillRect(x,h-v*h,5,v*h);}
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+/* tabs */
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+
+/* ===== D8-1 flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'병목 찾기',c:'--net',go:'bottleneck',items:['기준선: transformers small float32의 RTF · CER','Encoder 한 번 vs Decoder 토큰마다 반복','패딩 · Decoder · 큰 숫자 · 파이썬 오버헤드'],q:'🧩 빈칸 1: enc_time'},
+ {p:'Part 2',t:'faster-whisper',c:'--asr',go:'engine',items:['같은 가중치를 CTranslate2(C++) 엔진에서','연산 묶기 · KV 캐시 · int8 → 최대 약 4배','transcribe()는 게으른 생성기 → list()로 꺼낼 때 계산'],q:'🧩 빈칸 2: list'},
+ {p:'Part 3',t:'양자화',c:'--s2s',go:'quant',items:['q = round(w / scale), scale = max|w| / 127','float32 4 · float16 2 · int8 1바이트','compute_type: GPU float16, CPU int8, 직접 재 보기'],q:'🧩 빈칸 3, 4: scale, 1'},
+ {p:'Part 4',t:'VAD · 배치',c:'--llm',go:'batch',items:['vad_filter=True: 무음은 계산하지 않음','BatchedInferencePipeline: 구간 여러 개를 한 묶음으로','GPU에서 몇 배, CPU는 효과 작음, 너무 크면 메모리 부족'],q:'🧩 빈칸 5, 6: True, 8'},
+ {p:'Part 5',t:'whisper.cpp',c:'--tts',go:'wcpp',items:['git clone → cmake 빌드 → ggml 모델','whisper-quantize … q5_0 → 크기 약 40%','whisper-cli -m … -f a.wav -l ko -t N (16-bit WAV)'],q:'🧩 빈칸 7: "q5_0"'},
+ {p:'Part 6',t:'스트리밍',c:'--bad',go:'agree',items:['지표는 지연(latency): 확정 시각 − 단어 끝 시각','고정 청크는 경계에서 단어가 잘림','LocalAgreement: 두 번 같은 앞부분만 확정'],q:'🧩 빈칸 8, 9: CHUNK_N, b',more:[['chunk','고정 청크 vs 끝점'],['latency','지연 비교']]}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== D8-2 bottleneck ===== */
+let BL='5';chipRow($('bnLen'),'data-bl',[['5','짧은 말 5초'],['30','30초 녹음'],['600','10분 강의 (무음 40%)']],'5','--net',v=>{BL=v;drawBn();});
+const TG=[['eng','빠른 엔진 (CTranslate2)','파이썬 오버헤드 ↓↓, Decoder 반복 ↓'],['q','양자화 (int8 · float16)','Encoder · Decoder 계산 ↓'],['vad','VAD','무음 · 패딩 낭비 ↓'],['bat','배치 (GPU)','구간을 묶어 패딩 낭비 · 대기 ↓'],['turbo','작은 Decoder (turbo)','Decoder 반복 ↓↓']];
+$('bnTg').innerHTML=TG.map(([k,l,d])=>`<label><input type="checkbox" data-tg="${k}"><span>${esc(l)}<small>${esc(d)}</small></span></label>`).join('');
+const TGS={};document.querySelectorAll('[data-tg]').forEach(b=>b.onchange=()=>{TGS[b.dataset.tg]=b.checked;drawBn();});
+function bnParts(){const L=+BL;const win=Math.ceil(L/30)*30;const speech=L===600?L*0.6:L;
+  let pad=(win-speech)/30*0.9, enc=speech/30*0.9, dec=speech/30*2.4*(L<10?1.6:1), py=Math.ceil(L/30)*0.5;
+  if(TGS.eng){py*=0.15;dec*=0.45;enc*=0.6;pad*=0.6;}
+  if(TGS.q){enc*=0.7;dec*=0.75;pad*=0.7;}
+  if(TGS.vad){pad=L===600?pad*0.15:(L<10?pad*0.15:pad*0.5);}
+  if(TGS.bat){pad*=0.5;py*=0.5;enc*=0.6;dec*=0.6;}
+  if(TGS.turbo){dec*=0.35;}
+  return [['30초 창 패딩 · 무음 낭비',pad,css('--line')],['Encoder',enc,css('--asr')],['Decoder 반복',dec,css('--llm')],['파이썬 · 프레임워크',py,css('--net')]];}
+function drawBn(){const parts=bnParts();const tot=parts.reduce((a,p)=>a+p[1],0);const L=+BL;
+  const base=(()=>{const s={...TGS};Object.keys(TGS).forEach(k=>TGS[k]=false);const b=bnParts().reduce((a,p)=>a+p[1],0);Object.assign(TGS,s);return b;})();
+  const {c,w,h}=fit($('bnCv'),190);c.clearRect(0,0,w,h);const X=v=>20+(w-40)*v/base;
+  c.font='12px '+FONT;c.fillStyle=css('--muted');c.fillText('기본 (아무 최적화 없음)',20,18);c.fillText('지금 설정',20,98);
+  let x=0;const bp=(()=>{const s={...TGS};Object.keys(TGS).forEach(k=>TGS[k]=false);const b=bnParts();Object.assign(TGS,s);return b;})();
+  bp.forEach(([l,v,col])=>{c.fillStyle=col;c.fillRect(X(x),26,X(x+v)-X(x)-1,40);x+=v;});
+  x=0;parts.forEach(([l,v,col])=>{c.fillStyle=col;c.fillRect(X(x),106,Math.max(0,X(x+v)-X(x)-1),40);if(X(x+v)-X(x)>70){c.fillStyle=col===css('--line')?css('--ink'):'#fff';c.font='11px '+FONT;c.fillText(l,X(x)+4,130);}x+=v;});
+  c.fillStyle=css('--ink');c.font='700 13px '+FONT;c.fillText(`${tot.toFixed(1)} (${Math.round(tot/base*100)}%)`,X(tot)+6,131);
+  parts.forEach(([l,v,col],i)=>{c.fillStyle=col;c.fillRect(20+i*170,166,12,12);c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText(l,36+i*170,176);});
+  const rtf=tot/L*0.12;
+  $('bnKv').innerHTML=`<div><span>처리 시간 (상대값)</span><b>${tot.toFixed(1)}</b></div><div><span>기본 대비</span><b style="color:${tot<base*0.5?css('--ok'):css('--ink')}">${(base/tot).toFixed(1)}배 빠름</b></div><div><span>가장 큰 조각</span><b>${parts.slice().sort((a,b)=>b[1]-a[1])[0][0]}</b></div>`;
+  const big=parts.slice().sort((a,b)=>b[1]-a[1])[0][0];
+  const tip={'30초 창 패딩 · 무음 낭비':'→ VAD · 배치가 가장 효과적입니다.','Encoder':'→ 양자화 · 배치로 줄입니다.','Decoder 반복':'→ 빠른 엔진 · turbo(작은 Decoder)가 가장 효과적입니다.','파이썬 · 프레임워크':'→ C++ 엔진(CTranslate2 · whisper.cpp)으로 바꿉니다.'}[big];
+  $('bnFx').innerHTML=`${L===5?'짧은 말: 30초 창의 대부분이 패딩이고, 토큰 하나하나의 Decoder 반복과 호출 오버헤드가 큽니다.':L===30?'30초 녹음: 패딩은 없지만 Decoder 반복이 가장 큽니다.':'10분 강의(무음 40%): 무음 구간을 계산하는 낭비가 큽니다.'}<br>지금 가장 큰 조각: <b>${big}</b> ${tip}<br>💡 "어디가 막혔는지 모르고 트럭만 바꾸면 소용없다" — 노트북 빈칸 1에서 Encoder와 Decoder 시간을 직접 잽니다.`;}
+REDRAW.bottleneck=drawBn;
+
+/* ===== D8-3 engine ===== */
+const OPS=['matmul','+bias','GELU','matmul','+bias','LayerNorm','softmax','matmul'];let enT=0,enRaf=null;
+$('enTok').oninput=()=>{enT=0;drawEn();};$('enReset').onclick=()=>{cancelAnimationFrame(enRaf);enT=0;drawEn();};
+$('enPlay').onclick=()=>{cancelAnimationFrame(enRaf);const st=performance.now();const loop=n=>{enT=Math.min(1,(n-st)/3000);drawEn();if(enT<1&&!RM)enRaf=requestAnimationFrame(loop);else{enT=1;drawEn();}};enRaf=requestAnimationFrame(loop);};
+function drawEn(){const N=+$('enTok').value;$('enTokO').textContent=N+'개';const {c,w,h}=fit($('enCv'),200);c.clearRect(0,0,w,h);
+  const pyOver=0.6,op=1.0;const tA=OPS.length*(pyOver+op);const tB=3*(0.15+op*1.8)*0.75;const scale=(w-160)/tA;
+  const lane=(y,label,col,segs)=>{c.fillStyle=css('--ink');c.font='700 12px '+FONT;c.fillText(label,10,y+22);let x=150;const lim=150+(w-160)*enT;segs.forEach(([len,kind,txt])=>{const ww=len*scale;const vis=Math.max(0,Math.min(ww,lim-x));if(vis>0){c.fillStyle=kind==='over'?css('--line'):col;c.fillRect(x,y,vis-1,34);if(kind!=='over'&&vis>40){c.fillStyle='#fff';c.font='10px '+MONO;c.fillText(txt,x+3,y+21);}}x+=ww;});};
+  lane(20,'transformers',css('--net'),OPS.flatMap(o=>[[pyOver,'over',''],[op,'op',o]]));
+  lane(90,'CTranslate2',css('--asr'),[[0.15,'over',''],[op*1.8*0.75,'op','matmul+bias+GELU'],[0.15,'over',''],[op*1.8*0.75,'op','matmul+bias+LN'],[0.15,'over',''],[op*1.8*0.75,'op','attention']]);
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('회색 = 파이썬이 GPU에 일을 시키고 중간 결과를 메모리에 썼다 읽는 시간',150,150);
+  const sp=tA/tB;const totA=tA*N,totB=tB*N;
+  c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(`토큰 ${N}개 × Decoder 한 층 기준: transformers ${totA.toFixed(0)} vs CTranslate2 ${totB.toFixed(0)} (상대값)`,150,180);
+  $('enFx').innerHTML=`같은 계산(곱하기 · 더하기 · 활성화)을 하지만, CTranslate2는 <b>연산을 묶어(fusion)</b> 호출 횟수와 메모리 왕복을 줄입니다 → 이 그림에서는 약 <b>${sp.toFixed(1)}배</b>.<br>Decoder는 토큰마다 반복하므로(토큰 ${N}개), 작은 절약이 <b>${N}번</b> 쌓입니다. 그래서 짧은 문장일수록 · 토큰이 많을수록 엔진 차이가 크게 느껴집니다.<br>정확도는 같습니다: <b>같은 가중치</b>로 같은 계산을 하기 때문입니다. (int8을 쓰면 아주 조금 달라짐 → D8-4)`;}
+REDRAW.engine=drawEn;
+
+/* ===== D8-4 quant ===== */
+let qtSeed=3;['qtB','qtOut','qtBlk'].forEach(id=>$(id).oninput=drawQt);$('qtOut').onchange=drawQt;$('qtBlk').onchange=drawQt;$('qtNew').onclick=()=>{qtSeed++;drawQt();};
+function drawQt(){const B=+$('qtB').value;$('qtBO').textContent=B+'비트';const r=mulberry(qtSeed*17);const N=64;const ws=Array.from({length:N},()=>0.08*gauss(r));if($('qtOut').checked)ws[37]=0.9;
+  const blk=$('qtBlk').checked;const levels=Math.pow(2,B-1)-1;
+  const q=ws.map((w,i)=>{const grp=blk?ws.slice(Math.floor(i/32)*32,Math.floor(i/32)*32+32):ws;const s=Math.max(...grp.map(Math.abs))/levels;return Math.round(w/s)*s;});
+  const {c,w,h}=fit($('qtCv'),230);c.clearRect(0,0,w,h);const mx=Math.max(...ws.map(Math.abs))*1.1;const X=i=>20+(w-40)*i/(N-1);const Y=v=>h/2-(h/2-20)*v/mx;
+  if(B<=6||!blk){const s=Math.max(...ws.map(Math.abs))/levels;const step=Math.max(1,Math.floor((levels*2+1)/60));for(let k=-levels;k<=levels;k+=step){c.strokeStyle=css('--line');c.lineWidth=1;c.beginPath();c.moveTo(20,Y(k*s));c.lineTo(w-20,Y(k*s));c.stroke();}}
+  c.strokeStyle=css('--muted');c.beginPath();c.moveTo(20,Y(0));c.lineTo(w-20,Y(0));c.stroke();
+  ws.forEach((v,i)=>{c.strokeStyle=css('--bad');c.lineWidth=1.5;c.beginPath();c.moveTo(X(i),Y(v));c.lineTo(X(i),Y(q[i]));c.stroke();c.fillStyle=css('--asr');c.beginPath();c.arc(X(i),Y(v),3.5,0,7);c.fill();c.fillStyle=css('--s2s');c.fillRect(X(i)-3,Y(q[i])-3,6,6);});
+  if(blk){c.strokeStyle=css('--llm');c.setLineDash([5,4]);c.beginPath();c.moveTo(X(31.5),10);c.lineTo(X(31.5),h-10);c.stroke();c.setLineDash([]);c.fillStyle=css('--llm');c.font='11px '+FONT;c.fillText('블록 1 눈금',X(4),14);c.fillText('블록 2 눈금',X(36),14);}
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('● 원래 가중치   ■ 눈금으로 옮긴 값   | 빨간 선 = 오차',20,h-6);
+  const err=ws.map((v,i)=>Math.abs(v-q[i]));const small=ws.map((v,i)=>[Math.abs(v),err[i]]).filter(x=>x[0]<0.3);const mErr=small.reduce((a,b)=>a+b[1],0)/small.length;const mW=small.reduce((a,b)=>a+b[0],0)/small.length;
+  const zeros=q.filter((v,i)=>v===0&&ws[i]!==0).length;const mb=244*B/8*(blk?1.1:1);
+  $('qtKv').innerHTML=`<div><span>눈금 칸 수</span><b>${(levels*2+1).toLocaleString()}</b></div><div><span>평균 오차 / 평균 크기</span><b style="color:${mErr/mW>0.1?css('--bad'):css('--ok')}">${(mErr/mW*100).toFixed(1)}%</b></div><div><span>0으로 뭉개진 가중치</span><b>${zeros}개</b></div><div><span>small 가중치 크기 (대략)</span><b>${mb.toFixed(0)} MB</b></div>`;
+  $('qtFx').innerHTML=`scale = max|w| ÷ ${levels} → q = round(w ÷ scale) → ŵ = q × scale<br>${B>=8?'8비트 이상: 오차가 아주 작아 받아쓰기 결과가 거의 같습니다.':B>=5?'5~7비트: 오차가 눈에 보이기 시작하지만, 블록마다 눈금(q5_0)을 쓰면 충분히 쓸 만합니다.':'4비트 이하: 많은 가중치가 0으로 뭉개집니다. 정확도가 눈에 띄게 떨어질 수 있습니다.'}${$('qtOut').checked&&!blk?'<br>⚠️ 큰 값 하나 때문에 눈금이 성글어져서 나머지 작은 값들이 거의 다 0이 됐습니다 → "블록마다 따로 눈금"을 켜 보세요.':''}${blk?'<br>블록(32개)마다 scale을 따로 저장 → 큰 값의 영향이 그 블록에만 머뭅니다. 대신 scale을 저장하는 몫이 더해져 q5_0은 약 5.5비트.':''}`;}
+REDRAW.quant=drawQt;
+
+/* ===== D8-5 batch ===== */
+const SEGS=[[0,3.5],[4.2,9.0],[18.5,23.0],[23.6,27.0],[27.5,31.5],[40.0,45.0],[45.2,46]];let BD='gpu';
+chipRow($('btDev'),'data-bd',[['gpu','GPU (T4)'],['cpu','CPU']],'gpu','--s2s',v=>{BD=v;drawBt();});['btB'].forEach(id=>$(id).oninput=drawBt);$('btVad').onchange=drawBt;
+function drawBt(){const B=+$('btB').value;$('btBO').textContent=B;const vad=$('btVad').checked;const L=46;
+  const wins=vad?(()=>{const out=[];let cur=0,st=null;SEGS.forEach(([a,b])=>{if(st===null)st=a;if(b-st>30){out.push(cur);cur=0;st=a;}cur+=b-a;});out.push(cur);return out;})():[30,16];
+  // 배치는 VAD 구간을 창으로 (여기서는 구간마다 창 하나라고 단순화)
+  const units=vad?SEGS.map(([a,b])=>b-a):[30,16];
+  const per=BD==='gpu'?0.35:1.6;const memPer=0.35;const mem=1.2+memPer*Math.min(B,units.length)*(BD==='gpu'?1:0);
+  const rounds=Math.ceil(units.length/B);const t=BD==='gpu'?rounds*(per*(1+0.08*(Math.min(B,units.length)-1))):units.length*per*(1-0.15*Math.min(1,(B-1)/8));
+  const tPad=vad?t:t*1.0;const oom=BD==='gpu'&&mem>15;
+  const {c,w,h}=fit($('btCv'),220);c.clearRect(0,0,w,h);const X=s=>20+(w-40)*s/L;
+  c.fillStyle=css('--soft');c.fillRect(20,20,w-40,40);
+  if(vad)SEGS.forEach(([a,b])=>{c.fillStyle=css('--asr');c.fillRect(X(a),20,X(b)-X(a)-1,40);});else{c.fillStyle=css('--asr');c.globalAlpha=0.5;c.fillRect(20,20,w-40,40);c.globalAlpha=1;}
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText(vad?`VAD 후 처리할 말: ${units.reduce((a,b)=>a+b,0).toFixed(1)}초 / 46초`:'VAD 없음: 46초 전체 (30초 창 2개, 무음까지 계산)',20,14);
+  const cw=Math.min(80,(w-40)/Math.max(units.length,1)-6);
+  for(let k=0;k<units.length;k++){const round=Math.floor(k/B),slot=k%B;const x=20+round*(cw+16)+0;const y=90+slot*18;if(y>200)continue;c.fillStyle=oom?css('--bad'):css('--s2s');rr(c,x,y,cw,14,4);c.fill();c.fillStyle='#fff';c.font='10px '+FONT;c.fillText(`${vad?'구간':'창'}${k+1}`,x+4,y+11);}
+  c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(`묶음 ${rounds}번 실행 (세로로 쌓인 것이 한 묶음)`,20,82);
+  $('btKv').innerHTML=`<div><span>처리 시간 (상대값)</span><b>${oom?'—':tPad.toFixed(2)}</b></div><div><span>실행 횟수</span><b>${rounds}번</b></div><div><span>GPU 메모리 (대략)</span><b style="color:${oom?css('--bad'):css('--ink')}">${BD==='gpu'?mem.toFixed(1)+' GB':'—'}</b></div>`;
+  $('btFx').innerHTML=oom?`⚠️ <b>CUDA out of memory</b>: 묶음이 GPU 메모리(T4 15 GB)를 넘었습니다. 묶음 크기를 줄이세요.`:
+   `${vad?'VAD로 무음을 빼서 계산할 양이 줄었습니다.':'VAD가 없으면 무음까지 30초 창으로 계산합니다.'} ${BD==='gpu'?(B>1?`GPU는 ${Math.min(B,units.length)}개를 한꺼번에 계산해도 시간이 크게 늘지 않아 실행 ${units.length}번 → ${rounds}번으로 줄었습니다.`:'묶음 1 = 하나씩 차례로. 묶음 크기를 올려 보세요.'):'CPU는 원래 한 번에 하나씩 계산하는 편이라 묶어도 이득이 작습니다.'}<br>BatchedInferencePipeline(model=fw).transcribe(y, batch_size=${B}) — 배치 모드는 창끼리 독립이라 '이전 문장 참고'를 쓰지 않습니다.`;}
+REDRAW.batch=drawBt;
+
+/* ===== D8-6 whisper.cpp ===== */
+const WS=[['① 소스 받기','git clone --depth 1 https://github.com/ggml-org/whisper.cpp','C/C++ 소스 저장소. 파이썬 · PyTorch 설치가 필요 없습니다.'],
+ ['② 빌드','cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release && cmake --build whisper.cpp/build -j','실행 파일 whisper-cli, whisper-quantize가 build/bin에 생깁니다. GPU를 쓰려면 -DGGML_CUDA=1 (NVIDIA) 등을 붙입니다. 맥에서는 Metal이 기본.'],
+ ['③ 모델 받기','bash whisper.cpp/models/download-ggml-model.sh small whisper.cpp/models','ggml 형식 파일 하나 (ggml-small.bin, f16 약 466 MB). 받는 곳은 Hugging Face.'],
+ ['④ 양자화','whisper.cpp/build/bin/whisper-quantize ggml-small.bin ggml-small-q5_0.bin q5_0','입력 · 출력 · 형식 순서. 한 번 만들어 두면 기기에 복사해서 씁니다. (예전 버전은 실행 파일 이름이 quantize)'],
+ ['⑤ 실행','whisper-cli -m ggml-small-q5_0.bin -f story.wav -l ko -t 4 -nt -otxt -of out','입력은 16 kHz · 16-bit WAV. -l 기본값이 en이므로 ko를 꼭 지정. -t는 CPU 스레드 수.']];
+let wcCur=0;$('wcSteps').innerHTML=WS.map((s,i)=>`<div class="stp" data-i="${i}" role="button" tabindex="0"><b>${s[0]}</b> · <code>${esc(s[1])}</code></div>`).join('');
+[...$('wcSteps').children].forEach(d=>{d.onclick=()=>{wcCur=+d.dataset.i;drawWc();};d.onkeydown=e=>{if(e.key==='Enter'){wcCur=+d.dataset.i;drawWc();}};});
+const QF=[['f16',16,466,'기준 (원본)'],['q8_0',8.5,250,'정확도 최우선, 크기 절반'],['q5_0',5.5,181,'균형 (문서의 예시)'],['q4_0',4.5,150,'메모리가 아주 적은 기기']];
+const DV=[['pc','노트북 CPU (8코어)',0.35],['mac','Apple M 시리즈 (Metal)',0.12],['pi','라즈베리파이 5',2.2],['jet','Jetson Orin (CUDA)',0.15]];
+let WQ='q5_0',WD='pc';chipRow($('wcQ'),'data-wq',QF.map(q=>[q[0],q[0]]),'q5_0','--s2s',v=>{WQ=v;drawWc();});chipRow($('wcDev'),'data-wd',DV.map(d=>[d[0],d[1]]),'pc','--tts',v=>{WD=v;drawWc();});
+function drawWc(){[...$('wcSteps').children].forEach((d,i)=>{d.classList.toggle('on',i<=wcCur);d.classList.toggle('cur',i===wcCur);});
+  $('wcFx').innerHTML=`<b>${WS[wcCur][0]}</b><br><code style="color:inherit">${esc(WS[wcCur][1])}</code><br>${esc(WS[wcCur][2])}`;
+  const {c,w,h}=fit($('wcCv'),150);c.clearRect(0,0,w,h);const bw=(w-40)/QF.length;
+  QF.forEach(([n,b,mb,d],i)=>{const x=20+i*bw,bh=(h-50)*mb/466;c.fillStyle=n===WQ?css('--s2s'):css('--line');rr(c,x+10,h-25-bh,bw-20,bh,6);c.fill();c.fillStyle=css('--ink');c.font='700 12px '+MONO;c.fillText(n,x+bw/2-14,h-8);c.font='12px '+FONT;c.fillText(`~${mb} MB`,x+bw/2-24,h-30-bh);});
+  const q=QF.find(x=>x[0]===WQ),dv=DV.find(x=>x[0]===WD);const rtf=dv[2]*(q[1]>10?1.25:q[1]>6?1.0:0.92);
+  $('wcFx2').innerHTML=`<b>${WQ}</b>: 숫자 하나 약 ${q[1]}비트 → small 파일 약 ${q[2]} MB (${q[3]}) · ${esc(dv[1])}에서 RTF 약 <b>${rtf.toFixed(2)}</b> (예시) → ${rtf<1?'실시간보다 빠름 ✓':'실시간보다 느림 ⚠️ base · tiny 또는 더 작은 형식'}<br>Colab 무료 CPU(2코어)는 이 표보다 느립니다. 노트북 빈칸 7 · 5-3에서 실제로 잽니다.`;}
+REDRAW.wcpp=drawWc;
+
+/* ===== D8-7 chunk ===== */
+const WORDS=[['아이구루',0.2,1.0],['교육센터에서',1.1,2.3],['라이브킷과',2.5,3.5],['파이프캣으로',3.6,4.8],['음성',5.0,5.4],['에이전트를',5.5,6.5],['만듭니다',6.6,7.6]];const PAUSES=[2.4,4.9,7.8];
+let CM='fixed';chips('data-cm',v=>{CM=v;drawCh();});$('chL').oninput=drawCh;
+function drawCh(){const L=+$('chL').value;$('chLO').textContent=L+'초';const T=8;const cuts=CM==='fixed'?Array.from({length:Math.floor(T/L)},(_,i)=>(i+1)*L).filter(x=>x<T):[4.9];
+  const {c,w,h}=fit($('chCv'),150);c.clearRect(0,0,w,h);const X=s=>20+(w-40)*s/T;
+  const cutW=WORDS.map(([wd,a,b])=>cuts.some(x=>x>a&&x<b));
+  WORDS.forEach(([wd,a,b],i)=>{c.fillStyle=cutW[i]?css('--bad'):css('--asr');rr(c,X(a),40,X(b)-X(a),40,6);c.fill();c.fillStyle='#fff';c.font='12px '+FONT;c.fillText(wd,X(a)+4,65);});
+  cuts.forEach(x=>{c.strokeStyle=CM==='fixed'?css('--bad'):css('--ok');c.lineWidth=2.5;c.setLineDash([6,4]);c.beginPath();c.moveTo(X(x),20);c.lineTo(X(x),100);c.stroke();c.setLineDash([]);});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=T;s++)c.fillText(s+'s',X(s)-6,120);
+  const nCut=cutW.filter(Boolean).length;
+  $('chOut').innerHTML=WORDS.map(([wd],i)=>{if(!cutW[i])return `<span class="wd ok">${wd}</span>`;const k=Math.ceil(wd.length/2);return `<span class="wd cut">${wd.slice(0,k)}</span><span class="wd cut">${wd.slice(k)}</span>`;}).join(' ');
+  const wait=CM==='fixed'?L/2:0.5;
+  $('chFx').innerHTML=CM==='fixed'?`청크 ${L}초: 잘린 단어 <b>${nCut}개</b> · 청크가 다 찰 때까지 평균 <b>${wait.toFixed(1)}초</b> 기다린 뒤 처리 시작<br>${L<=2?'짧은 청크: 빨리 뜨지만 단어가 많이 잘리고, 짧은 소리 조각에서 환각이 생기기 쉽습니다.':L>=5?'긴 청크: 덜 잘리지만 그만큼 늦게 뜹니다.':'잘림과 지연의 딜레마 → 노트북 빈칸 8에서 3초 청크 CER을 통째 받아쓰기와 비교합니다.'}`:
+    `VAD 끝점: 말이 <b>0.5초 이상 쉬는 곳</b>(초록 선)에서만 자릅니다. 단어가 잘리지 않습니다.<br>대신 <b>문장(발화)이 끝나야</b> 결과가 나옵니다 → 음성 비서처럼 "말이 끝났는지(turn)"가 중요한 곳에 알맞습니다 (D28).`;}
+REDRAW.chunk=drawCh;
+
+/* ===== D8-8 LocalAgreement ===== */
+const HYP=[[],['아이구루'],['아이구루','교육'],['아이구루','교육센터에서','라이'],['아이구루','교육센터에서','라이브킷과','파이'],['아이구루','교육센터에서','라이브킷과','파이프캣으로'],
+ ['아이구루','교육센터에서','라이브킷과','파이프캣으로','음성','에이'],['아이구루','교육센터에서','라이브킷과','파이프캣으로','음성','에이전트를','만'],['아이구루','교육센터에서','라이브킷과','파이프캣으로','음성','에이전트를','만듭니다']];
+const WEND=[1.0,2.3,3.5,4.8,5.4,6.5,7.6];let agT=0,agTimer=null;
+$('agStep').onclick=()=>{if(agT<8)agT++;drawAg();};$('agReset').onclick=()=>{clearInterval(agTimer);agT=0;drawAg();};$('agOne').onchange=drawAg;
+$('agAll').onclick=()=>{clearInterval(agTimer);agTimer=setInterval(()=>{if(agT>=8){clearInterval(agTimer);return;}agT++;drawAg();},RM?0:700);};
+function agRun(T,one){const committed=[],commitT=[];let prevHyp=[];const rows=[];
+  for(let t=1;t<=T;t++){const hyp=HYP[t];let n;
+    if(one){n=hyp.length;}else{n=0;while(n<Math.min(prevHyp.length,hyp.length)&&prevHyp[n]===hyp[n])n++;}
+    const newC=n>committed.length?hyp.slice(committed.length,n):[];newC.forEach(wd=>{committed.push(wd);commitT.push(t);});
+    rows.push({t,hyp,n,newC});prevHyp=hyp;}
+  if(T===8&&!one){const rest=HYP[8].slice(committed.length);rest.forEach(wd=>{committed.push(wd);commitT.push(8);});if(rest.length)rows.push({t:8,hyp:['(녹음 끝 → 남은 단어 확정)'],n:'flush',newC:rest});}
+  return {committed,commitT,rows};}
+function drawAg(){const one=$('agOne').checked;const R=agRun(agT,one);const hyp=HYP[agT]||[];
+  const {c,w,h}=fit($('agCv'),90);c.clearRect(0,0,w,h);const X=s=>20+(w-40)*s/8;const r=mulberry(4);
+  for(let i=0;i<200;i++){const t=i/200*8;const sp=WORDS.some(([,a,b])=>t>=a&&t<=b);const a=sp?0.3+0.6*Math.abs(Math.sin(t*7+r())):0.04;c.fillStyle=t<=agT?css('--asr'):css('--line');c.fillRect(X(t),45-a*30,(w-40)/200,a*60);}
+  c.strokeStyle=css('--bad');c.lineWidth=2;c.beginPath();c.moveTo(X(agT),5);c.lineTo(X(agT),85);c.stroke();c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(`지금 t = ${agT}초`,X(agT)+4,14);
+  const bad=['교육','라이','파이','에이','만'];
+  $('agOut').innerHTML=hyp.length?R.committed.map(wd=>`<span class="wd ${one&&bad.includes(wd)?'cut':'ok'}">${wd}</span>`).join(' ')+' '+hyp.slice(R.committed.length).map(wd=>`<span class="wd pend">${wd}</span>`).join(' '):'<span style="color:var(--muted)">(아직 소리가 들어오지 않음)</span>';
+  $('agTab').innerHTML='<tr><th>t</th><th>버퍼 전체를 받아 적은 가설</th><th>지난 가설과 같은 앞부분</th><th>새로 확정</th></tr>'+R.rows.map(x=>`<tr class="${x.t===agT?'sel':''}"><td>${x.t}s</td><td>${esc(x.hyp.join(' '))}</td><td>${x.n==='flush'?'—':x.n+'개'}</td><td>${esc(x.newC.join(' ')||'—')}</td></tr>`).join('');
+  const lat=one?[]:R.commitT.map((t,i)=>t-WEND[i]);const avg=lat.length?lat.reduce((a,b)=>a+b,0)/lat.length:0;
+  const wrong=one&&R.committed.some(wd=>bad.includes(wd));
+  $('agFx').innerHTML=agT===0?'"1초 ▶"을 누르세요. 1초마다 버퍼(아직 확정 안 된 소리)를 통째로 다시 받아 적습니다.':
+    `${one?'⚠️ 한 번만 보고 확정: 빨리 뜨지만 소리가 덜 들어온 반쪽 단어('+'교육, 라이, 파이 …'+')까지 확정돼서 <b>나중에 고칠 수 없는</b> 오류가 화면에 남습니다.':'두 가설의 공통 앞부분 = lcp(지난 가설, 이번 가설) → 그만큼 확정 (노트북 빈칸 9)'}<br>확정 단어 ${R.committed.length}개${one?'':` · 단어별 지연(확정 시각 − 단어 끝 시각) 평균 <b>${avg.toFixed(1)}초</b>`}${agT===8&&!one?' · 녹음이 끝나면 남은 단어를 모두 확정(flush)':''}${wrong?'<br>❌ 잘못 확정된 단어가 있습니다.':''}`;}
+REDRAW.agree=drawAg;
+
+/* ===== D8-9 latency ===== */
+let ltT=0,ltRaf=null;['ltStep','ltComp'].forEach(id=>$(id).oninput=()=>{drawLt();});
+$('ltReset').onclick=()=>{cancelAnimationFrame(ltRaf);ltT=0;drawLt();};
+$('ltPlay').onclick=()=>{cancelAnimationFrame(ltRaf);const st=performance.now();const loop=n=>{ltT=(n-st)/1000*2;drawLt();if(ltT<14&&!RM)ltRaf=requestAnimationFrame(loop);else if(RM){ltT=14;drawLt();}};ltRaf=requestAnimationFrame(loop);};
+function methods(){const step=+$('ltStep').value,comp=+$('ltComp').value;const realtime=comp*Math.min(12,8)/8<step;
+  const ends=WEND;const M=[];
+  M.push(['녹음 파일 한 번에 (배치)',css('--net'),ends.map(()=>8+0.8)]);
+  M.push(['VAD 끝점 (말이 끝나면)',css('--s2s'),ends.map(e=>{const p=PAUSES.find(x=>x>=e);return p+0.5+comp;})]);
+  M.push(['고정 3초 청크',css('--llm'),ends.map(e=>Math.ceil(e/3)*3+comp)]);
+  M.push([`LocalAgreement (${step}초 간격)`,css('--tts'),ends.map(e=>{let t=Math.ceil(e/step)*step;t+=step;return t+comp*(1+ (realtime?0:1.5));})]);
+  return {M,realtime,step,comp};}
+function drawLt(){const {M,realtime,step,comp}=methods();$('ltStepO').textContent=step+'초';$('ltCompO').textContent=comp+'초';
+  const {c,w,h}=fit($('ltCv'),290);c.clearRect(0,0,w,h);const T=12;const X=s=>170+(w-190)*s/T;const r=mulberry(4);
+  for(let i=0;i<240;i++){const t=i/240*8;const sp=WORDS.some(([,a,b])=>t>=a&&t<=b);const a=sp?0.3+0.6*Math.abs(Math.sin(t*7+r())):0.04;c.fillStyle=t<=ltT?css('--asr'):css('--line');c.fillRect(X(t),30-a*20,(w-190)/T*8/240,a*40);}
+  c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText('말 (8초)',10,34);
+  WORDS.forEach(([wd,a,b])=>{c.fillStyle=css('--muted');c.font='10px '+FONT;c.fillText(wd,X(a),62);});
+  M.forEach(([n,col,ts],k)=>{const y=85+k*48;c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(n,10,y+18);
+    ts.forEach((t,i)=>{const e=WEND[i];if(ltT>=t){c.strokeStyle=col;c.lineWidth=2;c.beginPath();c.moveTo(X(e),y+10+i*3);c.lineTo(X(t),y+10+i*3);c.stroke();c.fillStyle=col;c.beginPath();c.arc(X(t),y+10+i*3,3.5,0,7);c.fill();}});});
+  c.strokeStyle=css('--bad');c.lineWidth=1.5;c.beginPath();c.moveTo(X(Math.min(ltT,T)),5);c.lineTo(X(Math.min(ltT,T)),h-20);c.stroke();
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=T;s+=2)c.fillText(s+'s',X(s)-6,h-6);
+  const avgs=M.map(([n,col,ts])=>ts.reduce((a,t,i)=>a+(t-WEND[i]),0)/ts.length);
+  $('ltKv').innerHTML=M.map(([n,col],k)=>`<div><span>${esc(n)}</span><b style="color:${col}">${avgs[k].toFixed(1)}초</b></div>`).join('');
+  $('ltFx').innerHTML=`선 하나 = 단어 하나: 다 말한 시각(왼쪽 끝) → 화면에 확정된 시각(점). 선이 짧을수록 지연이 작습니다.<br>${realtime?`✅ 실시간 가능: 1초 분량을 ${comp}초에 처리 → ${step}초 간격을 따라갈 수 있음`:`⚠️ 실시간 불가: 계산(${comp}초/1초)이 간격(${step}초)을 못 따라가 점점 밀립니다 → 더 작은 모델 · int8 · GPU`}<br>음성 비서는 "말이 끝났는지"가 중요해 VAD 끝점, 실시간 자막은 단어가 계속 흘러나오는 LocalAgreement가 어울립니다.`;}
+REDRAW.latency=drawLt;
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>
