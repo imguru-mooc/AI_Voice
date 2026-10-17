@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D9 타임스탬프와 화자 분리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.toggles{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.toggles label{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;cursor:pointer}
+.toggles label small{display:block;color:var(--muted)}
+.outbox{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:1rem;line-height:1.8;min-height:52px}
+.outbox .ln{margin:2px 0}
+.outbox .tm{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--muted);font-size:.85rem;margin-right:6px}
+.outbox .sp{display:inline-block;padding:0 8px;border-radius:6px;border:1.5px solid var(--c);margin-right:6px;font-weight:700;font-size:.88rem}
+.wd{display:inline-block;padding:1px 7px;margin:2px 2px;border-radius:6px;border:1.5px solid var(--line);transition:all .25s}
+.wd.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 18%,var(--panel))}
+.steplist{display:grid;gap:6px;margin-top:8px}
+.stp{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.4;transition:all .25s;font-size:.92rem;cursor:pointer}
+.stp.on{opacity:1}.stp.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 10%,var(--panel))}
+.stp code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;color:var(--s2s)}
+.simlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:10px}
+.simlist div{background:var(--soft);border-radius:8px;padding:6px 10px;font-size:.88rem;border-left:5px solid var(--c)}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D9 Timestamp &amp; 화자 분리</h1>
+  <p>Whisper의 단어 시각이 왜 어긋나는지, 강제 정렬이 글자를 소리에 어떻게 맞추는지, WhisperX가 무엇을 조립했는지, 그리고 목소리 지문 · 군집 · DER · 단어에 화자 붙이기로 회의록이 완성되는 과정을 직접 움직여 보는 수업 자료입니다. 탭 번호 D9-1 ~ D9-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D9-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="stamps"><span class="tc">D9-2</span>문장 시각 vs 단어 시각</button>
+  <button role="tab" aria-selected="false" data-t="trellis"><span class="tc">D9-3</span>격자 따라가기</button>
+  <button role="tab" aria-selected="false" data-t="wxpipe"><span class="tc">D9-4</span>WhisperX 파이프라인</button>
+  <button role="tab" aria-selected="false" data-t="embed"><span class="tc">D9-5</span>목소리 지문</button>
+  <button role="tab" aria-selected="false" data-t="cluster"><span class="tc">D9-6</span>군집 합치기</button>
+  <button role="tab" aria-selected="false" data-t="der"><span class="tc">D9-7</span>DER 계산기</button>
+  <button role="tab" aria-selected="false" data-t="assign"><span class="tc">D9-8</span>단어에 화자 붙이기</button>
+  <button role="tab" aria-selected="false" data-t="minutes"><span class="tc">D9-9</span>회의록 만들기</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D9-1</span>오늘 할 것: 회의 녹음에서 '언제 · 무엇을 · 누가'</h2>
+  <p class="lead">노트북은 여섯 단계로 진행됩니다. 단계를 눌러 무엇을 하는지 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="stamps">
+  <h2><span class="hc">D9-2</span>문장 시각 vs 단어 시각: 추정과 정렬</h2>
+  <p class="lead">맨 위가 정답(단어가 실제로 소리 나는 구간)입니다. Whisper의 단어 시각은 받아 적은 뒤 attention으로 <b>추정</b>하고, WhisperX는 wav2vec2로 글자를 소리에 <b>맞춥니다</b>. 흔들림과 무음 끌림을 바꿔 경계 오차를 보세요. (설명용)</p>
+  <div class="stage">
+    <div class="row" id="stMode"></div>
+    <label class="sl"><span>attention 흔들림</span><input type="range" id="stJit" min="0" max="500" step="10" value="250"><output id="stJitO"></output></label>
+    <div class="toggles"><label><input type="checkbox" id="stDrift" checked><span>무음 끌림<small>발화 앞뒤의 쉼(무음)까지 첫 · 마지막 단어가 늘어나는 버릇</small></span></label></div>
+    <canvas id="stCv" height="230"></canvas>
+    <div class="kv" id="stKv"></div>
+    <div class="fx" id="stFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="trellis">
+  <h2><span class="hc">D9-3</span>격자(trellis) 따라가기: 정답 글자를 소리에 맞추기</h2>
+  <p class="lead">위는 wav2vec2가 20 ms마다 낸 글자 확률(밝을수록 높음), 아래는 격자입니다. "한 칸씩"을 누르면 프레임마다 <b>머물기</b>와 <b>넘어가기</b> 중 좋은 쪽을 고릅니다. 끝까지 채운 뒤 "거꾸로 따라가기"로 길을 찾아 글자마다 시작 시각을 읽습니다.</p>
+  <div class="stage">
+    <div class="row" id="trSpeed"></div>
+    <div class="row"><button class="btn primary" id="trStep">한 칸씩 ▶</button><button class="btn" id="trAll">끝까지 채우기</button><button class="btn" id="trBack">거꾸로 따라가기</button><button class="btn" id="trReset">처음으로</button></div>
+    <canvas id="trCv" height="330"></canvas>
+    <div class="fx" id="trFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="wxpipe">
+  <h2><span class="hc">D9-4</span>WhisperX 파이프라인: 무엇이 들어가고 나오나</h2>
+  <p class="lead">단계를 눌러 보세요. 그림은 그 단계가 끝났을 때 갖고 있는 정보입니다. 받아쓰기 단계의 시각은 <b>VAD 묶음</b>의 시각일 뿐이고, 단어 시각은 정렬 단계에서 생깁니다.</p>
+  <div class="stage">
+    <div class="steplist" id="wxSteps"></div>
+    <canvas id="wxCv" height="210" style="margin-top:12px"></canvas>
+    <div class="fx" id="wxFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="embed">
+  <h2><span class="hc">D9-5</span>목소리 지문 지도: 같은 사람끼리 모이나</h2>
+  <p class="lead">점 하나가 말 조각 하나의 192차원 지문을 2차원으로 눌러 그린 것입니다(설명용). 점을 누르면 다른 조각들과의 <b>코사인 유사도</b>가 나옵니다. 목소리가 비슷한 두 사람, 잡음을 올려 보세요.</p>
+  <div class="stage">
+    <label class="sl"><span>박대리 목소리를 김팀장과 비슷하게</span><input type="range" id="emNear" min="0" max="100" step="5" value="0"><output id="emNearO"></output></label>
+    <label class="sl"><span>잡음 · 짧은 조각</span><input type="range" id="emNoise" min="0" max="100" step="5" value="20"><output id="emNoiseO"></output></label>
+    <canvas id="emCv" height="320"></canvas>
+    <div class="kv" id="emKv"></div>
+    <div class="simlist" id="emSim"></div>
+    <div class="fx" id="emFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="cluster">
+  <h2><span class="hc">D9-6</span>응집형 군집: 가장 가까운 둘부터 합치기</h2>
+  <p class="lead">처음엔 조각마다 각자 무리입니다. "합치기"를 누를 때마다 가장 가까운(평균 코사인 거리) 두 무리를 하나로 합칩니다. 기준선(거리 기준)을 움직이면 그 거리보다 먼 합치기는 하지 않아 화자 수가 달라집니다.</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="clStep">합치기 ▶</button><button class="btn" id="clAll">기준선까지 자동</button><button class="btn" id="clReset">처음으로</button></div>
+    <label class="sl"><span>거리 기준 (distance_threshold)</span><input type="range" id="clTh" min="0.05" max="1.6" step="0.05" value="0.6"><output id="clThO"></output></label>
+    <canvas id="clCv" height="300"></canvas>
+    <div class="kv" id="clKv"></div>
+    <div class="fx" id="clFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="der">
+  <h2><span class="hc">D9-7</span>DER 계산기: 놓침 · 잘못 감지 · 화자 혼동</h2>
+  <p class="lead">위가 정답, 아래가 화자 분리 결과입니다. 오류를 하나씩 만들어 DER이 어떻게 바뀌는지 보세요. 번호 이름은 가장 잘 맞는 짝으로 자동 매칭합니다.</p>
+  <div class="stage">
+    <label class="sl"><span>말 시작을 늦게 잡기</span><input type="range" id="drMiss" min="0" max="1" step="0.05" value="0.2"><output id="drMissO"></output></label>
+    <label class="sl"><span>잡음을 말로 착각</span><input type="range" id="drFa" min="0" max="2" step="0.1" value="0.4"><output id="drFaO"></output></label>
+    <label class="sl"><span>화자를 잘못 붙인 길이</span><input type="range" id="drConf" min="0" max="3" step="0.1" value="1.0"><output id="drConfO"></output></label>
+    <div class="toggles"><label><input type="checkbox" id="drSwap"><span>번호를 거꾸로 붙이기<small>SPEAKER_00 ↔ SPEAKER_01 순서를 바꿔도 DER은 같은지</small></span></label></div>
+    <canvas id="drCv" height="200"></canvas>
+    <div class="kv" id="drKv"></div>
+    <div class="fx" id="drFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="assign">
+  <h2><span class="hc">D9-8</span>단어에 화자 붙이기: 가장 많이 겹치는 화자</h2>
+  <p class="lead">단어(아래 상자)마다 화자 분리 구간(위 띠)과 <b>겹치는 시간</b>이 가장 긴 화자를 붙입니다. 단어 시각을 흔들거나 화자 경계를 옮기면 발화가 바뀌는 경계의 단어가 엉뚱한 사람에게 붙습니다(빨간 테두리).</p>
+  <div class="stage">
+    <label class="sl"><span>단어 시각 오차</span><input type="range" id="asJit" min="0" max="600" step="20" value="0"><output id="asJitO"></output></label>
+    <label class="sl"><span>화자 경계 이동</span><input type="range" id="asShift" min="-0.8" max="0.8" step="0.05" value="0"><output id="asShiftO"></output></label>
+    <div class="toggles"><label><input type="checkbox" id="asFill" checked><span>fill_nearest=True<small>겹치는 화자가 없는 단어(틈에 떨어진 단어)에 가장 가까운 화자를 붙임</small></span></label></div>
+    <canvas id="asCv" height="210"></canvas>
+    <div class="kv" id="asKv"></div>
+    <div class="outbox" id="asOut"></div>
+  </div>
+</section>
+
+<section class="panel" id="minutes">
+  <h2><span class="hc">D9-9</span>회의록 만들기: 단계마다 무엇이 더해지나</h2>
+  <p class="lead">"다음 단계"를 누르며 받아쓰기 글자에 시각 · 화자 번호 · 이름이 차례로 더해지고, 같은 화자 단어가 한 줄로 묶이는 과정을 보세요.</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="mnNext">다음 단계 ▶</button><button class="btn" id="mnReset">처음으로</button></div>
+    <div class="steplist" id="mnSteps"></div>
+    <div class="outbox" id="mnOut" style="margin-top:12px"></div>
+    <div class="fx" id="mnFx"></div>
+  </div>
+</section>
+
+<footer class="note" style="margin:30px 0 10px">음성 AI 전문가 과정 · Day 9 · 그림의 숫자는 설명용 예시입니다. 실제 값은 노트북에서 직접 잽니다.</footer>
+</div>
+
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+const MONO='ui-monospace, Menlo, Consolas, monospace';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(2*Math.PI*r());}
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${l}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function rr(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const SPK=[['김팀장','--asr'],['이연구원','--llm'],['박대리','--tts']];
+const scol=k=>css(SPK[k][1]);
+
+/* 공통 데이터: 회의 앞부분 4개 발화와 단어 시각 (설명용) */
+const TURNS=[[0,0.4,'오늘 회의는 음성 비서 프로젝트를 점검하겠습니다'],[1,0,'받아쓰기 모델은 위스퍼 스몰로 정했습니다'],[2,0,'누가 말했는지 구분이 안 됩니다'],[0,0,'그래서 화자 분리를 붙여 봅시다']];
+const WORDS=[];const TSPAN=[];
+TURNS.forEach((tu,ti)=>{if(ti)tu[1]=+(TSPAN[ti-1][1]+0.3).toFixed(2);const [k,st,tx]=tu;let t=st;const ws=tx.split(' ');ws.forEach((w,i)=>{const d=0.16+0.085*w.length;WORDS.push({w,k,ti,a:+t.toFixed(2),b:+(t+d).toFixed(2)});t+=d+0.07;});TSPAN.push([st,+(t-0.07).toFixed(2),k]);});
+const TEND=TSPAN[TSPAN.length-1][1]+0.6;
+
+/* hero: 소리 막대가 화자 색으로 */
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const n=Math.floor((w-20)/8);const head=Math.floor((heroT*14)%(n+20));
+  for(let i=0;i<n;i++){const x=10+i*8;const v=0.15+0.75*Math.abs(Math.sin(i*0.37)*Math.sin(i*0.11+1));const k=Math.floor(i/Math.max(1,n/6))%3;c.fillStyle=i<head?scol(k):css('--line');c.fillRect(x,h-v*h,5,v*h);}
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+/* tabs */
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+
+/* ===== D9-1 flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'Whisper 시각의 한계',c:'--net',go:'stamps',items:['자막 · 검색 · 회의록 = 단어마다 시작 · 끝 시각 필요','문장 시각: 시각 토큰(0.02초 눈금, D7)','단어 시각: cross-attention으로 추정 → 수백 ms 어긋남'],q:'🧩 빈칸 1: word_timestamps=True'},
+ {p:'Part 2',t:'강제 정렬',c:'--s2s',go:'trellis',items:['정답 글자를 알고, 언제인지만 찾기','wav2vec2(CTC) 20 ms 확률표 위의 격자','머물기 vs 넘어가기 → 거꾸로 따라가기'],q:'🧩 빈칸 2, 3: tokens, 320'},
+ {p:'Part 3',t:'WhisperX',c:'--asr',go:'wxpipe',items:['VAD → faster-whisper 배치 받아쓰기(시각 토큰 없이)','load_align_model("ko") → align() → 단어 start · end · score','정렬 점수 낮은 단어 = 의심, SRT 자막 만들기'],q:'🧩 빈칸 4, 5: "ko", 1000'},
+ {p:'Part 4',t:'화자 분리 직접',c:'--llm',go:'embed',items:['말 구간 → 목소리 지문(ECAPA 192차원) → 묶기','코사인 유사도: 길이 말고 방향','응집형 군집: 가까운 것부터 합치고 멈출 곳'],q:'🧩 빈칸 6, 7: b, 3',more:[['cluster','군집 합치기']]},
+ {p:'Part 5',t:'pyannote · DER',c:'--tts',go:'der',items:['DiarizationPipeline(token) → community-1 (gated)','num_speakers / min · max_speakers','DER = (놓침 + 잘못 감지 + 혼동) ÷ 전체 말 시간'],q:'🧩 빈칸 8: "confusion"'},
+ {p:'Part 6',t:'회의록',c:'--bad',go:'assign',items:['assign_word_speakers: 가장 많이 겹치는 화자','같은 화자 단어를 한 줄로','등록 음성으로 이름 붙이기(화자 식별)'],q:'🧩 빈칸 9: spk',more:[['minutes','회의록 만들기']]}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== D9-2 stamps ===== */
+let SM='both';chipRow($('stMode'),'data-sm',[['whisper','Whisper 추정만'],['align','WhisperX 정렬만'],['both','둘 다 비교']],'both','--s2s',v=>{SM=v;drawSt();});
+$('stJit').oninput=drawSt;$('stDrift').onchange=drawSt;
+function estWords(){const J=+$('stJit').value/1000;const drift=$('stDrift').checked;const r=mulberry(7);
+  return WORDS.map((w,i)=>{let a=w.a+J*gauss(r)*0.6,b=w.b+J*gauss(r)*0.6;const first=i===0||WORDS[i-1].ti!==w.ti,last=i===WORDS.length-1||WORDS[i+1].ti!==w.ti;
+    if(drift&&first)a-=0.35;if(drift&&last)b+=0.4;if(b<a+0.05)b=a+0.05;return {...w,a,b};});}
+function alignWords(){const r=mulberry(3);return WORDS.map(w=>({...w,a:w.a+0.03*gauss(r),b:w.b+0.03*gauss(r)}));}
+function bErr(ws){const e=[];TSPAN.forEach(([s,t],ti)=>{const g=ws.filter(w=>w.ti===ti);e.push(Math.abs(g[0].a-s),Math.abs(g[g.length-1].b-t));});return e.reduce((x,y)=>x+y,0)/e.length;}
+function drawSt(){$('stJitO').textContent=$('stJit').value+' ms';const {c,w,h}=fit($('stCv'),230);c.clearRect(0,0,w,h);const X=s=>110+(w-130)*s/TEND;
+  const rows=[['정답',WORDS,css('--ok')]];const E=estWords(),A=alignWords();if(SM!=='align')rows.push(['Whisper 추정',E,css('--llm')]);if(SM!=='whisper')rows.push(['WhisperX 정렬',A,css('--tts')]);
+  TSPAN.forEach(([s,t,k])=>{c.fillStyle=scol(k);c.globalAlpha=0.12;c.fillRect(X(s),8,X(t)-X(s),h-30);c.globalAlpha=1;});
+  rows.forEach(([n,ws,col],ri)=>{const y=18+ri*62;c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(n,8,y+22);
+    ws.forEach((wd,i)=>{c.fillStyle=col;c.globalAlpha=0.55;rr(c,X(wd.a),y+(i%2)*14,Math.max(3,X(wd.b)-X(wd.a)-1),26,4);c.fill();c.globalAlpha=1;
+      if(X(wd.b)-X(wd.a)>34){c.fillStyle=css('--ink');c.font='10px '+FONT;c.fillText(wd.w.slice(0,4),X(wd.a)+3,y+(i%2)*14+17);}});});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=Math.floor(TEND);s+=2)c.fillText(s+'s',X(s)-6,h-6);
+  const ew=bErr(E),ea=bErr(A);
+  $('stKv').innerHTML=`<div><span>Whisper 추정 경계 오차</span><b style="color:${css('--llm')}">${Math.round(ew*1000)} ms</b></div><div><span>WhisperX 정렬 경계 오차</span><b style="color:${css('--tts')}">${Math.round(ea*1000)} ms</b></div><div><span>발화 경계 수</span><b>${TSPAN.length*2}</b></div>`;
+  $('stFx').innerHTML=`경계 오차 = 발화마다 |첫 단어 시작 − 정답 시작|, |마지막 단어 끝 − 정답 끝|의 평균.<br>Whisper: <b>segments, info = fw.transcribe(y, word_timestamps=True)</b> → 받아 적은 '뒤에' attention으로 위치를 추정${$('stDrift').checked?' · 무음 끌림 켬: 쉼까지 단어가 늘어남':''}<br>WhisperX: <b>whisperx.align(...)</b> → wav2vec2 확률표에서 글자 위치를 직접 찾음 (20 ms 눈금)`;}
+REDRAW.stamps=drawSt;
+
+/* ===== D9-3 trellis ===== */
+const TCH=['가','나','다'];const TT=16;let trT=0,trPath=null,trSpd='mid',trEm=null,trTr=null;
+chipRow($('trSpeed'),'data-ts',[['fast','빨리 말하기'],['mid','보통'],['slow','"가"를 길게']],'mid','--s2s',v=>{trSpd=v;trInit();});
+function trInit(){const spans={fast:[[2,4],[5,7],[8,10]],mid:[[2,5],[6,9],[11,14]],slow:[[1,8],[9,11],[12,15]]}[trSpd];const r=mulberry(11);
+  const P=[];for(let t=0;t<TT;t++){const row=[0.85,0.05,0.05,0.05];spans.forEach(([a,b],k)=>{if(t>=a&&t<b){row[k+1]=0.8;row[0]=0.15;}});const s=row.map(v=>v+0.04*r());const z=s.reduce((x,y)=>x+y,0);P.push(s.map(v=>v/z));}
+  trEm=P.map(r=>r.map(Math.log));trTr=Array.from({length:TT+1},()=>[-Infinity,-Infinity,-Infinity,-Infinity]);trTr[0][0]=0;trT=0;trPath=null;drawTr();}
+function trStep(){if(trT>=TT)return;const t=trT;trTr[t+1][0]=trTr[t][0]+trEm[t][0];for(let j=1;j<=3;j++){const stay=trTr[t][j]+trEm[t][0],move=trTr[t][j-1]+trEm[t][j];trTr[t+1][j]=Math.max(stay,move);}trT++;drawTr();}
+function trBack(){while(trT<TT)trStep();let t=TT,j=3;const starts={},cells=[[TT,3]];while(t>0&&j>0){const stay=trTr[t-1][j]+trEm[t-1][0],move=trTr[t-1][j-1]+trEm[t-1][j];if(move>stay){starts[j-1]=t-1;j--;}t--;cells.push([t,j]);}trPath={starts,cells};drawTr();}
+$('trStep').onclick=trStep;$('trAll').onclick=()=>{while(trT<TT)trStep();};$('trBack').onclick=trBack;$('trReset').onclick=trInit;
+function drawTr(){const {c,w,h}=fit($('trCv'),330);c.clearRect(0,0,w,h);const L=70,cw=(w-L-20)/TT,ch=26;
+  const labs1=['_ blank',...TCH];c.font='12px '+FONT;
+  for(let v=0;v<4;v++){c.fillStyle=css('--ink');c.fillText(labs1[v],8,24+v*ch+17);for(let t=0;t<TT;t++){const p=Math.exp(trEm[t][v]);c.fillStyle=`rgba(242,179,61,${p})`;c.fillRect(L+t*cw,24+v*ch,cw-2,ch-2);}}
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('CTC 확률 (20 ms 프레임)',L,16);
+  const y0=150,labs2=['시작',...TCH];const fin=trTr.flat().filter(Number.isFinite);const mn=Math.min(...fin),mx=0;
+  c.fillText('격자: 칸 = 여기까지 오는 가장 좋은 길의 점수',L,y0-8);
+  for(let j=0;j<4;j++){c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(labs2[j],8,y0+j*ch+17);
+    for(let t=0;t<=TT;t++){const v=trTr[t][j];const x=L+(t-0.5)*cw+cw/2-cw/2;if(t>trT||!Number.isFinite(v)){c.fillStyle=css('--soft');c.fillRect(L+t*cw-cw/2,y0+j*ch,cw-2,ch-2);continue;}
+      const a=(v-mn)/(mx-mn+1e-9);c.fillStyle=`rgba(92,200,224,${0.15+0.85*a})`;c.fillRect(L+t*cw-cw/2,y0+j*ch,cw-2,ch-2);if(cw>30){c.fillStyle=css('--ink');c.font='9px '+MONO;c.fillText(v.toFixed(1),L+t*cw-cw/2+2,y0+j*ch+16);}}}
+  if(trT<TT){c.strokeStyle=css('--bad');c.lineWidth=2;c.strokeRect(L+trT*cw-cw/2,y0,cw-2,4*ch-2);}
+  if(trPath){c.strokeStyle=css('--bad');c.lineWidth=3;c.beginPath();trPath.cells.forEach(([t,j],i)=>{const x=L+t*cw-1,y=y0+j*ch+ch/2;i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();}
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let t=0;t<=TT;t+=2)c.fillText(t,L+t*cw-4,y0+4*ch+14);c.fillText('프레임',w-60,y0+4*ch+14);
+  let msg=`프레임 ${trT}/${TT} 채움. 칸 = max(<b>머물기</b>: 왼쪽 칸 + blank 점수, <b>넘어가기</b>: 왼쪽 위 칸 + 그 글자 점수)`;
+  if(trPath){msg+='<br>'+TCH.map((ch,k)=>`'${ch}' 시작 프레임 ${trPath.starts[k]} → <b>${(trPath.starts[k]*0.02).toFixed(2)}초</b>`).join(' · ')+'<br>프레임 × 0.02초(= 320샘플 ÷ 16000). WhisperX는 이렇게 얻은 글자 시각을 띄어쓰기 단위로 묶어 단어 시각을 만듭니다.';}
+  else if(trT===TT)msg+='<br>다 채웠습니다. "거꾸로 따라가기"를 누르세요.';
+  $('trFx').innerHTML=msg;}
+REDRAW.trellis=drawTr;trInit();
+
+/* ===== D9-4 WhisperX pipeline ===== */
+const WX=[['① 오디오 불러오기','audio = whisperx.load_audio("meeting.wav")  # 또는 16 kHz numpy 배열','16 kHz 모노 float32. 오늘 노트북은 meeting 배열을 그대로 넘깁니다.'],
+ ['② VAD로 말 구간 묶기','model = whisperx.load_model("small", DEVICE, compute_type=CT, language="ko")','pyannote 분할 모델(내장, 토큰 불필요)로 말 구간을 찾고 최대 30초까지 묶습니다.'],
+ ['③ 배치 받아쓰기','result = model.transcribe(audio, batch_size=8)','묶음마다 faster-whisper로 받아 적습니다(시각 토큰 없이). segments의 시각 = 묶음 시각.'],
+ ['④ 강제 정렬','a_model, meta = whisperx.load_align_model(language_code="ko", device=DEVICE)\naligned = whisperx.align(result["segments"], a_model, meta, audio, DEVICE)','wav2vec2 확률표 위에서 글자를 맞추고(D9-3), 문장으로 다시 나누고, 단어마다 start · end · score.'],
+ ['⑤ 화자 분리 + 단어에 화자','df = DiarizationPipeline(token=HF_TOKEN, device=DEVICE)(audio, num_speakers=3)\nout = whisperx.assign_word_speakers(df, aligned)','pyannote(community-1)로 화자 구간을 찾고, 단어마다 가장 많이 겹치는 화자를 붙입니다.']];
+let wxCur=0;$('wxSteps').innerHTML=WX.map((s,i)=>`<div class="stp" data-i="${i}" role="button" tabindex="0"><b>${s[0]}</b> · <code>${esc(s[1].split('\n')[0])}</code></div>`).join('');
+[...$('wxSteps').children].forEach(d=>{d.onclick=()=>{wxCur=+d.dataset.i;drawWx();};d.onkeydown=e=>{if(e.key==='Enter'){wxCur=+d.dataset.i;drawWx();}};});
+function drawWx(){[...$('wxSteps').children].forEach((d,i)=>{d.classList.toggle('on',i<=wxCur);d.classList.toggle('cur',i===wxCur);});
+  const {c,w,h}=fit($('wxCv'),210);c.clearRect(0,0,w,h);const X=s=>110+(w-130)*s/TEND;const r=mulberry(5);
+  c.font='12px '+FONT;c.fillStyle=css('--ink');c.fillText('소리',8,30);
+  for(let i=0;i<300;i++){const t=i/300*TEND;const sp=TSPAN.some(([a,b])=>t>=a&&t<=b);const a=sp?0.3+0.6*Math.abs(Math.sin(t*9+r())):0.04;c.fillStyle=css('--asr');c.fillRect(X(t),26-a*16,(w-130)/300,a*32);}
+  if(wxCur>=1){c.fillStyle=css('--ink');c.fillText('VAD 묶음',8,74);const G=[[TSPAN[0][0],TSPAN[1][1]],[TSPAN[2][0],TSPAN[3][1]]];G.forEach(([a,b])=>{c.fillStyle=css('--net');c.globalAlpha=0.35;rr(c,X(a),60,X(b)-X(a),22,5);c.fill();c.globalAlpha=1;});}
+  if(wxCur>=2){c.fillStyle=css('--ink');c.fillText('받아쓰기',8,110);[[0,1],[2,3]].forEach(([p,q])=>{const a=TSPAN[p][0],b=TSPAN[q][1];c.fillStyle=css('--s2s');c.globalAlpha=0.3;rr(c,X(a),96,X(b)-X(a),22,5);c.fill();c.globalAlpha=1;c.fillStyle=css('--ink');c.font='10px '+FONT;c.fillText((TURNS[p][2]+' '+TURNS[q][2]).slice(0,Math.floor((X(b)-X(a))/9)),X(a)+4,111);c.font='12px '+FONT;});}
+  if(wxCur>=3){c.fillStyle=css('--ink');c.fillText('단어 시각',8,146);WORDS.forEach((wd,i)=>{c.fillStyle=css('--tts');c.globalAlpha=0.55;rr(c,X(wd.a),132+(i%2)*6,Math.max(3,X(wd.b)-X(wd.a)-1),16,3);c.fill();c.globalAlpha=1;});}
+  if(wxCur>=4){c.fillStyle=css('--ink');c.fillText('화자',8,184);TSPAN.forEach(([a,b,k])=>{c.fillStyle=scol(k);c.globalAlpha=0.7;rr(c,X(a),170,X(b)-X(a),20,5);c.fill();c.globalAlpha=1;c.fillStyle='#fff';c.font='10px '+FONT;c.fillText(`SPEAKER_0${k}`,X(a)+4,184);c.font='12px '+FONT;});}
+  $('wxFx').innerHTML=`<b>${WX[wxCur][0]}</b><br>${esc(WX[wxCur][1]).replace(/\n/g,'<br>')}<br>${esc(WX[wxCur][2])}`;}
+REDRAW.wxpipe=drawWx;
+
+/* ===== D9-5 embed ===== */
+let emSel=0;$('emNear').oninput=drawEm;$('emNoise').oninput=drawEm;
+function emPts(){const near=+$('emNear').value/100,noise=+$('emNoise').value/100;const r=mulberry(21);
+  const C0=[[Math.cos(0.3),Math.sin(0.3)],[Math.cos(2.4),Math.sin(2.4)],[Math.cos(4.3),Math.sin(4.3)]];
+  const tgt=C0[0];C0[2]=[C0[2][0]*(1-near)+tgt[0]*near*0.85+0.15*near*Math.cos(1.0),C0[2][1]*(1-near)+tgt[1]*near*0.85+0.15*near*Math.sin(1.0)];
+  const P=[];[0,1,2].forEach(k=>{for(let i=0;i<5;i++){const ang=Math.atan2(C0[k][1],C0[k][0])+gauss(r)*(0.12+0.5*noise);P.push({k,x:Math.cos(ang)*(0.8+0.2*r()),y:Math.sin(ang)*(0.8+0.2*r())});}});return P;}
+const cosv=(a,b)=>(a.x*b.x+a.y*b.y)/(Math.hypot(a.x,a.y)*Math.hypot(b.x,b.y));
+function drawEm(){$('emNearO').textContent=$('emNear').value+'%';$('emNoiseO').textContent=$('emNoise').value+'%';const P=emPts();
+  const {c,w,h}=fit($('emCv'),320);c.clearRect(0,0,w,h);const cx=w/2,cy=h/2,R=Math.min(w,h)/2-30;
+  c.strokeStyle=css('--line');c.beginPath();c.arc(cx,cy,R,0,7);c.stroke();c.beginPath();c.moveTo(cx-R-10,cy);c.lineTo(cx+R+10,cy);c.moveTo(cx,cy-R-10);c.lineTo(cx,cy+R+10);c.stroke();
+  const s=P[emSel];c.strokeStyle=css('--ink');c.setLineDash([4,4]);c.beginPath();c.moveTo(cx,cy);c.lineTo(cx+s.x*R,cy-s.y*R);c.stroke();c.setLineDash([]);
+  P.forEach((p,i)=>{c.fillStyle=scol(p.k);c.beginPath();c.arc(cx+p.x*R,cy-p.y*R,i===emSel?10:7,0,7);c.fill();if(i===emSel){c.strokeStyle=css('--ink');c.lineWidth=2;c.stroke();}});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('같은 방향 = 비슷한 목소리 (원점에서 본 각도)',10,h-8);
+  $('emCv').onclick=e=>{const b=$('emCv').getBoundingClientRect();const mx=e.clientX-b.left,my=e.clientY-b.top;let best=0,bd=1e9;P.forEach((p,i)=>{const d=Math.hypot(cx+p.x*R-mx,cy-p.y*R-my);if(d<bd){bd=d;best=i;}});emSel=best;drawEm();};
+  const same=[],diff=[];for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++)(P[i].k===P[j].k?same:diff).push(cosv(P[i],P[j]));
+  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;const kp=[];for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++)if((P[i].k===0&&P[j].k===2)||(P[i].k===2&&P[j].k===0))kp.push(cosv(P[i],P[j]));
+  $('emKv').innerHTML=`<div><span>같은 사람끼리 평균</span><b>${avg(same).toFixed(2)}</b></div><div><span>다른 사람끼리 평균</span><b>${avg(diff).toFixed(2)}</b></div><div><span>김팀장 ↔ 박대리 평균</span><b style="color:${avg(kp)>0.7?css('--bad'):css('--ink')}">${avg(kp).toFixed(2)}</b></div>`;
+  $('emSim').innerHTML=P.map((p,i)=>i===emSel?'':`<div style="--c:${scol(p.k)}">조각${i+1} (${SPK[p.k][0]}) <b>${cosv(s,p).toFixed(2)}</b></div>`).join('');
+  $('emFx').innerHTML=`선택: 조각${emSel+1} (${SPK[s.k][0]}). 아래 숫자는 이 조각과의 코사인 유사도 = (a · b) ÷ (‖a‖ × ‖b‖).<br>${avg(kp)>0.7?'⚠️ 김팀장과 박대리의 지문이 너무 비슷해졌습니다 → 군집에서 한 사람으로 합쳐질 위험 (화자 혼동 ↑)':'같은 사람끼리는 1에 가깝고, 다른 사람끼리는 낮습니다 → 묶기 쉬움'}`;}
+REDRAW.embed=drawEm;
+
+/* ===== D9-6 cluster ===== */
+let clPts=[],clGroups=[],clHist=[];
+function clInit(){const r=mulberry(33);const C=[[0.3],[2.4],[4.3]];clPts=[];[0,1,2].forEach(k=>{for(let i=0;i<4;i++){const a=C[k][0]+gauss(r)*0.28;clPts.push({k,a,x:Math.cos(a),y:Math.sin(a)});}});
+  clGroups=clPts.map((_,i)=>[i]);clHist=[];drawCl();}
+const cdist=(i,j)=>1-cosv(clPts[i],clPts[j]);
+function gdist(A,B){let s=0;A.forEach(i=>B.forEach(j=>s+=cdist(i,j)));return s/(A.length*B.length);}
+function clBest(){let bi=-1,bj=-1,bd=1e9;for(let i=0;i<clGroups.length;i++)for(let j=i+1;j<clGroups.length;j++){const d=gdist(clGroups[i],clGroups[j]);if(d<bd){bd=d;bi=i;bj=j;}}return [bi,bj,bd];}
+function clStep(force){if(clGroups.length<2)return false;const [i,j,d]=clBest();if(!force&&d>+$('clTh').value)return false;clHist.push(d);clGroups[i]=clGroups[i].concat(clGroups[j]);clGroups.splice(j,1);drawCl();return true;}
+$('clStep').onclick=()=>clStep(true);$('clAll').onclick=()=>{clInit();while(clStep(false));};$('clReset').onclick=clInit;$('clTh').oninput=()=>{clInit();while(clStep(false));};
+function drawCl(){$('clThO').textContent=(+$('clTh').value).toFixed(2);const {c,w,h}=fit($('clCv'),300);c.clearRect(0,0,w,h);const cx=w*0.28,cy=h/2,R=Math.min(w*0.25,h/2-24);
+  const pal=['--asr','--llm','--tts','--s2s','--net','--ok'];
+  c.strokeStyle=css('--line');c.beginPath();c.arc(cx,cy,R,0,7);c.stroke();
+  clGroups.forEach((g,gi)=>{const col=g.length>1?css(pal[gi%pal.length]):css('--muted');if(g.length>1){c.strokeStyle=col;c.lineWidth=1.5;g.forEach(i=>g.forEach(j=>{if(i<j){c.beginPath();c.moveTo(cx+clPts[i].x*R,cy-clPts[i].y*R);c.lineTo(cx+clPts[j].x*R,cy-clPts[j].y*R);c.stroke();}}));}
+    g.forEach(i=>{c.fillStyle=col;c.beginPath();c.arc(cx+clPts[i].x*R,cy-clPts[i].y*R,8,0,7);c.fill();c.strokeStyle=scol(clPts[i].k);c.lineWidth=2.5;c.stroke();});});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('테두리 = 정답 화자, 채움 = 현재 무리',10,h-8);
+  const gx=w*0.58,gw=w*0.38,gh=h-60;c.strokeStyle=css('--line');c.strokeRect(gx,20,gw,gh);c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText('합칠 때의 거리 (순서대로)',gx,14);
+  const mx=1.6;clHist.forEach((d,i)=>{const bw=gw/11;c.fillStyle=d>+$('clTh').value?css('--bad'):css('--s2s');c.fillRect(gx+i*bw+3,20+gh-gh*d/mx,bw-6,gh*d/mx);});
+  const ty=20+gh-gh*(+$('clTh').value)/mx;c.strokeStyle=css('--bad');c.setLineDash([5,4]);c.beginPath();c.moveTo(gx,ty);c.lineTo(gx+gw,ty);c.stroke();c.setLineDash([]);c.fillStyle=css('--bad');c.fillText('기준선',gx+gw-44,ty-4);
+  const pure=clGroups.filter(g=>new Set(g.map(i=>clPts[i].k)).size===1).length;const nxt=clGroups.length>1?clBest()[2]:null;
+  $('clKv').innerHTML=`<div><span>현재 무리 수 (= 화자 수)</span><b>${clGroups.length}</b></div><div><span>한 사람만 들어 있는 무리</span><b>${pure} / ${clGroups.length}</b></div><div><span>다음 합치기 거리</span><b>${nxt===null?'—':nxt.toFixed(2)}</b></div>`;
+  $('clFx').innerHTML=`AgglomerativeClustering(n_clusters=None, distance_threshold=${(+$('clTh').value).toFixed(2)}, metric="cosine", linkage="average")<br>${clGroups.length===3&&pure===3?'✅ 정확히 3명으로 나뉘었습니다.':clGroups.length<3?'⚠️ 다른 사람끼리 합쳐졌습니다 (기준이 너무 큼 → 화자 수 ↓)':'아직 나뉜 무리가 많습니다 (기준이 작으면 한 사람이 여럿으로 → 화자 수 ↑)'}<br>화자 수를 안다면 n_clusters=3으로 '3개 남을 때까지' 합칩니다 (노트북 빈칸 7).`;}
+REDRAW.cluster=drawCl;clInit();while(clStep(false));
+
+/* ===== D9-7 DER ===== */
+['drMiss','drFa','drConf'].forEach(id=>$(id).oninput=drawDr);$('drSwap').onchange=drawDr;
+const DREF=[[0.0,3.0,0],[3.5,6.5,1],[7.0,10.0,0],[10.4,12.0,1]];
+function drawDr(){const miss=+$('drMiss').value,fa=+$('drFa').value,conf=+$('drConf').value,sw=$('drSwap').checked;
+  $('drMissO').textContent=miss.toFixed(2)+'초';$('drFaO').textContent=fa.toFixed(1)+'초';$('drConfO').textContent=conf.toFixed(1)+'초';
+  const hyp=[];DREF.forEach(([a,b,k],i)=>{let s=a+miss;hyp.push([s,b,k]);});
+  if(conf>0){const seg=hyp[2];const cut=Math.max(seg[0],seg[1]-conf);hyp.splice(3,0,[cut,seg[1],1]);seg[1]=cut;}
+  if(fa>0)hyp.push([6.5,6.5+Math.min(fa,0.5),1],[12.0,12.0+Math.max(0,fa-0.5),1]);
+  const lab=k=>sw?1-k:k;
+  const {c,w,h}=fit($('drCv'),200);c.clearRect(0,0,w,h);const T=14;const X=s=>70+(w-90)*s/T;
+  c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText('정답',10,48);c.fillText('결과',10,118);
+  DREF.forEach(([a,b,k])=>{c.fillStyle=scol(k);rr(c,X(a),30,X(b)-X(a),28,5);c.fill();c.fillStyle='#fff';c.font='11px '+FONT;c.fillText(SPK[k][0],X(a)+5,48);});
+  hyp.forEach(([a,b,k])=>{if(b-a<=0.001)return;c.fillStyle=scol(k);rr(c,X(a),100,X(b)-X(a),28,5);c.fill();c.fillStyle='#fff';c.font='10px '+FONT;if(X(b)-X(a)>70)c.fillText(`SPEAKER_0${lab(k)}`,X(a)+4,118);});
+  // 프레임 단위 계산 (10 ms)
+  let M=0,F=0,Cf=0,Tot=0;for(let t=0;t<T;t+=0.01){const r=DREF.find(([a,b])=>t>=a&&t<b),hh=hyp.filter(([a,b])=>t>=a&&t<b);const hk=hh.length?hh[hh.length-1][2]:null;
+    if(r)Tot+=0.01;if(r&&hk===null)M+=0.01;else if(!r&&hk!==null)F+=0.01;else if(r&&hk!==r[2])Cf+=0.01;}
+  const der=(M+F+Cf)/Tot;
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=T;s+=2)c.fillText(s+'s',X(s)-6,h-8);
+  $('drKv').innerHTML=`<div><span>놓침 (missed)</span><b style="color:${css('--bad')}">${M.toFixed(2)}초</b></div><div><span>잘못 감지 (false alarm)</span><b style="color:${css('--llm')}">${F.toFixed(2)}초</b></div><div><span>화자 혼동 (confusion)</span><b style="color:${css('--s2s')}">${Cf.toFixed(2)}초</b></div><div><span>DER</span><b>${(der*100).toFixed(1)}%</b></div>`;
+  $('drFx').innerHTML=`DER = (${M.toFixed(2)} + ${F.toFixed(2)} + ${Cf.toFixed(2)}) ÷ 정답 말 시간 ${Tot.toFixed(1)}초 = <b>${(der*100).toFixed(1)}%</b><br>${sw?'번호를 거꾸로 붙여도 DER은 같습니다: 정답 이름과 결과 번호의 짝을 가장 잘 맞게 자동으로 찾기 때문 (헝가리안 매칭).':'"번호를 거꾸로 붙이기"를 켜 보세요.'}<br>놓침 · 잘못 감지 ↑ → 말 구간 찾기(VAD · 분할)를, 혼동 ↑ → 목소리 지문 · 군집을 손봅니다.`;}
+REDRAW.der=drawDr;
+
+/* ===== D9-8 assign ===== */
+['asJit','asShift'].forEach(id=>$(id).oninput=drawAs);$('asFill').onchange=drawAs;
+function drawAs(){const J=+$('asJit').value/1000,S=+$('asShift').value,fill=$('asFill').checked;$('asJitO').textContent=$('asJit').value+' ms';$('asShiftO').textContent=(S>0?'+':'')+S.toFixed(2)+'초';
+  const r=mulberry(9);const D=TSPAN.map(([a,b,k],i)=>[i?a+S:a,i<TSPAN.length-1?b+S:b,k]);
+  const ws=WORDS.map(w=>{const sh=J*gauss(r);return {...w,a:w.a+sh,b:w.b+sh};});
+  ws.forEach(w=>{const ov=[0,0,0];D.forEach(([a,b,k])=>{const o=Math.min(b,w.b)-Math.max(a,w.a);if(o>0)ov[k]+=o;});const best=ov.indexOf(Math.max(...ov));
+    if(Math.max(...ov)>0)w.s=best;else if(fill){const m=(w.a+w.b)/2;let bk=0,bd=1e9;D.forEach(([a,b,k])=>{const d=Math.abs((a+b)/2-m);if(d<bd){bd=d;bk=k;}});w.s=bk;}else w.s=null;});
+  const {c,w,h}=fit($('asCv'),210);c.clearRect(0,0,w,h);const X=s=>90+(w-110)*s/TEND;
+  c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText('화자 분리',8,48);c.fillText('단어',8,138);
+  D.forEach(([a,b,k])=>{c.fillStyle=scol(k);c.globalAlpha=0.75;rr(c,X(a),30,X(b)-X(a),28,5);c.fill();c.globalAlpha=1;});
+  ws.forEach((wd,i)=>{const y=110+(i%2)*30;c.fillStyle=wd.s===null?css('--line'):scol(wd.s);c.globalAlpha=0.45;rr(c,X(wd.a),y,Math.max(3,X(wd.b)-X(wd.a)-1),24,4);c.fill();c.globalAlpha=1;
+    if(wd.s!==wd.k){c.strokeStyle=css('--bad');c.lineWidth=2.5;rr(c,X(wd.a),y,Math.max(3,X(wd.b)-X(wd.a)-1),24,4);c.stroke();}});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=Math.floor(TEND);s+=2)c.fillText(s+'s',X(s)-6,h-6);
+  const ok=ws.filter(w=>w.s===w.k).length,none=ws.filter(w=>w.s===null).length;
+  $('asKv').innerHTML=`<div><span>단어별 화자 정확도</span><b>${(ok/ws.length*100).toFixed(0)}%</b></div><div><span>틀린 단어</span><b style="color:${css('--bad')}">${ws.length-ok-none}</b></div><div><span>화자 없음 (?)</span><b>${none}</b></div>`;
+  let cur=null,html='';ws.forEach(wd=>{if(wd.s!==cur){if(cur!==undefined&&html)html+='</div>';const n=wd.s===null?'?':SPK[wd.s][0];html+=`<div class="ln"><span class="sp" style="--c:${wd.s===null?css('--line'):scol(wd.s)}">${n}</span>`;cur=wd.s;}html+=`<span class="wd ${wd.s!==wd.k?'bad':''}">${esc(wd.w)}</span>`;});
+  $('asOut').innerHTML=html+'</div>';}
+REDRAW.assign=drawAs;
+
+/* ===== D9-9 minutes ===== */
+const MN=[['받아쓰기 글자','result = model.transcribe(audio)','글자만 있습니다. 누가 · 언제를 모릅니다.'],['단어 시각','aligned = whisperx.align(...)','단어마다 start · end (강제 정렬).'],['화자 번호','whisperx.assign_word_speakers(df, aligned)','단어마다 SPEAKER_00 같은 번호. 이름은 아직 모름.'],['이름 붙이기','등록 음성 지문과 코사인 유사도 → linear_sum_assignment','SPEAKER_00 → 김팀장 (화자 식별).'],['줄 묶기','minutes[-1]["speaker"] == spk 이면 이어 붙이기','같은 화자의 연속된 단어를 한 줄로 → 회의록 완성. D10에서 LLM 요약.']];
+let mnCur=0;$('mnSteps').innerHTML=MN.map((s,i)=>`<div class="stp" data-i="${i}" role="button" tabindex="0"><b>${i+1}. ${s[0]}</b> · <code>${esc(s[1])}</code></div>`).join('');
+[...$('mnSteps').children].forEach(d=>{d.onclick=()=>{mnCur=+d.dataset.i;drawMn();};});
+$('mnNext').onclick=()=>{mnCur=Math.min(MN.length-1,mnCur+1);drawMn();};$('mnReset').onclick=()=>{mnCur=0;drawMn();};
+function drawMn(){[...$('mnSteps').children].forEach((d,i)=>{d.classList.toggle('on',i<=mnCur);d.classList.toggle('cur',i===mnCur);});let html='';
+  if(mnCur===0)html=WORDS.map(w=>esc(w.w)).join(' ');
+  else if(mnCur===1)html=WORDS.map(w=>`<span class="wd">${esc(w.w)} <span class="tm">${w.a.toFixed(1)}</span></span>`).join('');
+  else if(mnCur===2)html=WORDS.map(w=>`<span class="wd" style="border-color:${scol(w.k)}">${esc(w.w)} <span class="tm">S0${w.k}</span></span>`).join('');
+  else if(mnCur===3)html=WORDS.map(w=>`<span class="wd" style="border-color:${scol(w.k)}">${esc(w.w)} <span class="tm">${SPK[w.k][0]}</span></span>`).join('');
+  else html=TURNS.map(([k,st],ti)=>`<div class="ln"><span class="tm">[00:${String(Math.floor(st)).padStart(2,'0')}]</span><span class="sp" style="--c:${scol(k)}">${SPK[k][0]}</span>${esc(WORDS.filter(w=>w.ti===ti).map(w=>w.w).join(' '))}</div>`).join('');
+  $('mnOut').innerHTML=html;$('mnFx').innerHTML=`<b>${MN[mnCur][0]}</b>: ${esc(MN[mnCur][2])}<br>${esc(MN[mnCur][1])}`;}
+REDRAW.minutes=drawMn;
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>

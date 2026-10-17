@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음성 AI Day 9 개념 워크시트 — Timestamp &amp; 화자 분리</title>
+<style>
+  :root{--bg:#0b1220;--panel:#111a2e;--line:#1f2b45;--text:#dbe4f0;--dim:#8a9bb8;--amber:#f5b942;--teal:#2dd4bf;--blue:#60a5fa;--green:#4ade80;--red:#f87171;--purple:#c084fc;--mono:"Consolas","D2Coding","JetBrains Mono",monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;font-size:15px;line-height:1.55}
+  .app{max-width:900px;margin:0 auto;padding:22px 20px 40px}
+  h1{color:var(--amber);font-size:24px;margin:0 0 6px}
+  .sub{color:var(--dim);margin:0 0 14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .panel h2{font-size:14px;color:var(--dim);margin:0 0 10px;font-weight:600}
+  button{background:#172239;border:1px solid #2a3a5c;color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--amber)}button.active{background:#3a2e12;border-color:var(--amber);color:var(--amber)}
+  button.primary{background:#123d33;border-color:var(--teal);color:var(--teal);font-weight:700;padding:9px 18px;font-size:14px}
+  button.submit{background:#3a2e12;border-color:var(--amber);color:var(--amber);font-weight:700;padding:9px 18px;font-size:14px}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  input[type=text]{background:#0a0f1c;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:14px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .tabs button .s{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+  .tabs button.graded .s{color:var(--green)}
+  .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .head .t{color:var(--amber);font-size:17px}
+  .head .a{font-size:13px;color:var(--teal);font-family:var(--mono)}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1628}
+  .q.unans{border-color:#5a3a1a}
+  .q .n{font-family:var(--mono);color:var(--dim);font-size:12px}
+  .q .p{margin:4px 0 10px;font-size:15px}
+  .q .p code,.opt code,.fb code,td code{font-family:var(--mono);color:var(--blue);background:#0a0f1c;padding:1px 5px;border-radius:4px}
+  .q pre.qc{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:10px 12px;margin:4px 0 12px;font-size:13.5px;line-height:1.5;white-space:pre;overflow-x:auto;color:#dbe4f3}
+  .q pre{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0 10px;font-size:14px;white-space:pre;overflow-x:auto}
+  .opts{display:grid;gap:6px}
+  .opt{text-align:left;padding:8px 12px;font-size:14px;font-family:inherit}
+  .opt.sel{border-color:var(--amber);background:#1f1a0c}
+  .opt.ok{border-color:var(--green);color:var(--green);background:#0d2216}
+  .opt.bad{border-color:var(--red);color:var(--red);background:#2a1212}
+  .opt:disabled{cursor:default;opacity:.9}
+  .fb{margin-top:8px;font-size:13px;color:var(--dim);border-left:3px solid var(--line);padding-left:10px}
+  .fb.ok{border-left-color:var(--green)}.fb.bad{border-left-color:var(--red)}
+  .fb .anim{color:var(--teal);font-family:var(--mono);font-size:12px;display:block;margin-top:3px}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .code{font-family:var(--mono);font-size:20px;color:var(--amber);letter-spacing:1px}
+  .score{font-family:var(--mono);color:var(--green);font-size:16px}
+  .hint{color:var(--dim);font-size:13px}
+  details{color:var(--dim);font-size:13px}
+  details summary{cursor:pointer;color:var(--dim)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* dialog */
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0;max-width:820px;width:92vw;max-height:88vh}
+  dialog::backdrop{background:#000a}
+  .dg{padding:18px 20px}
+  .dg h3{color:var(--amber);margin:0 0 4px;font-size:20px}
+  .dg .meta{color:var(--dim);font-size:13px;margin-bottom:12px;font-family:var(--mono)}
+  .dg .sec{margin:14px 0 6px;color:var(--teal);font-weight:700;font-size:14px}
+  .dg table{width:100%;border-collapse:collapse;font-size:13px}
+  .dg th{text-align:left;color:var(--dim);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12px}
+  .dg td{padding:5px 8px;border-bottom:1px solid #16203a;vertical-align:top}
+  .dg td.r{font-family:var(--mono)}
+  .dg .ok{color:var(--green)}.dg .bad{color:var(--red)}.dg .none{color:var(--dim)}
+  .dg .sum{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-family:var(--mono)}
+  .dgbar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .toast{color:var(--green);font-size:13px;margin-right:auto}
+  .body{overflow:auto;max-height:calc(88vh - 60px)}
+
+.q .n .ty{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;font-family:inherit}
+.ty-mc{background:#1b2a4a;color:var(--blue)} .ty-ox{background:#2a2410;color:var(--amber)} .ty-match{background:#13302c;color:var(--teal)}
+.ty-order{background:#2a1a3a;color:var(--purple)} .ty-multi{background:#2a1616;color:#fca5a5}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:360px}
+.oxrow .opt{text-align:center;font-size:22px;font-weight:700;padding:10px}
+.reflist{display:grid;gap:4px;margin:2px 0 10px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;font-size:14px;color:var(--text)}
+.reflist b{color:var(--teal);font-family:var(--mono);margin-right:6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow .l{font-size:14px} .mrow .l b{font-family:var(--mono);color:var(--dim);margin-right:6px}
+.mrow select{width:100%;background:#0a0f1c;color:var(--text);border:1px solid #2a3a5c;border-radius:6px;padding:6px 8px;font:inherit;font-size:13.5px}
+.mrow select.ok{border-color:var(--green);color:var(--green)} .mrow select.bad{border-color:var(--red);color:var(--red)}
+.steps{display:grid;gap:6px}
+.step{display:flex;gap:10px;align-items:center;text-align:left;padding:8px 12px;font-size:14px}
+.step .badge{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid #2a3a5c;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.step.on{border-color:var(--purple)} .step.on .badge{background:var(--purple);border-color:var(--purple);color:#0b1220;font-weight:700}
+.step.ok{border-color:var(--green)} .step.ok .badge{background:var(--green);color:#0b1220;border-color:var(--green)}
+.step.bad{border-color:var(--red)} .step.bad .badge{background:var(--red);color:#0b1220;border-color:var(--red)}
+.seqbar{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.seqbar button{padding:4px 10px;font-size:12px}
+.multi .opt::before{content:"☐ ";color:var(--dim)} .multi .opt.sel::before{content:"☑ ";color:var(--amber)}
+.multi .opt.ok::before{content:"☑ ";color:var(--green)} .multi .opt.miss::before{content:"☐ ";color:var(--green)}
+.multi .opt.miss{border-color:var(--green);border-style:dashed}
+.typeinfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>음성 AI Day 9 개념 워크시트</h1>
+  <p class="sub">Timestamp &amp; 화자 분리 — 문장 시각 · 단어 시각 · cross-attention 추정 · 강제 정렬 · CTC 격자 · 20 ms 프레임 · WhisperX · 정렬 점수 · SRT · 목소리 지문 · 코사인 유사도 · 응집형 군집 · pyannote · DER · 단어에 화자 붙이기 · 화자 식별 · 4교시 × 10문항 (객관식 5 · OX 2 · 선잇기 1 · 순서 맞추기 1 · 모두 고르기 1). 🎬 표시는 같은 폴더 <a href="animation.html" style="color:var(--teal)">animation.html</a>의 애니메이션 번호입니다. 선잇기는 드롭다운으로, 순서 맞추기는 단계를 일어나는 순서대로 눌러서, 모두 고르기는 여러 개를 눌러서 답합니다. 답을 고른 뒤 아래 <b style="color:var(--teal)">채점하기</b>를 누르면 정오·해설과 결과 코드가 나타납니다. 채점 전에는 답을 바꿀 수 있고, 채점 후에는 잠깁니다. 모든 교시를 마치면 <b style="color:var(--amber)">제출</b>로 오답 정리를 열고, <b>캡처</b>로 복사해 노션에 붙여 넣으세요.</p>
+
+  <div class="panel">
+    <div class="row"><label style="color:var(--dim);font-size:13px">이름 <input type="text" id="name" placeholder="홍길동"></label><span class="hint">이름은 결과 코드 계산에만 쓰이며 저장되지 않습니다.</span></div>
+  </div>
+  <div class="panel"><h2>교시</h2><div class="tabs" id="tabs"></div></div>
+  <div class="panel" id="sheet"></div>
+  <div class="panel">
+    <div class="actions">
+      <button class="primary" id="gradeBtn">채점하기</button>
+      <span class="code" id="rcode">—</span><span class="score" id="rscore"></span><span class="hint" id="rhint"></span>
+      <button class="submit" id="submitBtn" style="margin-left:auto">제출</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="body"><div class="dg" id="dgBody"></div></div>
+  <div class="dgbar"><span class="toast" id="toast"></span><button id="captureBtn" class="primary">📋 캡처 (노션용 복사)</button><button id="closeBtn">닫기</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const Q=[{"t": "1교시 · 단어 시각 · 강제 정렬", "anim": "D9-2 문장 시각 vs 단어 시각 · D9-3 격자 따라가기", "qs": [{"ty": "mc", "p": "받아쓰기 결과에 '단어마다의 시작 · 끝 시각'이 꼭 필요한 일이 아닌 것은?", "o": ["자막 만들기", "회의록에서 단어마다 화자 붙이기", "녹음에서 특정 단어가 나온 순간으로 바로 가기", "녹음 전체의 글자 오류율(CER) 계산"], "a": 3, "w": "CER은 글자만 비교하므로 시각이 필요 없습니다. 나머지 셋은 단어가 '언제' 나왔는지 알아야 합니다.", "an": "노트북 Part 1 도입"}, {"ty": "mc", "p": "faster-whisper에서 단어 시각을 받으려면 transcribe()에 무엇을 켜야 하나요?", "o": ["vad_filter=True", "word_timestamps=True", "without_timestamps=True", "beam_size=5"], "a": 1, "w": "기본은 문장(구간) 시각만 줍니다. word_timestamps=True를 켜면 단어마다 start · end가 생깁니다.", "an": "빈칸 실습 1"}, {"ty": "ox", "p": "Whisper의 단어 시각은 모델이 학습 때 단어마다의 정답 시각을 배워서 직접 내놓는 값입니다.", "a": false, "w": "Whisper는 문장(자막 줄) 단위 시각만 배웠습니다. 단어 시각은 받아 적은 뒤 cross-attention을 보고 추정합니다.", "an": "노트북 Part 1 ❓"}, {"ty": "mc", "p": "Whisper 단어 시각이 자주 어긋나는 모습으로 알맞은 것은?", "o": ["항상 정확히 20 ms씩 늦다", "발화 앞뒤의 쉼(무음)까지 첫 · 마지막 단어가 늘어나거나 당겨진다", "단어 순서가 뒤바뀐다", "모든 단어 길이가 같아진다"], "a": 1, "w": "attention이 실제 소리와 다른 곳을 볼 수 있어서 경계가 수백 ms씩 흔들리고, 무음에 끌려가기 쉽습니다.", "an": "D9-2 무음 끌림"}, {"ty": "match", "p": "시각의 종류와 만드는 방법을 이으세요.", "left": ["Whisper 문장 시각", "Whisper 단어 시각", "WhisperX 단어 시각", "WhisperX 받아쓰기 단계의 구간 시각"], "right": ["VAD로 묶은 말 구간의 시작 · 끝", "받아 적으며 쓰는 시각 토큰 (0.02초 눈금)", "wav2vec2 CTC 확률표 위의 강제 정렬", "cross-attention을 보고 DTW로 추정"], "a": [1, 3, 2, 0], "w": "WhisperX는 받아쓰기 단계에서 시각 토큰을 쓰지 않고, 정렬 단계에서 단어 시각을 만듭니다.", "an": "노트북 Part 1 표 · Part 3"}, {"ty": "mc", "p": "강제 정렬(forced alignment)을 가장 잘 설명한 것은?", "o": ["소리에서 글자를 새로 받아 적는 일", "이미 아는 글자를 순서대로 소리의 위치에 맞추는 일", "두 녹음의 길이를 같게 맞추는 일", "화자별로 소리를 나누는 일"], "a": 1, "w": "노래방 가사 맞추기처럼, 글자(가사)는 알고 '언제'만 찾습니다.", "an": "노트북 Part 2"}, {"ty": "order", "p": "강제 정렬을 하는 순서대로 놓으세요.", "steps": ["끝 칸에서 거꾸로 따라가며 글자마다 시작 프레임을 읽음", "wav2vec2가 20 ms마다 글자 확률표를 냄", "프레임 번호 × 0.02초로 시각을 계산", "격자 칸마다 머물기 · 넘어가기 중 좋은 점수를 적음"], "a": [1, 3, 0, 2], "w": "확률표 → 격자 채우기 → 거꾸로 따라가기 → 초로 바꾸기.", "an": "D9-3 · 빈칸 2 · 3"}, {"ty": "mc", "p": "격자에서 '넘어가기(move)' 점수는 어떻게 계산하나요?", "o": ["같은 칸 + blank 점수", "왼쪽 위 칸(한 글자 앞) + 그 프레임의 다음 정답 글자 점수", "아래 칸 + 무작위 점수", "모든 칸의 평균"], "a": 1, "w": "move = trellis[t, :-1] + em[t, tokens]. 머물기는 trellis[t, 1:] + em[t, blank].", "an": "빈칸 실습 2"}, {"ty": "ox", "p": "격자 위의 길은 글자 순서를 건너뛰거나 거꾸로 갈 수 없고, 한 글자에 오래 머물 수는 있습니다.", "a": true, "w": "그래서 정답 글자 순서가 그대로 유지되면서 '언제'만 정해집니다.", "an": "노트북 Part 2 🍎"}, {"ty": "multi", "p": "wav2vec2 프레임과 시각에 대해 옳은 것을 모두 고르세요.", "o": ["프레임 하나는 320샘플이다", "16 kHz에서 프레임 하나는 20 ms이다", "시작 프레임 10은 0.20초이다", "프레임 길이는 녹음마다 달라진다"], "a": [0, 1, 2], "w": "합성곱 보폭 5×2×2×2×2×2×2 = 320 → 320 ÷ 16000 = 0.02초. 모델 구조로 정해져 있어 녹음마다 바뀌지 않습니다.", "an": "빈칸 실습 3"}]}, {"t": "2교시 · WhisperX", "anim": "D9-4 WhisperX 파이프라인", "qs": [{"ty": "mc", "p": "WhisperX에 대한 설명으로 옳은 것은?", "o": ["Whisper를 처음부터 다시 학습한 새 모델", "VAD + faster-whisper 배치 받아쓰기 + wav2vec2 정렬(+ pyannote)을 묶은 도구", "영어만 정렬할 수 있다", "GPU가 없으면 쓸 수 없다"], "a": 1, "w": "새 모델이 아니라 조립품입니다. 받아쓰기는 faster-whisper(D8), 정렬은 wav2vec2(D6), 화자 분리는 pyannote.", "an": "노트북 Part 3"}, {"ty": "order", "p": "WhisperX로 단어 시각을 얻는 코드 순서대로 놓으세요.", "steps": ["whisperx.align(result['segments'], a_model, meta, audio, DEVICE)", "whisperx.load_model('small', DEVICE, compute_type=CT)", "whisperx.load_align_model(language_code='ko', device=DEVICE)", "result = model.transcribe(audio, batch_size=8)"], "a": [1, 3, 2, 0], "w": "받아쓰기 모델 → 받아쓰기 → 정렬 모델 → 정렬.", "an": "노트북 Part 3 셀"}, {"ty": "ox", "p": "WhisperX의 transcribe() 결과 segments의 시각은 이미 단어 단위로 정확합니다.", "a": false, "w": "받아쓰기 단계는 시각 토큰 없이 VAD 묶음(최대 30초)을 받아 적어서, 구간 시각은 묶음의 시작 · 끝일 뿐입니다.", "an": "노트북 Part 3 결과 읽기"}, {"ty": "mc", "p": "whisperx.load_align_model에 언어 코드를 넘기는 이유는?", "o": ["번역할 언어를 정하려고", "언어마다 글자 목록이 달라 그 언어용 wav2vec2 모델을 골라야 해서", "VAD를 켜려고", "배치 크기를 정하려고"], "a": 1, "w": "한국어는 kresnik/wav2vec2-large-xlsr-korean처럼 한국어 글자로 학습된 CTC 모델을 씁니다.", "an": "빈칸 실습 4"}, {"ty": "match", "p": "WhisperX 결과의 항목과 뜻을 이으세요.", "left": ["w['start'], w['end']", "w['score']", "aligned['segments']", "return_char_alignments=True"], "right": ["문장 단위로 다시 나뉜 구간 목록", "글자마다의 시각도 함께 받기", "단어의 시작 · 끝 시각(초)", "그 자리에서 얼마나 그 글자 소리 같았나 (0~1)"], "a": [2, 3, 0, 1], "w": "정렬 후에는 문장 나누기도 함께 되어 구간이 문장 단위가 됩니다.", "an": "노트북 3 코드 해설"}, {"ty": "mc", "p": "정렬 점수(score)가 유난히 낮은 단어가 뜻할 가능성이 큰 것은?", "o": ["가장 정확하게 받아 적은 단어", "받아쓰기가 틀렸거나 소리가 뭉개진 곳", "가장 긴 단어", "화자가 바뀐 곳"], "a": 1, "w": "정렬은 틀린 글자도 어떻게든 맞추지만 그 자리의 점수가 낮게 나옵니다. 검토할 단어를 고르는 데 씁니다.", "an": "노트북 3-2"}, {"ty": "mc", "p": "SRT 자막에서 3.25초를 바르게 쓴 것은?", "o": ["00:00:03.250", "00:00:03,250", "0:3:25", "3250ms"], "a": 1, "w": "SRT는 시:분:초,밀리초(쉼표). VTT는 마침표를 씁니다.", "an": "빈칸 실습 5"}, {"ty": "mc", "p": "srt_time()에서 초를 밀리초로 바꾸는 식은?", "o": ["t / 1000", "t * 60", "int(round(t * 1000))", "int(t) % 1000"], "a": 2, "w": "그다음 divmod로 시(3,600,000) · 분(60,000) · 초(1000)를 차례로 떼어 냅니다.", "an": "빈칸 실습 5"}, {"ty": "ox", "p": "노래방 자막처럼 지금 말하는 단어만 강조하려면 단어마다의 시각이 필요하고, 강제 정렬 시각이 더 자연스럽습니다.", "a": true, "w": "attention 추정 시각으로 하면 강조가 소리보다 앞서거나 늦게 움직입니다.", "an": "노트북 3 ❓"}, {"ty": "multi", "p": "WhisperX 정렬 단계에 대해 옳은 것을 모두 고르세요.", "o": ["Whisper가 받아 적은 글자를 '정답'으로 삼아 맞춘다", "D6에서 배운 CTC 모델(wav2vec2)을 쓴다", "단어 시각은 글자 시각을 띄어쓰기 단위로 묶어 만든다", "정렬 단계가 받아쓰기의 틀린 글자를 자동으로 고쳐 준다"], "a": [0, 1, 2], "w": "정렬은 '언제'만 찾습니다. 틀린 글자는 고치지 못하고 점수만 낮게 나옵니다.", "an": "노트북 Part 2 ❓ · Part 3"}]}, {"t": "3교시 · 화자 분리 직접 만들기", "anim": "D9-5 목소리 지문 · D9-6 군집 합치기", "qs": [{"ty": "mc", "p": "화자 분리(Speaker Diarization)의 결과로 알맞은 것은?", "o": ["'김팀장이 0.5~4.1초'처럼 실제 이름이 붙은 구간", "'SPEAKER_00이 0.5~4.1초'처럼 이름 없는 번호가 붙은 구간", "단어마다의 받아쓰기 글자", "말한 사람의 나이와 성별"], "a": 1, "w": "화자 분리는 같은 사람끼리 묶기입니다. 이름은 화자 식별(등록 음성 비교) 단계에서 붙입니다.", "an": "노트북 Part 4 도입"}, {"ty": "order", "p": "화자 분리의 세 단계를 순서대로 놓으세요.", "steps": ["비슷한 지문끼리 묶기 (clustering)", "말 구간 자르기 (segmentation)", "조각마다 목소리 지문 만들기 (embedding)"], "a": [1, 2, 0], "w": "말 구간 → 목소리 지문 → 묶기.", "an": "노트북 Part 4 👣"}, {"ty": "mc", "p": "목소리 지문(speaker embedding) 모델이 담도록 학습된 것은?", "o": ["무엇을 말했는지 (글자)", "어떤 목소리인지 (말한 사람의 특징)", "녹음 파일의 크기", "말한 시각"], "a": 1, "w": "ECAPA-TDNN은 수천 명의 목소리로 '같은 사람이면 가깝게, 다른 사람이면 멀게' 학습했습니다.", "an": "노트북 4-2"}, {"ty": "mc", "p": "코사인 유사도 cos(a, b) = (a · b) ÷ (‖a‖ × ‖b‖)에서 길이로 나누는 이유는?", "o": ["계산을 빠르게 하려고", "벡터 길이(소리 크기 등)와 상관없이 방향만 비교하려고", "값을 항상 양수로 만들려고", "차원을 줄이려고"], "a": 1, "w": "같은 목소리면 크게 말하든 작게 말하든 방향이 비슷합니다.", "an": "빈칸 실습 6"}, {"ty": "ox", "p": "같은 사람의 두 조각은 코사인 유사도가 1에 가깝고, 다른 사람끼리는 그보다 낮아야 묶기가 쉽습니다.", "a": true, "w": "히트맵에서 같은 사람끼리 밝은 블록이 보이면 지문이 제 역할을 하는 것입니다.", "an": "빈칸 6 히트맵"}, {"ty": "mc", "p": "응집형 군집(Agglomerative Clustering)이 반복하는 일은?", "o": ["무작위로 나눈 뒤 중심을 옮기기", "가장 비슷한(가까운) 두 무리를 하나로 합치기", "가장 먼 두 점을 지우기", "모든 점을 한 번에 나누기"], "a": 1, "w": "처음엔 조각마다 각자 무리, 가까운 둘부터 합치다가 멈출 곳에서 멈춥니다.", "an": "D9-6"}, {"ty": "match", "p": "군집 설정과 결과를 이으세요.", "left": ["n_clusters=3", "distance_threshold를 너무 크게", "distance_threshold를 너무 작게", "metric='cosine', linkage='average'"], "right": ["한 사람이 여러 번호로 쪼개짐", "무리 사이 거리 = 모든 쌍의 코사인 거리 평균", "3개 남을 때까지 합침", "다른 사람끼리 합쳐짐"], "a": [2, 3, 0, 1], "w": "화자 수를 알면 n_clusters, 모르면 거리 기준.", "an": "빈칸 7 · ❓"}, {"ty": "ox", "p": "결과 번호 SPK_0, SPK_1의 순서에는 의미가 있어서 SPK_0은 항상 처음 말한 사람입니다.", "a": false, "w": "번호는 아무 의미 없는 순서입니다. 정답과 비교할 때는 가장 잘 맞는 짝을 찾습니다.", "an": "빈칸 7 해설"}, {"ty": "mc", "p": "목소리가 비슷한 두 사람(예: 비슷한 나이의 남성 둘)이 있을 때 가장 늘기 쉬운 오류는?", "o": ["놓침", "잘못 감지", "화자 혼동", "받아쓰기 오류"], "a": 2, "w": "지문이 비슷해 한 무리로 합쳐지거나 서로 바뀌어 붙습니다.", "an": "D9-5 슬라이더"}, {"ty": "multi", "p": "우리가 직접 만든 화자 분리의 약점을 모두 고르세요.", "o": ["두 사람이 겹쳐 말하는 구간을 다루지 못한다", "쉼 없이 말이 이어지면 두 사람이 한 조각에 들어간다", "화자 수를 알려 줘야 한다", "받아쓰기 글자가 없으면 아예 동작하지 않는다"], "a": [0, 1, 2], "w": "화자 분리는 글자 없이 소리만으로 동작합니다.", "an": "노트북 Part 4 약점 표"}]}, {"t": "4교시 · pyannote · DER · 회의록", "anim": "D9-7 DER · D9-8 단어에 화자 · D9-9 회의록", "qs": [{"ty": "mc", "p": "pyannote 모델(speaker-diarization-community-1)을 쓰기 전에 필요한 일은?", "o": ["모델을 직접 학습", "Hugging Face에서 이용 조건 동의 + 토큰(HF_TOKEN) 준비", "whisper.cpp 빌드", "GPU 드라이버 재설치"], "a": 1, "w": "동의해야 받을 수 있는(gated) 모델입니다. 토큰은 Colab 보안 비밀에 HF_TOKEN으로 저장합니다.", "an": "노트북 Part 5 🔑"}, {"ty": "match", "p": "pyannote 옵션과 쓰는 상황을 이으세요.", "left": ["num_speakers=3", "min_speakers=2, max_speakers=5", "옵션 없음", "pipeline.to(torch.device('cuda'))"], "right": ["범위만 알 때", "GPU로 빠르게", "모델이 알아서 정하게", "화자 수를 정확히 알 때"], "a": [3, 0, 2, 1], "w": "WhisperX에서는 DiarizationPipeline(token, device)(audio, num_speakers=3).", "an": "노트북 Part 5 표"}, {"ty": "mc", "p": "DER 식으로 옳은 것은?", "o": ["(놓침 + 잘못 감지 + 화자 혼동) ÷ 정답의 전체 말 시간", "맞힌 시간 ÷ 전체 녹음 시간", "틀린 단어 수 ÷ 전체 단어 수", "화자 수 ÷ 정답 화자 수"], "a": 0, "w": "정답 말 시간 중 틀린 시간의 비율. 0%가 완벽.", "an": "빈칸 실습 8"}, {"ty": "mc", "p": "DER에서 '놓침 · 잘못 감지'가 크고 '화자 혼동'은 작다면 먼저 손볼 곳은?", "o": ["목소리 지문 모델", "말 구간 찾기 (VAD · 분할)", "군집 거리 기준", "정렬 모델"], "a": 1, "w": "말이 있나 없나를 틀린 것이므로 구간 찾기 문제입니다. 혼동이 크면 지문 · 군집을 봅니다.", "an": "빈칸 8 해설"}, {"ty": "ox", "p": "결과 번호를 SPEAKER_00 ↔ SPEAKER_01로 바꿔 붙이면 DER이 크게 달라집니다.", "a": false, "w": "정답 이름과 결과 번호의 짝을 가장 잘 맞게 자동으로 찾아 계산하므로 같습니다.", "an": "D9-7 번호 거꾸로"}, {"ty": "mc", "p": "whisperx.assign_word_speakers는 단어에 어떤 화자를 붙이나요?", "o": ["단어 시작 시각에 말하던 화자", "단어 시간과 가장 많이 겹치는 화자", "가장 오래 말한 화자", "무작위 화자"], "a": 1, "w": "겹치는 시간을 화자별로 더해 가장 큰 쪽. fill_nearest=True면 겹침이 없을 때 가장 가까운 화자.", "an": "노트북 Part 6 · D9-8"}, {"ty": "ox", "p": "화자 분리가 아주 정확해도 단어 시각이 수백 ms 흔들리면, 발화가 바뀌는 경계의 단어가 엉뚱한 화자에게 붙을 수 있습니다.", "a": true, "w": "그래서 WhisperX의 강제 정렬이 회의록 품질에 중요합니다.", "an": "노트북 5-1 ❓ · D9-8"}, {"ty": "order", "p": "회의록이 만들어지는 순서대로 놓으세요.", "steps": ["같은 화자의 연속된 단어를 한 줄로 묶기", "단어 시각 정렬 (align)", "받아쓰기 (transcribe)", "단어마다 화자 번호 붙이기", "등록 음성으로 번호에 이름 붙이기"], "a": [2, 1, 3, 4, 0], "w": "글자 → 시각 → 화자 번호 → 이름 → 줄 묶기.", "an": "D9-9"}, {"ty": "mc", "p": "SPEAKER_00에 '김팀장'이라는 이름을 붙이는 방법으로 노트북에서 쓴 것은?", "o": ["받아쓰기 글자에서 이름 찾기", "등록 음성 지문과 화자별 지문의 코사인 유사도로 짝 찾기", "가장 먼저 말한 사람을 김팀장으로", "pyannote가 자동으로 이름을 알려 줌"], "a": 1, "w": "화자 식별(identification). linear_sum_assignment로 겹치지 않게 가장 잘 맞는 짝을 찾습니다.", "an": "노트북 6-2"}, {"ty": "multi", "p": "회의 녹음 화자 분리를 실제 업무에 쓸 때 옳은 것을 모두 고르세요.", "o": ["녹음과 목소리 지문은 개인정보라 녹음 고지와 동의가 필요하다", "겹쳐 말하기 · 짧은 맞장구는 틀리기 쉬운 곳이다", "자동 이름 붙이기는 틀릴 수 있어 사람이 확인하는 단계를 둔다", "DER이 낮으면 단어 시각은 신경 쓸 필요가 없다"], "a": [0, 1, 2], "w": "DER이 낮아도 단어 시각이 흔들리면 경계 단어의 화자가 틀립니다.", "an": "노트북 6-2 ❓ · D34"}]}];
+
+const TYNAME={mc:'객관식',ox:'OX',match:'선잇기',order:'순서 맞추기',multi:'모두 고르기'};
+let tab=0;
+const ans=Q.map(s=>s.qs.map(q=>q.ty==='multi'?[]:(q.ty==='match'?q.left.map(()=>null):(q.ty==='order'?[]:null))));
+const graded=Q.map(()=>false);
+function hash(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16).padStart(8,'0').slice(-4);}
+function codeFor(name,t,score){return `${t}${'ABCDEFGHIJK'[10-score]||'K'}-${hash(`${name.trim()}|${t}|${score}|voice-day9`)}`;}
+function strip(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent;}
+const eqArr=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+function answered(q,a){if(q.ty==='mc'||q.ty==='ox')return a!==null;if(q.ty==='multi')return a.length>0;if(q.ty==='match')return a.every(x=>x!==null);return a.length===q.steps.length;}
+function correct(q,a){if(!answered(q,a))return false;if(q.ty==='multi')return eqArr([...a].sort((x,y)=>x-y),q.a);if(q.ty==='match'||q.ty==='order')return eqArr(a,q.a);return a===q.a;}
+function scoreOf(i){return ans[i].filter((a,k)=>correct(Q[i].qs[k],a)).length;}
+function nAns(i){return ans[i].filter((a,k)=>answered(Q[i].qs[k],a)).length;}
+function txt(q,a){ /* 답을 문자열로 (오답 정리 · 해설용) */
+  if(!answered(q,a))return '미응답';
+  if(q.ty==='mc')return '①②③④'[a]+' '+strip(q.o[a]);
+  if(q.ty==='ox')return a?'O':'X';
+  if(q.ty==='multi')return [...a].sort((x,y)=>x-y).map(j=>'ABCDEFGH'[j]).join(', ');
+  if(q.ty==='match')return a.map((r,i)=>(i+1)+'-'+'ABCDEFGH'[r]).join(' · ');
+  return a.map(j=>'ABCDEFGH'[j]).join(' → ');}
+function renderTabs(){$('#tabs').innerHTML=Q.map((s,i)=>`<button class="${i===tab?'active':''} ${graded[i]?'graded':''}" data-i="${i}">${s.k||(i+1)+'교시'}<span class="s">${graded[i]?scoreOf(i)+'/10':nAns(i)+'/10'}</span></button>`).join('');$('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=+b.dataset.i;render();window.scrollTo({top:0});});}
+function body(q,k,a,g){
+  if(q.ty==='mc'){return `<div class="opts">${q.o.map((o,j)=>{let c='';if(g){if(j===q.a)c='ok';else if(j===a)c='bad';}else if(j===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-j="${j}" ${g?'disabled':''}>${'①②③④'[j]} ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='ox'){return `<div class="oxrow">${[true,false].map(v=>{let c='';if(g){if(v===q.a)c='ok';else if(v===a)c='bad';}else if(v===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-v="${v?1:0}" ${g?'disabled':''}>${v?'O':'X'}</button>`;}).join('')}</div>`;}
+  if(q.ty==='multi'){return `<div class="opts multi">${q.o.map((o,j)=>{const on=a.includes(j),ri=q.a.includes(j);let c='';if(g){if(on&&ri)c='ok';else if(on&&!ri)c='bad';else if(!on&&ri)c='miss';}else if(on)c='sel';return `<button class="opt ${c}" data-k="${k}" data-m="${j}" ${g?'disabled':''}>${'ABCDEFGH'[j]}. ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='match'){return `<div class="reflist">${q.right.map((r,j)=>`<div><b>${'ABCDEFGH'[j]}</b>${r}</div>`).join('')}</div>`+q.left.map((l,i)=>{let c='';if(g)c=a[i]===q.a[i]?'ok':'bad';return `<div class="mrow"><div class="l"><b>${i+1}.</b>${l}</div><select class="${c}" data-k="${k}" data-i="${i}" ${g?'disabled':''}><option value="">— 고르기 —</option>${q.right.map((r,j)=>`<option value="${j}" ${a[i]===j?'selected':''}>${'ABCDEFGH'[j]}. ${strip(r)}</option>`).join('')}</select></div>`;}).join('');}
+  /* order */
+  return `<div class="steps">${q.steps.map((s,j)=>{const pos=a.indexOf(j);let c=pos>=0?'on':'';if(g){c=(pos>=0&&a[pos]===q.a[pos])?'ok':'bad';}return `<button class="opt step ${c}" data-k="${k}" data-s="${j}" ${g?'disabled':''}><span class="badge">${pos>=0?pos+1:'ABCDEFGH'[j]}</span><span>${'ABCDEFGH'[j]}. ${s}</span></button>`;}).join('')}</div><div class="seqbar">순서: ${a.length?a.map(j=>'ABCDEFGH'[j]).join(' → '):'단계를 일어나는 순서대로 누르세요'}${g?'':` <button data-k="${k}" data-reset="1">다시</button>`}</div>`;
+}
+function render(){renderTabs();const s=Q[tab];const g=graded[tab];
+  $('#sheet').innerHTML=`<div class="head"><span class="t">${s.t}</span><span class="a">🎬 ${s.anim}</span></div>`+s.qs.map((q,k)=>{const a=ans[tab][k];const ok=correct(q,a);
+    return `<div class="q ${g&&!answered(q,a)?'unans':''}"><div class="n">문항 ${k+1}<span class="ty ty-${q.ty}">${TYNAME[q.ty]}</span></div><div class="p">${q.p}</div>${q.c?`<pre class="qc">${q.c}</pre>`:``}${body(q,k,a,g)}${g?`<div class="fb ${ok?'ok':'bad'}">${!answered(q,a)?'미응답. ':(ok?'정답. ':'오답. ')}${q.ty!=='mc'&&!ok?`<b>정답: ${txt(q,q.a)}</b> · `:''}${q.w}<span class="anim">확인: ${q.an}</span></div>`:''}</div>`;}).join('');
+  if(!g){
+    $('#sheet').querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.j;ans[tab][k]=(ans[tab][k]===j?null:j);render();});
+    $('#sheet').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,v=b.dataset.v==='1';ans[tab][k]=(ans[tab][k]===v?null:v);render();});
+    $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.m;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p,1);else a.push(j);render();});
+    $('#sheet').querySelectorAll('select[data-i]').forEach(sl=>sl.onchange=()=>{const k=+sl.dataset.k,i=+sl.dataset.i;ans[tab][k][i]=sl.value===''?null:+sl.value;renderTabs();updHint();});
+    $('#sheet').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.s;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p);else a.push(j);render();});
+    $('#sheet').querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{ans[tab][+b.dataset.k]=[];render();});
+  }
+  $('#gradeBtn').disabled=g;$('#gradeBtn').textContent=g?'채점 완료':'채점하기';updHint();
+}
+function updHint(){const g=graded[tab];const nm=$('#name').value;
+  if(g){const sc=scoreOf(tab);$('#rscore').textContent=`${sc}/10`;if(nm.trim()){$('#rcode').textContent=codeFor(nm,tab+1,sc);$('#rhint').textContent='결과 코드';}else{$('#rcode').textContent='—';$('#rhint').textContent='이름을 입력하면 결과 코드가 나옵니다.';}}
+  else{$('#rcode').textContent='—';$('#rscore').textContent='';$('#rhint').textContent=`${Q[tab].k||(tab+1)+'교시'}: ${nAns(tab)}/10 답했습니다. 채점하기를 누르면 잠깁니다.`;}}
+$('#gradeBtn').onclick=()=>{const n=nAns(tab);if(n<10&&!confirm(`아직 ${10-n}문항을 끝까지 답하지 않았습니다. 그래도 채점할까요? (미응답은 오답 처리)`))return;graded[tab]=true;render();};
+$('#name').addEventListener('input',updHint);
+
+/* ── 제출 대화상자 ── */
+let lastHtml='',lastText='';
+function buildReport(){
+  const nm=$('#name').value.trim()||'(이름 없음)';const ds=new Date().toLocaleString('ko-KR');
+  let h=`<h3>음성 AI Day 9 개념 워크시트 — 오답 정리</h3><div class="meta">${nm} · ${ds}</div>`;
+  let t=`음성 AI Day 9 개념 워크시트 — 오답 정리\n이름: ${nm}\n일시: ${ds}\n\n`;
+  Q.forEach((s,i)=>{if(!graded[i])return;
+    const wrong=s.qs.map((q,k)=>({q,k,a:ans[i][k]})).filter(x=>!correct(x.q,x.a));
+    h+=`<div class="sec">${s.t} — ${scoreOf(i)}/10</div>`;t+=`### ${s.t} — ${scoreOf(i)}/10\n`;
+    if(!wrong.length){h+=`<div class="ok" style="margin:4px 0 8px">오답 없음</div>`;t+=`오답 없음\n\n`;return;}
+    h+=`<table><tr><th>#</th><th>유형</th><th>문항</th><th>내 답</th><th>정답</th></tr>`;t+=`| # | 유형 | 문항 | 내 답 | 정답 |\n|---|---|---|---|---|\n`;
+    wrong.forEach(({q,k,a})=>{const my=txt(q,a),co=txt(q,q.a);const qt=strip(q.p).replace(/\s+/g,' ').slice(0,60);
+      h+=`<tr><td class="r">${k+1}</td><td>${TYNAME[q.ty]}</td><td>${qt}</td><td class="bad">${my}</td><td class="ok">${co}</td></tr>`;
+      t+=`| ${k+1} | ${TYNAME[q.ty]} | ${qt.replace(/\|/g,'/')} | ${my.replace(/\|/g,'/')} | ${co.replace(/\|/g,'/')} |\n`;});
+    h+=`</table>`;t+=`\n`;});
+  const ng=Q.map((s,i)=>graded[i]?null:(s.k||(i+1)+'교시')).filter(x=>x);
+  if(ng.length){h+=`<div class="meta" style="margin-top:10px">미채점: ${ng.join(', ')}</div>`;t+=`미채점: ${ng.join(', ')}\n`;}
+  lastHtml=h;lastText=t;return h;
+}
+$('#submitBtn').onclick=()=>{if(!graded.some(x=>x)){alert('먼저 채점하기를 눌러 주세요.');return;}$('#dgBody').innerHTML=buildReport();$('#toast').textContent='';$('#dlg').showModal();};
+$('#closeBtn').onclick=()=>$('#dlg').close();
+function copyRich(html,text){
+  // 1) copy 이벤트에 두 형식을 직접 실어 보내기 (사용자 클릭 안에서 동기 실행 — file:// 에서도 동작)
+  let done=false;
+  const onCopy=e=>{e.clipboardData.setData('text/html',html);e.clipboardData.setData('text/plain',text);e.preventDefault();done=true;};
+  document.addEventListener('copy',onCopy);
+  try{
+    const body=$('#dgBody');const sel=window.getSelection();const range=document.createRange();range.selectNodeContents(body);sel.removeAllRanges();sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }catch(e){}
+  document.removeEventListener('copy',onCopy);
+  return done;
+}
+$('#captureBtn').onclick=async()=>{
+  const htmlDoc=`<meta charset="utf-8">`+lastHtml.replace(/ class="[^"]*"/g,'').replace(/<table>/g,'<table border="1" style="border-collapse:collapse">');
+  if(copyRich(htmlDoc,lastText)){$('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;}
+  // 2) 비동기 Clipboard API
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([htmlDoc],{type:'text/html'}),'text/plain':new Blob([lastText],{type:'text/plain'})})]);
+    }else{await navigator.clipboard.writeText(lastText);}
+    $('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;
+  }catch(e){}
+  // 3) 최종: 텍스트 영역 선택 복사
+  try{
+    const ta=document.createElement('textarea');ta.value=lastText;ta.style.position='fixed';ta.style.opacity='0';$('#dlg').appendChild(ta);ta.focus();ta.select();
+    const ok=document.execCommand('copy');ta.remove();
+    $('#toast').textContent=ok?'텍스트(마크다운 표)로 복사됨 — 노션에서 Ctrl+V.':'복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';
+  }catch(e){$('#toast').textContent='복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';}
+};
+render();
+</script>
+</body>
+</html>
