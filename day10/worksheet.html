@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음성 AI Day 10 개념 워크시트 — ASR 평가 &amp; 회의록 생성기</title>
+<style>
+  :root{--bg:#0b1220;--panel:#111a2e;--line:#1f2b45;--text:#dbe4f0;--dim:#8a9bb8;--amber:#f5b942;--teal:#2dd4bf;--blue:#60a5fa;--green:#4ade80;--red:#f87171;--purple:#c084fc;--mono:"Consolas","D2Coding","JetBrains Mono",monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;font-size:15px;line-height:1.55}
+  .app{max-width:900px;margin:0 auto;padding:22px 20px 40px}
+  h1{color:var(--amber);font-size:24px;margin:0 0 6px}
+  .sub{color:var(--dim);margin:0 0 14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .panel h2{font-size:14px;color:var(--dim);margin:0 0 10px;font-weight:600}
+  button{background:#172239;border:1px solid #2a3a5c;color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--amber)}button.active{background:#3a2e12;border-color:var(--amber);color:var(--amber)}
+  button.primary{background:#123d33;border-color:var(--teal);color:var(--teal);font-weight:700;padding:9px 18px;font-size:14px}
+  button.submit{background:#3a2e12;border-color:var(--amber);color:var(--amber);font-weight:700;padding:9px 18px;font-size:14px}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  input[type=text]{background:#0a0f1c;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:14px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .tabs button .s{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+  .tabs button.graded .s{color:var(--green)}
+  .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .head .t{color:var(--amber);font-size:17px}
+  .head .a{font-size:13px;color:var(--teal);font-family:var(--mono)}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1628}
+  .q.unans{border-color:#5a3a1a}
+  .q .n{font-family:var(--mono);color:var(--dim);font-size:12px}
+  .q .p{margin:4px 0 10px;font-size:15px}
+  .q .p code,.opt code,.fb code,td code{font-family:var(--mono);color:var(--blue);background:#0a0f1c;padding:1px 5px;border-radius:4px}
+  .q pre.qc{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:10px 12px;margin:4px 0 12px;font-size:13.5px;line-height:1.5;white-space:pre;overflow-x:auto;color:#dbe4f3}
+  .q pre{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0 10px;font-size:14px;white-space:pre;overflow-x:auto}
+  .opts{display:grid;gap:6px}
+  .opt{text-align:left;padding:8px 12px;font-size:14px;font-family:inherit}
+  .opt.sel{border-color:var(--amber);background:#1f1a0c}
+  .opt.ok{border-color:var(--green);color:var(--green);background:#0d2216}
+  .opt.bad{border-color:var(--red);color:var(--red);background:#2a1212}
+  .opt:disabled{cursor:default;opacity:.9}
+  .fb{margin-top:8px;font-size:13px;color:var(--dim);border-left:3px solid var(--line);padding-left:10px}
+  .fb.ok{border-left-color:var(--green)}.fb.bad{border-left-color:var(--red)}
+  .fb .anim{color:var(--teal);font-family:var(--mono);font-size:12px;display:block;margin-top:3px}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .code{font-family:var(--mono);font-size:20px;color:var(--amber);letter-spacing:1px}
+  .score{font-family:var(--mono);color:var(--green);font-size:16px}
+  .hint{color:var(--dim);font-size:13px}
+  details{color:var(--dim);font-size:13px}
+  details summary{cursor:pointer;color:var(--dim)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* dialog */
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0;max-width:820px;width:92vw;max-height:88vh}
+  dialog::backdrop{background:#000a}
+  .dg{padding:18px 20px}
+  .dg h3{color:var(--amber);margin:0 0 4px;font-size:20px}
+  .dg .meta{color:var(--dim);font-size:13px;margin-bottom:12px;font-family:var(--mono)}
+  .dg .sec{margin:14px 0 6px;color:var(--teal);font-weight:700;font-size:14px}
+  .dg table{width:100%;border-collapse:collapse;font-size:13px}
+  .dg th{text-align:left;color:var(--dim);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12px}
+  .dg td{padding:5px 8px;border-bottom:1px solid #16203a;vertical-align:top}
+  .dg td.r{font-family:var(--mono)}
+  .dg .ok{color:var(--green)}.dg .bad{color:var(--red)}.dg .none{color:var(--dim)}
+  .dg .sum{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-family:var(--mono)}
+  .dgbar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .toast{color:var(--green);font-size:13px;margin-right:auto}
+  .body{overflow:auto;max-height:calc(88vh - 60px)}
+
+.q .n .ty{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;font-family:inherit}
+.ty-mc{background:#1b2a4a;color:var(--blue)} .ty-ox{background:#2a2410;color:var(--amber)} .ty-match{background:#13302c;color:var(--teal)}
+.ty-order{background:#2a1a3a;color:var(--purple)} .ty-multi{background:#2a1616;color:#fca5a5}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:360px}
+.oxrow .opt{text-align:center;font-size:22px;font-weight:700;padding:10px}
+.reflist{display:grid;gap:4px;margin:2px 0 10px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;font-size:14px;color:var(--text)}
+.reflist b{color:var(--teal);font-family:var(--mono);margin-right:6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow .l{font-size:14px} .mrow .l b{font-family:var(--mono);color:var(--dim);margin-right:6px}
+.mrow select{width:100%;background:#0a0f1c;color:var(--text);border:1px solid #2a3a5c;border-radius:6px;padding:6px 8px;font:inherit;font-size:13.5px}
+.mrow select.ok{border-color:var(--green);color:var(--green)} .mrow select.bad{border-color:var(--red);color:var(--red)}
+.steps{display:grid;gap:6px}
+.step{display:flex;gap:10px;align-items:center;text-align:left;padding:8px 12px;font-size:14px}
+.step .badge{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid #2a3a5c;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.step.on{border-color:var(--purple)} .step.on .badge{background:var(--purple);border-color:var(--purple);color:#0b1220;font-weight:700}
+.step.ok{border-color:var(--green)} .step.ok .badge{background:var(--green);color:#0b1220;border-color:var(--green)}
+.step.bad{border-color:var(--red)} .step.bad .badge{background:var(--red);color:#0b1220;border-color:var(--red)}
+.seqbar{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.seqbar button{padding:4px 10px;font-size:12px}
+.multi .opt::before{content:"☐ ";color:var(--dim)} .multi .opt.sel::before{content:"☑ ";color:var(--amber)}
+.multi .opt.ok::before{content:"☑ ";color:var(--green)} .multi .opt.miss::before{content:"☐ ";color:var(--green)}
+.multi .opt.miss{border-color:var(--green);border-style:dashed}
+.typeinfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>음성 AI Day 10 개념 워크시트</h1>
+  <p class="sub">ASR 평가 &amp; 회의록 생성기 — WER · CER · S · D · I · 편집 거리 · jiwer · 한국어 정규화 · 숫자 읽기 · 용어 사전 · 파이프라인 조립 · LLM 요약 프롬프트 · JSON · 단계별 평가 · Gradio · 4교시 × 10문항 (객관식 5 · OX 2 · 선잇기 1 · 순서 맞추기 1 · 모두 고르기 1). 🎬 표시는 같은 폴더 <a href="animation.html" style="color:var(--teal)">animation.html</a>의 애니메이션 번호입니다. 선잇기는 드롭다운으로, 순서 맞추기는 단계를 일어나는 순서대로 눌러서, 모두 고르기는 여러 개를 눌러서 답합니다. 답을 고른 뒤 아래 <b style="color:var(--teal)">채점하기</b>를 누르면 정오·해설과 결과 코드가 나타납니다. 채점 전에는 답을 바꿀 수 있고, 채점 후에는 잠깁니다. 모든 교시를 마치면 <b style="color:var(--amber)">제출</b>로 오답 정리를 열고, <b>캡처</b>로 복사해 노션에 붙여 넣으세요.</p>
+
+  <div class="panel">
+    <div class="row"><label style="color:var(--dim);font-size:13px">이름 <input type="text" id="name" placeholder="홍길동"></label><span class="hint">이름은 결과 코드 계산에만 쓰이며 저장되지 않습니다.</span></div>
+  </div>
+  <div class="panel"><h2>교시</h2><div class="tabs" id="tabs"></div></div>
+  <div class="panel" id="sheet"></div>
+  <div class="panel">
+    <div class="actions">
+      <button class="primary" id="gradeBtn">채점하기</button>
+      <span class="code" id="rcode">—</span><span class="score" id="rscore"></span><span class="hint" id="rhint"></span>
+      <button class="submit" id="submitBtn" style="margin-left:auto">제출</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="body"><div class="dg" id="dgBody"></div></div>
+  <div class="dgbar"><span class="toast" id="toast"></span><button id="captureBtn" class="primary">📋 캡처 (노션용 복사)</button><button id="closeBtn">닫기</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const Q=[{"t": "1교시 · WER · CER · 편집 거리", "anim": "D10-2 편집 거리 표 · D10-3 WER vs CER", "qs": [{"ty": "mc", "p": "WER 식으로 옳은 것은?", "o": ["(S + D + I) ÷ 정답 단어 수", "(S + D + I) ÷ 결과 단어 수", "맞은 단어 수 ÷ 정답 단어 수", "(S + D) ÷ (정답 + 결과 단어 수)"], "a": 0, "w": "분모는 정답(ref)의 길이 N입니다. 결과의 길이가 아닙니다.", "an": "빈칸 실습 2"}, {"ty": "match", "p": "오류 종류와 예(정답 → 결과)를 이으세요.", "left": ["S 바꿈", "D 빠짐", "I 끼어듦", "맞음"], "right": ["(없음) → 바로", "회의를 → 회의를", "세 → 3시에", "시작합니다 → (없음)"], "a": [2, 3, 0, 1], "w": "빠짐은 정답에 있는데 결과에 없는 것, 끼어듦은 결과에만 있는 것.", "an": "노트북 Part 1 표"}, {"ty": "ox", "p": "WER은 끼어든 단어가 많으면 100%를 넘을 수 있습니다.", "a": true, "w": "끼어듦(I)은 분자만 키우므로 '네 좋습니다' → '네 네 네 좋습니다 감사합니다'는 150%.", "an": "빈칸 2 세 번째 예"}, {"ty": "mc", "p": "CER이 WER과 다른 점은?", "o": ["단어 대신 글자 단위로 같은 식을 쓴다", "끼어듦을 세지 않는다", "항상 WER보다 크다", "정답 없이 잰다"], "a": 0, "w": "식은 같고 단위만 글자입니다(jiwer.cer는 공백도 한 글자로 셈).", "an": "노트북 Part 1"}, {"ty": "mc", "p": "편집 거리 표에서 칸 d[i][j]가 뜻하는 것은?", "o": ["정답 앞 i개를 결과 앞 j개로 바꾸는 최소 고침 횟수", "i번째 단어와 j번째 단어의 거리", "맞은 단어 수", "결과의 길이"], "a": 0, "w": "오른쪽 아래 칸 d[n][m]이 전체 최소 고침 횟수입니다.", "an": "빈칸 실습 1 · D10-2"}, {"ty": "order", "p": "편집 거리로 WER을 구하는 순서대로 놓으세요.", "steps": ["오른쪽 아래 칸 ÷ 정답 단어 수", "첫 행 · 첫 열을 0, 1, 2 …로 채움", "정답 · 결과를 단어로 나눔", "칸마다 위 · 왼쪽 · 대각선 중 최소를 적음"], "a": [2, 1, 3, 0], "w": "나누기 → 테두리 → 칸 채우기 → 나누기(분모 N).", "an": "빈칸 1 · 2"}, {"ty": "mc", "p": "대각선에서 올 때 더하는 cost는?", "o": ["항상 1", "두 단어가 같으면 0, 다르면 1", "두 단어 길이의 차", "항상 0"], "a": 1, "w": "같으면 고칠 필요 없음(0), 다르면 바꿈(S) 1.", "an": "빈칸 실습 1"}, {"ty": "ox", "p": "'회의록 생성기를 만들어 봅시다'와 '회의록생성기를 만들어봅시다'는 WER과 CER이 모두 100%입니다.", "a": false, "w": "WER은 100%지만 CER은 공백 2개만 빠져 12.5%입니다.", "an": "노트북 그림 · D10-3"}, {"ty": "mc", "p": "한국어 ASR을 보통 CER로 평가하는 가장 큰 이유는?", "o": ["한국어는 단어가 없어서", "띄어쓰기가 사람 · 모델마다 달라 WER이 크게 출렁여서", "CER이 계산이 빨라서", "jiwer가 한국어 WER을 지원하지 않아서"], "a": 1, "w": "띄어쓰기 하나로 WER은 크게 변하지만 CER은 조금 변합니다.", "an": "노트북 Part 1 결과 읽기"}, {"ty": "multi", "p": "오류율 숫자만으로 알 수 없는 것을 모두 고르세요.", "o": ["한 글자 차이로 뜻이 뒤집혔는지 ('했습니다' → '안 했습니다')", "틀린 것이 표기 차이인지 진짜 잘못 들은 것인지", "어느 단어가 틀렸는지", "정답 대비 고침 횟수의 비율"], "a": [0, 1, 2], "w": "오류율은 비율만 알려 줍니다. 틀린 곳은 정렬 결과(visualize_alignment)를 직접 읽어야 합니다.", "an": "노트북 1 ❓"}]}, {"t": "2교시 · jiwer · 한국어 정규화", "anim": "D10-4 정규화 단계 · D10-5 숫자 읽기", "qs": [{"ty": "mc", "p": "jiwer에서 글자 오류율을 내는 함수는?", "o": ["jiwer.wer", "jiwer.cer", "jiwer.mer", "jiwer.process_words"], "a": 1, "w": "process_words는 S · D · I 개수까지, visualize_alignment는 줄 맞춘 비교를 보여 줍니다.", "an": "빈칸 실습 3"}, {"ty": "mc", "p": "jiwer.cer(REFS, HYPS)처럼 문장 목록을 넘기면 계산되는 값은?", "o": ["문장마다 CER의 단순 평균", "전체 고침 횟수 ÷ 전체 정답 길이", "가장 나쁜 문장의 CER", "가장 좋은 문장의 CER"], "a": 1, "w": "긴 문장이 더 큰 비중을 가집니다.", "an": "노트북 빈칸 3 설명"}, {"ty": "multi", "p": "뜻은 같은데 글자가 달라 오류로 세어지는 경우를 모두 고르세요.", "o": ["3시 · 세 시", "Whisper · 위스퍼", "네, 좋습니다. · 네 좋습니다", "했습니다 · 안 했습니다"], "a": [0, 1, 2], "w": "'안 했습니다'는 뜻이 뒤집힌 진짜 오류입니다.", "an": "노트북 그림 · 2-2"}, {"ty": "order", "p": "노트북 normalize() 함수의 순서대로 놓으세요.", "steps": ["공백 정리 (여러 칸 → 한 칸)", "숫자 → 한글", "소문자 · 문장 부호 지우기", "용어 사전 적용"], "a": [2, 1, 3, 0], "w": "문장 부호를 공백으로 바꾸면 공백이 여러 칸 생기므로 공백 정리는 맨 마지막.", "an": "빈칸 5 · 6 해설"}, {"ty": "ox", "p": "정규화는 결과(hyp)에만 적용하면 됩니다.", "a": false, "w": "정답과 결과에 똑같은 규칙을 적용해야 공정합니다.", "an": "노트북 2-2 🍎"}, {"ty": "mc", "p": "num2kor(2026)의 결과는?", "o": ["이천이십육", "이영이육", "이천영백이십육", "두천스물여섯"], "a": 0, "w": "0인 자리는 건너뛰고, 십 · 백 · 천 자리의 1은 '일' 없이 읽습니다.", "an": "빈칸 실습 4"}, {"ty": "mc", "p": "num2kor 규칙으로 정규화해도 오류가 남는 경우는?", "o": ["정답 '2500만 원', 결과 '2500만 원'", "정답 '3시', 결과 '세 시'", "정답 'Whisper', 결과 '위스퍼'", "정답 '네, 좋습니다.', 결과 '네 좋습니다'"], "a": 1, "w": "3시 → 삼시, 세 시 → 세 시(고유어)로 여전히 다릅니다. 10월 · 시월도 마찬가지.", "an": "빈칸 4 해설 · D10-5"}, {"ty": "match", "p": "정규화 단계와 예를 이으세요.", "left": ["문장 부호 지우기", "숫자 → 한글", "용어 사전", "공백 정리"], "right": ["2500 → 이천오백", "위스퍼로  십월 → 위스퍼로 십월", "좋습니다. → 좋습니다", "whisper → 위스퍼"], "a": [2, 0, 3, 1], "w": "용어 사전 키는 소문자로 바꾼 뒤 적용하므로 소문자로 씁니다.", "an": "빈칸 5 · 6"}, {"ty": "ox", "p": "조사(은 · 는 · 이 · 가)까지 모두 지우면 CER이 더 낮아지므로 좋은 정규화입니다.", "a": false, "w": "진짜 오류까지 숨깁니다. 정규화는 '표기만 다른 것'만 맞춥니다.", "an": "노트북 2-3 ❓ · D10-4"}, {"ty": "mc", "p": "평가 보고서에 정규화 결과를 쓰는 바른 방법은?", "o": ["정규화 후 숫자만 쓴다", "정규화 전 · 후 CER과 정규화 규칙을 함께 쓴다", "가장 낮은 숫자만 쓴다", "WER만 쓴다"], "a": 1, "w": "규칙을 적어야 다른 사람이 같은 방식으로 비교할 수 있습니다(D14에서 다시 사용).", "an": "노트북 2-3 결과 읽기"}]}, {"t": "3교시 · 회의록 파이프라인", "anim": "D10-6 회의록 파이프라인", "qs": [{"ty": "order", "p": "make_minutes()의 처리 순서대로 놓으세요.", "steps": ["LLM 요약", "화자 분리", "받아쓰기 + 단어 시각 정렬", "단어에 화자 붙이고 줄 묶기", "회의록 문서 만들기"], "a": [2, 1, 3, 0, 4], "w": "받아쓰기 · 정렬 → 화자 분리 → 단어에 화자 → 요약 → 문서.", "an": "노트북 Part 3 그림"}, {"ty": "match", "p": "함수와 하는 일을 이으세요.", "left": ["transcribe_align(y)", "diarize(y, n)", "to_lines(aligned, diar)", "name_speakers(y, diar, enroll)"], "right": ["SPEAKER_00 … 구간 표", "등록 음성과 비교해 이름 붙이기", "단어 시각이 있는 받아쓰기", "[분:초] 화자: 발언 줄 목록"], "a": [2, 0, 3, 1], "w": "D8 · D9의 부품을 함수로 정리한 것입니다.", "an": "노트북 3-1 · 3-2"}, {"ty": "mc", "p": "모델(wx, align_model, spk_enc, pya)을 함수 밖에서 한 번만 불러 두는 이유는?", "o": ["코드가 짧아져서", "녹음마다 다시 불러오면 매번 수십 초 ~ 분이 걸려서", "GPU를 쓰지 않으려고", "정확도가 높아져서"], "a": 1, "w": "모델 로딩은 비쌉니다. Gradio 데모처럼 여러 번 부를 때 특히 중요합니다.", "an": "노트북 3-1"}, {"ty": "mc", "p": "fmt_time(205)의 결과는?", "o": ["02:05", "03:25", "20:05", "3:25"], "a": 1, "w": "205 // 60 = 3분, 205 % 60 = 25초, 두 자리로 맞춤.", "an": "빈칸 실습 7"}, {"ty": "ox", "p": "diarize()에 화자 수를 알려 주지 않으면(num_speakers=None) 직접 만든 화자 분리는 거리 기준(distance_threshold)으로 멈춥니다.", "a": true, "w": "기준이 맞지 않으면 화자가 합쳐지거나 쪼개집니다. 그래서 데모 화면에 '화자 수' 칸을 둡니다.", "an": "노트북 3-2 ❓"}, {"ty": "mc", "p": "HF_TOKEN이 없을 때 노트북의 diarize()가 하는 일은?", "o": ["오류를 내고 멈춘다", "D9에서 만든 방법(말 구간 → ECAPA 지문 → 응집형 군집)을 쓴다", "모든 단어를 한 화자로 둔다", "pyannote를 토큰 없이 받는다"], "a": 1, "w": "pyannote는 gated 모델이라 토큰이 필요합니다.", "an": "노트북 3-1 diarize"}, {"ty": "mc", "p": "등록 음성(ENROLL)이 없으면 name_speakers()의 결과는?", "o": ["오류", "SPEAKER_00 같은 번호를 그대로 쓴다", "무작위 이름", "모든 화자를 '알 수 없음'으로"], "a": 1, "w": "이름 붙이기(화자 식별)는 선택 단계입니다.", "an": "노트북 3-2"}, {"ty": "ox", "p": "화자 분리에서 박대리와 김팀장을 바꿔 붙이면, 그 오류는 LLM 요약의 할 일 담당자까지 이어질 수 있습니다.", "a": true, "w": "앞 단계 오류는 뒤 단계로 흘러갑니다. 그래서 단계별로 평가합니다.", "an": "D10-6 실패 넣기"}, {"ty": "mc", "p": "to_lines()에서 단어를 한 줄로 이어 붙이는 조건은?", "o": ["단어 시각이 1초 안일 때", "앞 줄의 화자와 이번 단어의 화자가 같을 때", "같은 문장일 때", "단어가 짧을 때"], "a": 1, "w": "D9 빈칸 9와 같은 로직입니다.", "an": "노트북 3-1 to_lines"}, {"ty": "multi", "p": "이 회의록 생성기에서 받아쓰기 정확도를 올리는 방법으로 알맞은 것을 모두 고르세요.", "o": ["더 큰 Whisper 모델(medium, large-v3)", "도메인 용어를 initial_prompt로 주기 (D7)", "우리 데이터로 Fine-tuning (3주차)", "LLM 요약 프롬프트를 길게 쓰기"], "a": [0, 1, 2], "w": "요약 프롬프트는 받아쓰기 자체를 바꾸지 못합니다.", "an": "D10-8 · D7 · D12"}]}, {"t": "4교시 · LLM 요약 · 평가 · 데모", "anim": "D10-7 프롬프트 · D10-8 평가표 · D10-9 회의록 화면", "qs": [{"ty": "match", "p": "프롬프트 부분과 노트북의 내용을 이으세요.", "left": ["역할 (system)", "입력", "규칙", "출력 형식"], "right": ["녹취에 없는 내용 추측 금지, 담당 · 기한은 말한 그대로", "JSON 키 summary · decisions · action_items", "[분:초] 이름: 발언 녹취", "한국어 회의록을 정리하는 비서"], "a": [3, 2, 0, 1], "w": "네 부분이 갖춰져야 코드가 받을 수 있고 환각이 줄어듭니다.", "an": "노트북 Part 4 표"}, {"ty": "mc", "p": "LLM 답(JSON 문자열)을 파이썬 dict로 바꾸는 함수는?", "o": ["json.dumps", "json.loads", "json.load", "dict()"], "a": 1, "w": "loads = load + string. json.load는 파일을 읽습니다.", "an": "빈칸 실습 8"}, {"ty": "multi", "p": "parse_json()과 summarize()가 대비하는 상황을 모두 고르세요.", "o": ["답 앞뒤에 ```json 코드펜스가 붙음", "필요한 키가 빠짐", "API 키가 없거나 호출이 실패함", "녹취가 너무 짧음"], "a": [0, 1, 2], "w": "펜스 떼기 → 읽기 → 키 검사 → 실패하면 규칙 기반으로 넘어가기.", "an": "빈칸 8 해설"}, {"ty": "ox", "p": "프롬프트에 '녹취에 없는 내용은 쓰지 않습니다' 규칙을 넣는 것은 LLM 환각을 줄이기 위해서입니다.", "a": true, "w": "D7의 Whisper 환각처럼 LLM도 그럴듯한 내용을 지어낼 수 있습니다.", "an": "D10-7"}, {"ty": "mc", "p": "규칙 기반 요약과 비교한 LLM 요약의 장점으로 알맞은 것은?", "o": ["절대 틀리지 않는다", "흩어진 발언에서 결정 사항을 모아 다듬고 할 일을 정리한다", "API 키가 필요 없다", "받아쓰기 오류를 없앤다"], "a": 1, "w": "대신 사람이 검토해야 합니다. 규칙 기반은 지어내지 않지만 놓치는 것이 많습니다.", "an": "D10-9"}, {"ty": "mc", "p": "회의록 생성기를 평가할 때 노트북이 따로 잰 세 가지는?", "o": ["CER(정규화 후) · 단어별 화자 정확도 · 요약 점검", "WER · DER · RTF", "속도 · 메모리 · 비용", "BLEU · ROUGE · F1"], "a": 0, "w": "단계마다 따로 재야 어디를 고칠지 압니다.", "an": "노트북 Part 5"}, {"ty": "mc", "p": "score = sum(found.values()) / len(KEY_POINTS)에서 sum(found.values())가 뜻하는 것은?", "o": ["핵심 사항 전체 개수", "요약에서 찾은 핵심 사항 개수", "요약 글자 수", "키워드 총 개수"], "a": 1, "w": "True는 1, False는 0으로 더해집니다.", "an": "빈칸 실습 9"}, {"ty": "ox", "p": "키워드 점검에서 5/5가 나오면 회의록의 할 일 담당자도 반드시 맞습니다.", "a": false, "w": "'수요일'이 엉뚱한 사람의 할 일로 들어가도 점수를 줍니다. 최종 확인은 사람이 읽고 합니다.", "an": "빈칸 9 해설"}, {"ty": "mc", "p": "Colab에서 demo.launch(share=True)를 실행하면?", "o": ["노트북이 종료된다", "다른 사람도 열 수 있는 공개 링크(gradio.live)가 생긴다", "모델이 Hugging Face에 올라간다", "API 키가 공개된다"], "a": 1, "w": "링크는 일정 시간 유지됩니다. 녹음을 올리면 회의록이 나옵니다.", "an": "노트북 5-2"}, {"ty": "order", "p": "미니 프로젝트 발표 순서대로 놓으세요.", "steps": ["가장 많이 틀린 곳과 원인", "데모: 녹음 → 회의록", "내가 바꾼 것 (개선 시도)", "평가표: CER · 화자 정확도 · 요약 점검"], "a": [1, 3, 0, 2], "w": "데모 → 평가표 → 오류 분석 → 개선.", "an": "노트북 5-3"}]}];
+
+const TYNAME={mc:'객관식',ox:'OX',match:'선잇기',order:'순서 맞추기',multi:'모두 고르기'};
+let tab=0;
+const ans=Q.map(s=>s.qs.map(q=>q.ty==='multi'?[]:(q.ty==='match'?q.left.map(()=>null):(q.ty==='order'?[]:null))));
+const graded=Q.map(()=>false);
+function hash(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16).padStart(8,'0').slice(-4);}
+function codeFor(name,t,score){return `${t}${'ABCDEFGHIJK'[10-score]||'K'}-${hash(`${name.trim()}|${t}|${score}|voice-day10`)}`;}
+function strip(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent;}
+const eqArr=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+function answered(q,a){if(q.ty==='mc'||q.ty==='ox')return a!==null;if(q.ty==='multi')return a.length>0;if(q.ty==='match')return a.every(x=>x!==null);return a.length===q.steps.length;}
+function correct(q,a){if(!answered(q,a))return false;if(q.ty==='multi')return eqArr([...a].sort((x,y)=>x-y),q.a);if(q.ty==='match'||q.ty==='order')return eqArr(a,q.a);return a===q.a;}
+function scoreOf(i){return ans[i].filter((a,k)=>correct(Q[i].qs[k],a)).length;}
+function nAns(i){return ans[i].filter((a,k)=>answered(Q[i].qs[k],a)).length;}
+function txt(q,a){ /* 답을 문자열로 (오답 정리 · 해설용) */
+  if(!answered(q,a))return '미응답';
+  if(q.ty==='mc')return '①②③④'[a]+' '+strip(q.o[a]);
+  if(q.ty==='ox')return a?'O':'X';
+  if(q.ty==='multi')return [...a].sort((x,y)=>x-y).map(j=>'ABCDEFGH'[j]).join(', ');
+  if(q.ty==='match')return a.map((r,i)=>(i+1)+'-'+'ABCDEFGH'[r]).join(' · ');
+  return a.map(j=>'ABCDEFGH'[j]).join(' → ');}
+function renderTabs(){$('#tabs').innerHTML=Q.map((s,i)=>`<button class="${i===tab?'active':''} ${graded[i]?'graded':''}" data-i="${i}">${s.k||(i+1)+'교시'}<span class="s">${graded[i]?scoreOf(i)+'/10':nAns(i)+'/10'}</span></button>`).join('');$('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=+b.dataset.i;render();window.scrollTo({top:0});});}
+function body(q,k,a,g){
+  if(q.ty==='mc'){return `<div class="opts">${q.o.map((o,j)=>{let c='';if(g){if(j===q.a)c='ok';else if(j===a)c='bad';}else if(j===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-j="${j}" ${g?'disabled':''}>${'①②③④'[j]} ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='ox'){return `<div class="oxrow">${[true,false].map(v=>{let c='';if(g){if(v===q.a)c='ok';else if(v===a)c='bad';}else if(v===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-v="${v?1:0}" ${g?'disabled':''}>${v?'O':'X'}</button>`;}).join('')}</div>`;}
+  if(q.ty==='multi'){return `<div class="opts multi">${q.o.map((o,j)=>{const on=a.includes(j),ri=q.a.includes(j);let c='';if(g){if(on&&ri)c='ok';else if(on&&!ri)c='bad';else if(!on&&ri)c='miss';}else if(on)c='sel';return `<button class="opt ${c}" data-k="${k}" data-m="${j}" ${g?'disabled':''}>${'ABCDEFGH'[j]}. ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='match'){return `<div class="reflist">${q.right.map((r,j)=>`<div><b>${'ABCDEFGH'[j]}</b>${r}</div>`).join('')}</div>`+q.left.map((l,i)=>{let c='';if(g)c=a[i]===q.a[i]?'ok':'bad';return `<div class="mrow"><div class="l"><b>${i+1}.</b>${l}</div><select class="${c}" data-k="${k}" data-i="${i}" ${g?'disabled':''}><option value="">— 고르기 —</option>${q.right.map((r,j)=>`<option value="${j}" ${a[i]===j?'selected':''}>${'ABCDEFGH'[j]}. ${strip(r)}</option>`).join('')}</select></div>`;}).join('');}
+  /* order */
+  return `<div class="steps">${q.steps.map((s,j)=>{const pos=a.indexOf(j);let c=pos>=0?'on':'';if(g){c=(pos>=0&&a[pos]===q.a[pos])?'ok':'bad';}return `<button class="opt step ${c}" data-k="${k}" data-s="${j}" ${g?'disabled':''}><span class="badge">${pos>=0?pos+1:'ABCDEFGH'[j]}</span><span>${'ABCDEFGH'[j]}. ${s}</span></button>`;}).join('')}</div><div class="seqbar">순서: ${a.length?a.map(j=>'ABCDEFGH'[j]).join(' → '):'단계를 일어나는 순서대로 누르세요'}${g?'':` <button data-k="${k}" data-reset="1">다시</button>`}</div>`;
+}
+function render(){renderTabs();const s=Q[tab];const g=graded[tab];
+  $('#sheet').innerHTML=`<div class="head"><span class="t">${s.t}</span><span class="a">🎬 ${s.anim}</span></div>`+s.qs.map((q,k)=>{const a=ans[tab][k];const ok=correct(q,a);
+    return `<div class="q ${g&&!answered(q,a)?'unans':''}"><div class="n">문항 ${k+1}<span class="ty ty-${q.ty}">${TYNAME[q.ty]}</span></div><div class="p">${q.p}</div>${q.c?`<pre class="qc">${q.c}</pre>`:``}${body(q,k,a,g)}${g?`<div class="fb ${ok?'ok':'bad'}">${!answered(q,a)?'미응답. ':(ok?'정답. ':'오답. ')}${q.ty!=='mc'&&!ok?`<b>정답: ${txt(q,q.a)}</b> · `:''}${q.w}<span class="anim">확인: ${q.an}</span></div>`:''}</div>`;}).join('');
+  if(!g){
+    $('#sheet').querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.j;ans[tab][k]=(ans[tab][k]===j?null:j);render();});
+    $('#sheet').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,v=b.dataset.v==='1';ans[tab][k]=(ans[tab][k]===v?null:v);render();});
+    $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.m;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p,1);else a.push(j);render();});
+    $('#sheet').querySelectorAll('select[data-i]').forEach(sl=>sl.onchange=()=>{const k=+sl.dataset.k,i=+sl.dataset.i;ans[tab][k][i]=sl.value===''?null:+sl.value;renderTabs();updHint();});
+    $('#sheet').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.s;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p);else a.push(j);render();});
+    $('#sheet').querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{ans[tab][+b.dataset.k]=[];render();});
+  }
+  $('#gradeBtn').disabled=g;$('#gradeBtn').textContent=g?'채점 완료':'채점하기';updHint();
+}
+function updHint(){const g=graded[tab];const nm=$('#name').value;
+  if(g){const sc=scoreOf(tab);$('#rscore').textContent=`${sc}/10`;if(nm.trim()){$('#rcode').textContent=codeFor(nm,tab+1,sc);$('#rhint').textContent='결과 코드';}else{$('#rcode').textContent='—';$('#rhint').textContent='이름을 입력하면 결과 코드가 나옵니다.';}}
+  else{$('#rcode').textContent='—';$('#rscore').textContent='';$('#rhint').textContent=`${Q[tab].k||(tab+1)+'교시'}: ${nAns(tab)}/10 답했습니다. 채점하기를 누르면 잠깁니다.`;}}
+$('#gradeBtn').onclick=()=>{const n=nAns(tab);if(n<10&&!confirm(`아직 ${10-n}문항을 끝까지 답하지 않았습니다. 그래도 채점할까요? (미응답은 오답 처리)`))return;graded[tab]=true;render();};
+$('#name').addEventListener('input',updHint);
+
+/* ── 제출 대화상자 ── */
+let lastHtml='',lastText='';
+function buildReport(){
+  const nm=$('#name').value.trim()||'(이름 없음)';const ds=new Date().toLocaleString('ko-KR');
+  let h=`<h3>음성 AI Day 10 개념 워크시트 — 오답 정리</h3><div class="meta">${nm} · ${ds}</div>`;
+  let t=`음성 AI Day 10 개념 워크시트 — 오답 정리\n이름: ${nm}\n일시: ${ds}\n\n`;
+  Q.forEach((s,i)=>{if(!graded[i])return;
+    const wrong=s.qs.map((q,k)=>({q,k,a:ans[i][k]})).filter(x=>!correct(x.q,x.a));
+    h+=`<div class="sec">${s.t} — ${scoreOf(i)}/10</div>`;t+=`### ${s.t} — ${scoreOf(i)}/10\n`;
+    if(!wrong.length){h+=`<div class="ok" style="margin:4px 0 8px">오답 없음</div>`;t+=`오답 없음\n\n`;return;}
+    h+=`<table><tr><th>#</th><th>유형</th><th>문항</th><th>내 답</th><th>정답</th></tr>`;t+=`| # | 유형 | 문항 | 내 답 | 정답 |\n|---|---|---|---|---|\n`;
+    wrong.forEach(({q,k,a})=>{const my=txt(q,a),co=txt(q,q.a);const qt=strip(q.p).replace(/\s+/g,' ').slice(0,60);
+      h+=`<tr><td class="r">${k+1}</td><td>${TYNAME[q.ty]}</td><td>${qt}</td><td class="bad">${my}</td><td class="ok">${co}</td></tr>`;
+      t+=`| ${k+1} | ${TYNAME[q.ty]} | ${qt.replace(/\|/g,'/')} | ${my.replace(/\|/g,'/')} | ${co.replace(/\|/g,'/')} |\n`;});
+    h+=`</table>`;t+=`\n`;});
+  const ng=Q.map((s,i)=>graded[i]?null:(s.k||(i+1)+'교시')).filter(x=>x);
+  if(ng.length){h+=`<div class="meta" style="margin-top:10px">미채점: ${ng.join(', ')}</div>`;t+=`미채점: ${ng.join(', ')}\n`;}
+  lastHtml=h;lastText=t;return h;
+}
+$('#submitBtn').onclick=()=>{if(!graded.some(x=>x)){alert('먼저 채점하기를 눌러 주세요.');return;}$('#dgBody').innerHTML=buildReport();$('#toast').textContent='';$('#dlg').showModal();};
+$('#closeBtn').onclick=()=>$('#dlg').close();
+function copyRich(html,text){
+  // 1) copy 이벤트에 두 형식을 직접 실어 보내기 (사용자 클릭 안에서 동기 실행 — file:// 에서도 동작)
+  let done=false;
+  const onCopy=e=>{e.clipboardData.setData('text/html',html);e.clipboardData.setData('text/plain',text);e.preventDefault();done=true;};
+  document.addEventListener('copy',onCopy);
+  try{
+    const body=$('#dgBody');const sel=window.getSelection();const range=document.createRange();range.selectNodeContents(body);sel.removeAllRanges();sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }catch(e){}
+  document.removeEventListener('copy',onCopy);
+  return done;
+}
+$('#captureBtn').onclick=async()=>{
+  const htmlDoc=`<meta charset="utf-8">`+lastHtml.replace(/ class="[^"]*"/g,'').replace(/<table>/g,'<table border="1" style="border-collapse:collapse">');
+  if(copyRich(htmlDoc,lastText)){$('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;}
+  // 2) 비동기 Clipboard API
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([htmlDoc],{type:'text/html'}),'text/plain':new Blob([lastText],{type:'text/plain'})})]);
+    }else{await navigator.clipboard.writeText(lastText);}
+    $('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;
+  }catch(e){}
+  // 3) 최종: 텍스트 영역 선택 복사
+  try{
+    const ta=document.createElement('textarea');ta.value=lastText;ta.style.position='fixed';ta.style.opacity='0';$('#dlg').appendChild(ta);ta.focus();ta.select();
+    const ok=document.execCommand('copy');ta.remove();
+    $('#toast').textContent=ok?'텍스트(마크다운 표)로 복사됨 — 노션에서 Ctrl+V.':'복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';
+  }catch(e){$('#toast').textContent='복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';}
+};
+render();
+</script>
+</body>
+</html>

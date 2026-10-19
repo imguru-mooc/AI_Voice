@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D10 ASR 평가와 회의록 생성기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.toggles{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.toggles label{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;cursor:pointer}
+.toggles label small{display:block;color:var(--muted)}
+.outbox{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:1rem;line-height:1.8;min-height:52px}
+.outbox .ln{margin:2px 0}
+.outbox .tm{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--muted);font-size:.85rem;margin-right:6px}
+.outbox .sp{display:inline-block;padding:0 8px;border-radius:6px;border:1.5px solid var(--c);margin-right:6px;font-weight:700;font-size:.88rem}
+.steplist{display:grid;gap:6px;margin-top:8px}
+.stp{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.4;transition:all .25s;font-size:.92rem;cursor:pointer}
+.stp.on{opacity:1}.stp.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 10%,var(--panel))}
+.stp code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;color:var(--s2s)}
+.al{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+.al .c{display:flex;flex-direction:column;align-items:center;border:1.5px solid var(--line);border-radius:8px;padding:4px 8px;min-width:44px;font-size:.95rem}
+.al .c small{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted)}
+.al .c.S{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,var(--panel))}
+.al .c.D{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,var(--panel))}
+.al .c.I{border-color:var(--s2s);background:color-mix(in srgb,var(--s2s) 15%,var(--panel))}
+.al .c.H{border-color:var(--ok)}
+.grid{border-collapse:collapse;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem;margin-top:8px}
+.grid td,.grid th{border:1px solid var(--line);width:46px;height:34px;text-align:center}
+.grid th{color:var(--muted);font-weight:600;font-family:inherit;font-size:.8rem}
+.grid td.f{background:color-mix(in srgb,var(--asr) 14%,var(--panel))}
+.grid td.cur{outline:2px solid var(--bad)}
+.grid td.p{background:color-mix(in srgb,var(--bad) 28%,var(--panel));font-weight:700}
+.tblwrap{overflow-x:auto}
+input.tx{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:10px}
+.card{background:var(--soft);border-radius:12px;padding:12px 14px;border-top:4px solid var(--c)}
+.card h4{margin:0 0 6px;font-size:.98rem}
+.card ul{margin:0;padding-left:18px;font-size:.92rem}
+.mtable{width:100%;border-collapse:collapse;font-size:.9rem}
+.mtable td,.mtable th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D10 ASR 평가 &amp; 회의록 생성기</h1>
+  <p>WER · CER이 무엇을 세는지, 편집 거리 표가 어떻게 채워지는지, 한국어 정규화가 점수를 어떻게 바꾸는지, 그리고 미니 프로젝트인 자동 회의록 생성기의 파이프라인 · 프롬프트 · 평가표를 직접 움직여 보는 수업 자료입니다. 탭 번호 D10-1 ~ D10-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D10-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="editdist"><span class="tc">D10-2</span>편집 거리 표</button>
+  <button role="tab" aria-selected="false" data-t="wercer"><span class="tc">D10-3</span>WER vs CER</button>
+  <button role="tab" aria-selected="false" data-t="norm"><span class="tc">D10-4</span>정규화 단계</button>
+  <button role="tab" aria-selected="false" data-t="numbers"><span class="tc">D10-5</span>숫자 읽기</button>
+  <button role="tab" aria-selected="false" data-t="pipeline"><span class="tc">D10-6</span>회의록 파이프라인</button>
+  <button role="tab" aria-selected="false" data-t="prompt"><span class="tc">D10-7</span>프롬프트 만들기</button>
+  <button role="tab" aria-selected="false" data-t="eval"><span class="tc">D10-8</span>평가표</button>
+  <button role="tab" aria-selected="false" data-t="demo"><span class="tc">D10-9</span>회의록 화면</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D10-1</span>오늘 할 것: 공정하게 채점하고, 회의록 생성기를 완성한다</h2>
+  <p class="lead">1~2교시는 ASR 평가, 3~4교시는 미니 프로젝트입니다. 단계를 눌러 무엇을 하는지 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="editdist">
+  <h2><span class="hc">D10-2</span>편집 거리 표: 가장 적게 고치는 길</h2>
+  <p class="lead">칸 d[i][j] = 정답 앞 i개를 결과 앞 j개로 바꾸는 최소 고침 횟수. "한 칸씩"을 누르면 위(빠짐 +1) · 왼쪽(끼어듦 +1) · 대각선(같으면 +0, 다르면 바꿈 +1) 중 가장 작은 값을 적습니다. 다 채우면 길을 거꾸로 따라가 S · D · I를 읽습니다.</p>
+  <div class="stage">
+    <div class="row" id="edEx"></div>
+    <div class="row"><button class="btn primary" id="edStep">한 칸씩 ▶</button><button class="btn" id="edAll">끝까지</button><button class="btn" id="edReset">처음으로</button></div>
+    <div class="tblwrap"><table class="grid" id="edGrid"></table></div>
+    <div class="al" id="edAl"></div>
+    <div class="fx" id="edFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="wercer">
+  <h2><span class="hc">D10-3</span>WER vs CER: 같은 결과, 다른 점수</h2>
+  <p class="lead">결과 문장을 직접 고쳐 보세요(띄어쓰기를 지우거나, 숫자로 바꾸거나, 단어를 넣거나 빼거나). 단어 단위 WER과 글자 단위 CER이 어떻게 다르게 움직이는지 봅니다.</p>
+  <div class="stage">
+    <div class="row" id="wcEx"></div>
+    <label style="display:block;margin-bottom:8px">정답 <input class="tx" id="wcRef" value="회의록 생성기를 다음 주 금요일까지 만들어 봅시다"></label>
+    <label style="display:block">결과 <input class="tx" id="wcHyp" value="회의록생성기를 다음주 금요일까지 만들어봅시다"></label>
+    <div class="al" id="wcAl"></div>
+    <div class="kv" id="wcKv"></div>
+    <div class="fx" id="wcFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="norm">
+  <h2><span class="hc">D10-4</span>정규화 단계 켜고 끄기</h2>
+  <p class="lead">정규화 단계를 하나씩 켜 보세요. 정답과 결과에 <b>똑같이</b> 적용되고, 표기만 다른 오류가 사라지면서 CER이 내려갑니다. 마지막 "과한 정규화(조사 지우기)"는 진짜 오류까지 숨깁니다.</p>
+  <div class="stage">
+    <div class="toggles" id="nmTg"></div>
+    <div class="tblwrap"><table class="mtable" id="nmTab"></table></div>
+    <canvas id="nmCv" height="120" style="margin-top:10px"></canvas>
+    <div class="fx" id="nmFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="numbers">
+  <h2><span class="hc">D10-5</span>숫자 읽기 실험실</h2>
+  <p class="lead">숫자를 넣으면 num2kor()가 한자어로 읽습니다. 뒤에 붙는 말(시 · 월 · 원 · 개)을 고르면 사람이 실제로 읽는 방식과 비교합니다. 규칙 하나로는 다 맞출 수 없다는 것을 확인하세요.</p>
+  <div class="stage">
+    <label class="sl"><span>숫자</span><input type="range" id="nuN" min="1" max="2100" step="1" value="3"><output id="nuNO"></output></label>
+    <div class="row" id="nuUnit"></div>
+    <div class="row" id="nuQuick"></div>
+    <div class="kv" id="nuKv"></div>
+    <div class="fx" id="nuFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="pipeline">
+  <h2><span class="hc">D10-6</span>회의록 파이프라인: make_minutes(audio)</h2>
+  <p class="lead">단계를 누르면 그 단계가 끝났을 때 가진 정보를 보여 줍니다. 각 단계는 D8 · D9에서 만든 부품입니다. 아래 "실패 넣기"로 한 단계가 틀리면 뒤 단계가 어떻게 되는지 보세요.</p>
+  <div class="stage">
+    <div class="steplist" id="ppSteps"></div>
+    <div class="toggles" style="margin-top:12px"><label><input type="checkbox" id="ppFail"><span>실패 넣기: 화자 분리가 박대리와 김팀장을 헷갈림<small>앞 단계 오류는 뒤 단계(이름 · 할 일 담당자)로 그대로 이어집니다</small></span></label></div>
+    <div class="outbox" id="ppOut"></div>
+    <div class="fx" id="ppFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="prompt">
+  <h2><span class="hc">D10-7</span>프롬프트 만들기: 규칙을 켜면 결과가 바뀐다</h2>
+  <p class="lead">왼쪽 규칙을 켜고 끄면 오른쪽에 LLM이 돌려줄 법한 결과(설명용 예시)가 바뀝니다. 형식 지정이 없으면 코드가 받을 수 없고, 추측 금지가 없으면 녹취에 없는 내용이 끼어듭니다.</p>
+  <div class="stage">
+    <div class="toggles" id="prTg"></div>
+    <div class="cards">
+      <div class="card" style="--c:var(--asr)"><h4>보내는 프롬프트</h4><pre id="prIn" style="white-space:pre-wrap;font-size:.82rem;margin:0"></pre></div>
+      <div class="card" style="--c:var(--tts)"><h4>돌아온 답 (예시)</h4><pre id="prOut" style="white-space:pre-wrap;font-size:.82rem;margin:0"></pre></div>
+    </div>
+    <div class="kv" id="prKv"></div>
+    <div class="fx" id="prFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="eval">
+  <h2><span class="hc">D10-8</span>평가표: 단계마다 따로 잰다</h2>
+  <p class="lead">세 단계의 품질을 바꿔 보세요. 회의록에서 사람이 고쳐야 할 곳이 어떻게 늘고 주는지, 어느 단계를 고쳐야 효과가 큰지 봅니다. (설명용 모형)</p>
+  <div class="stage">
+    <label class="sl"><span>받아쓰기 CER</span><input type="range" id="evCer" min="0" max="30" step="1" value="6"><output id="evCerO"></output></label>
+    <label class="sl"><span>단어별 화자 정확도</span><input type="range" id="evSpk" min="50" max="100" step="1" value="92"><output id="evSpkO"></output></label>
+    <div class="row" id="evSum"></div>
+    <canvas id="evCv" height="200"></canvas>
+    <div class="kv" id="evKv"></div>
+    <div class="fx" id="evFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="demo">
+  <h2><span class="hc">D10-9</span>회의록 화면 미리 보기</h2>
+  <p class="lead">Gradio 데모가 돌려주는 회의록의 모양입니다. 요약 방법(규칙 기반 / LLM)을 바꿔 차이를 비교하세요.</p>
+  <div class="stage">
+    <div class="row" id="dmHow"></div>
+    <div class="cards" id="dmCards"></div>
+    <div class="outbox" id="dmTr" style="margin-top:12px"></div>
+    <div class="fx" id="dmFx"></div>
+  </div>
+</section>
+
+<footer class="note" style="margin:30px 0 10px">음성 AI 전문가 과정 · Day 10 · 그림의 숫자와 LLM 답은 설명용 예시입니다. 실제 값은 노트북에서 직접 잽니다.</footer>
+</div>
+
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+const MONO='ui-monospace, Menlo, Consolas, monospace';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${l}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function rr(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const pct=v=>(v*100).toFixed(1)+'%';
+
+/* 편집 거리 + 정렬 (공통) */
+function edTable(r,h){const n=r.length,m=h.length;const d=Array.from({length:n+1},(_,i)=>Array.from({length:m+1},(_,j)=>i===0?j:(j===0?i:0)));
+  for(let i=1;i<=n;i++)for(let j=1;j<=m;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(r[i-1]===h[j-1]?0:1));return d;}
+function edAlign(r,h){const d=edTable(r,h);let i=r.length,j=h.length;const ops=[];const path=[[i,j]];
+  while(i>0||j>0){if(i>0&&j>0&&d[i][j]===d[i-1][j-1]+(r[i-1]===h[j-1]?0:1)){ops.push([r[i-1]===h[j-1]?'H':'S',r[i-1],h[j-1]]);i--;j--;}
+    else if(i>0&&d[i][j]===d[i-1][j]+1){ops.push(['D',r[i-1],'']);i--;}else{ops.push(['I','',h[j-1]]);j--;}path.push([i,j]);}
+  return {d,ops:ops.reverse(),path};}
+function alHtml(ops){return ops.map(([t,a,b])=>`<div class="c ${t}"><span>${esc(a||'·')}</span><span>${esc(b||'·')}</span><small>${t==='H'?'맞음':t}</small></div>`).join('');}
+
+/* hero */
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const n=Math.floor((w-20)/8);const head=Math.floor((heroT*14)%(n+20));
+  for(let i=0;i<n;i++){const x=10+i*8;const v=0.15+0.75*Math.abs(Math.sin(i*0.37)*Math.sin(i*0.11+1));const bad=(i*7)%23===0;c.fillStyle=i<head?(bad?css('--bad'):css('--ok')):css('--line');c.fillRect(x,h-v*h,5,v*h);}
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+/* tabs */
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+
+/* ===== D10-1 flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'WER · CER',c:'--net',go:'editdist',items:['WER = (S + D + I) ÷ N, 정답 길이로 나눔','편집 거리 표: 위(빠짐) · 왼쪽(끼어듦) · 대각선(같음/바꿈)','한국어는 띄어쓰기 때문에 CER'],q:'🧩 빈칸 1, 2: cost, len(r)',more:[['wercer','WER vs CER']]},
+ {p:'Part 2',t:'jiwer · 정규화',c:'--s2s',go:'norm',items:['jiwer.wer / cer / process_words / visualize_alignment','함정: 띄어쓰기 · 숫자 · 영어 · 문장 부호 · 군말','정규화를 정답과 결과에 똑같이, 규칙은 보고서에'],q:'🧩 빈칸 3~6: cer, i, v, " "',more:[['numbers','숫자 읽기']]},
+ {p:'Part 3',t:'파이프라인 조립',c:'--asr',go:'pipeline',items:['transcribe_align → diarize → to_lines','모델은 한 번만 불러 두기','등록 음성으로 이름 붙이기, [분:초] 녹취'],q:'🧩 빈칸 7: 60'},
+ {p:'Part 4',t:'LLM 요약',c:'--llm',go:'prompt',items:['역할 · 입력 · 규칙 · JSON 형식','펜스 떼기 → json.loads → 키 검사 → 실패 시 규칙 기반','결과를 회의록 문서(.md · .json)로'],q:'🧩 빈칸 8: loads'},
+ {p:'Part 5',t:'평가 · 데모',c:'--tts',go:'eval',items:['받아쓰기 CER · 화자 정확도 · 요약 점검을 따로','make_minutes(y) 하나로 묶기','Gradio: 녹음 올리기 → 회의록, 팀별 3분 발표'],q:'🧩 빈칸 9: KEY_POINTS',more:[['demo','회의록 화면']]}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== D10-2 edit distance ===== */
+const EDX={a:['회의를 세 시에 시작합니다','회의를 3시에 바로 시작합니다'],b:['네 좋습니다','네 네 좋습니다 감사합니다'],c:['다음 주 금요일까지','다음 금요일']};
+let edK='a',edN=0;chipRow($('edEx'),'data-ek',[['a','바꿈 예'],['b','끼어듦 예'],['c','빠짐 예']],'a','--s2s',v=>{edK=v;edN=0;drawEd();});
+$('edStep').onclick=()=>{edN++;drawEd();};$('edAll').onclick=()=>{edN=999;drawEd();};$('edReset').onclick=()=>{edN=0;drawEd();};
+function drawEd(){const [R,H]=EDX[edK];const r=R.split(' '),h=H.split(' ');const {d,ops,path}=edAlign(r,h);const n=r.length,m=h.length;const total=n*m;const done=Math.min(edN,total);
+  const filled=(i,j)=>i===0||j===0||((i-1)*m+(j-1))<done;const curIdx=done<total?done:-1;const ci=curIdx>=0?Math.floor(curIdx/m)+1:-1,cj=curIdx>=0?curIdx%m+1:-1;
+  const onPath=(i,j)=>done>=total&&path.some(([a,b])=>a===i&&b===j);
+  let html='<tr><th></th><th>∅</th>'+h.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr>';
+  for(let i=0;i<=n;i++){html+=`<tr><th>${i?esc(r[i-1]):'∅'}</th>`;for(let j=0;j<=m;j++){const f=filled(i,j);html+=`<td class="${f?'f':''} ${i===ci&&j===cj?'cur':''} ${onPath(i,j)?'p':''}">${f?d[i][j]:''}</td>`;}html+='</tr>';}
+  $('edGrid').innerHTML=html;
+  if(done>=total){$('edAl').innerHTML=alHtml(ops);const S=ops.filter(o=>o[0]==='S').length,D=ops.filter(o=>o[0]==='D').length,I=ops.filter(o=>o[0]==='I').length;
+    $('edFx').innerHTML=`최소 고침 = 오른쪽 아래 칸 <b>${d[n][m]}</b> = S ${S} + D ${D} + I ${I}<br>WER = ${d[n][m]} ÷ 정답 ${n}단어 = <b>${pct(d[n][m]/n)}</b>${d[n][m]>n?' (100% 초과: 끼어듦이 많음)':''}<br>빨간 칸 = 거꾸로 따라간 길. 대각선 = 맞음/바꿈, 아래로 = 빠짐(D), 오른쪽으로 = 끼어듦(I)`;}
+  else{$('edAl').innerHTML='';const i=ci,j=cj;$('edFx').innerHTML=`지금 칸 d[${i}][${j}]: 위 ${d[i-1][j]}+1 = ${d[i-1][j]+1} (빠짐) · 왼쪽 ${d[i][j-1]}+1 = ${d[i][j-1]+1} (끼어듦) · 대각선 ${d[i-1][j-1]}+${r[i-1]===h[j-1]?0:1} = ${d[i-1][j-1]+(r[i-1]===h[j-1]?0:1)} (${r[i-1]===h[j-1]?'같음':'바꿈'}) → 가장 작은 값 <b>${d[i][j]}</b>`;}}
+REDRAW.editdist=drawEd;
+
+/* ===== D10-3 WER vs CER ===== */
+const WCX={sp:['회의록 생성기를 다음 주 금요일까지 만들어 봅시다','회의록생성기를 다음주 금요일까지 만들어봅시다'],num:['회의는 오후 3시에 시작합니다','회의는 오후 세 시에 시작합니다'],neg:['그 방법을 쓰기로 했습니다','그 방법을 안 쓰기로 했습니다'],ins:['네 좋습니다','네 네 네 좋습니다 감사합니다']};
+chipRow($('wcEx'),'data-wx',[['sp','띄어쓰기만 다름'],['num','숫자 표기'],['neg','한 글자로 뜻이 뒤집힘'],['ins','끼어듦 많음']],'sp','--asr',v=>{$('wcRef').value=WCX[v][0];$('wcHyp').value=WCX[v][1];drawWc();});
+$('wcRef').oninput=drawWc;$('wcHyp').oninput=drawWc;
+function drawWc(){const R=$('wcRef').value.trim(),H=$('wcHyp').value.trim();const r=R.split(/\s+/).filter(Boolean),h=H.split(/\s+/).filter(Boolean);
+  const w=edAlign(r,h);const wer=r.length?w.d[r.length][h.length]/r.length:0;const cr=[...R],ch=[...H];const c=edTable(cr,ch);const cer=cr.length?c[cr.length][ch.length]/cr.length:0;
+  const cr2=[...R.replace(/\s/g,'')],ch2=[...H.replace(/\s/g,'')];const c2=edTable(cr2,ch2);const cer2=cr2.length?c2[cr2.length][ch2.length]/cr2.length:0;
+  $('wcAl').innerHTML=alHtml(w.ops);
+  $('wcKv').innerHTML=`<div><span>WER (단어 ${r.length}개)</span><b style="color:${css('--bad')}">${pct(wer)}</b></div><div><span>CER (글자 ${cr.length}개, 공백 포함)</span><b style="color:${css('--ok')}">${pct(cer)}</b></div><div><span>CER (공백 무시)</span><b>${pct(cer2)}</b></div>`;
+  $('wcFx').innerHTML=`jiwer.wer(ref, hyp) = ${pct(wer)} · jiwer.cer(ref, hyp) = ${pct(cer)}<br>${wer>cer*2?'띄어쓰기 · 표기 차이가 WER을 크게 부풀렸습니다 → 한국어는 CER.':''}${cer>0&&cer<0.1&&R.length>4?' 글자 몇 개 차이지만 뜻이 바뀌었는지는 숫자로 알 수 없습니다 → 틀린 곳을 직접 읽기.':''}`;}
+REDRAW.wercer=drawWc;
+
+/* ===== D10-4 normalization ===== */
+const NREF=['회의는 오후 3시에 시작합니다.','Whisper 모델로 받아쓰기를 했습니다.','예산은 2,500만 원으로 정했습니다.','김팀장이 다음 주까지 정리합니다.'];
+const NHYP=['회의는 오후 3시에 시작합니다','위스퍼 모델로 받아 쓰기를 했습니다.','예산은 2500만 원으로 정했습니다','김팀장은 다음 주까지 정리합니다'];
+const NSTEPS=[['punct','① 문장 부호 지우기 · 소문자'],['num','② 숫자 → 한글 (2,500 → 이천오백)'],['term','③ 용어 사전 (whisper → 위스퍼)'],['space','④ 공백 정리 + 공백 무시 CER'],['over','⚠️ 과한 정규화: 조사(은 · 는 · 이 · 가) 지우기']];
+const NON={punct:false,num:false,term:false,space:false,over:false};
+$('nmTg').innerHTML=NSTEPS.map(([k,l])=>`<label><input type="checkbox" data-nm="${k}"><span>${l}</span></label>`).join('');
+$('nmTg').querySelectorAll('[data-nm]').forEach(b=>b.onchange=()=>{NON[b.dataset.nm]=b.checked;drawNm();});
+const DIG='영일이삼사오육칠팔구',UN=['','십','백','천'];
+function num2kor(n){if(n===0)return '영';if(n>=10000)return String(n);let s='';[...String(n)].reverse().forEach((ch,i)=>{const d=+ch;if(!d)return;s=((d===1&&i>0)?'':DIG[d])+UN[i]+s;});return s;}
+function nm(s){if(NON.punct){s=s.toLowerCase().replace(/(\d),(\d)/g,'$1$2').replace(/[^\p{L}\p{N}\s]/gu,' ');}
+  if(NON.num)s=s.replace(/\d+/g,m=>num2kor(+m));if(NON.term)s=s.replace(/whisper/gi,'위스퍼');if(NON.over)s=s.replace(/(은|는|이|가)(?=\s|$)/g,'');
+  if(NON.space)s=s.replace(/\s+/g,'');else s=s.replace(/\s+/g,' ').trim();return s;}
+function cerOf(R,H){const r=[...R],h=[...H];return r.length?edTable(r,h)[r.length][h.length]/r.length:0;}
+function drawNm(){let tot=0,len=0;const rows=NREF.map((R,i)=>{const a=nm(R),b=nm(NHYP[i]);const e=edTable([...a],[...b])[a.length][b.length];tot+=e;len+=[...a].length;return [a,b,cerOf(a,b)];});
+  $('nmTab').innerHTML='<tr><th>정답 (정규화 후)</th><th>결과 (정규화 후)</th><th>CER</th></tr>'+rows.map(([a,b,c])=>`<tr><td>${esc(a)}</td><td>${esc(b)}</td><td><b style="color:${c>0?css('--bad'):css('--ok')}">${pct(c)}</b></td></tr>`).join('');
+  const all=tot/len;const {c,w,h}=fit($('nmCv'),120);c.clearRect(0,0,w,h);const bw=(w-180)*Math.min(all,0.4)/0.4;
+  c.fillStyle=css('--ink');c.font='13px '+FONT;c.fillText('전체 CER',10,50);c.fillStyle=NON.over?css('--bad'):css('--s2s');rr(c,100,32,Math.max(4,bw),28,6);c.fill();c.fillStyle=css('--ink');c.font='700 14px '+FONT;c.fillText(pct(all),110+bw,52);
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('0%',100,85);c.fillText('40%',w-90,85);
+  const on=Object.entries(NON).filter(([k,v])=>v).map(([k])=>k);
+  $('nmFx').innerHTML=`켠 단계: ${on.length?on.join(' → '):'없음 (그대로 채점)'}<br>${NON.over?'⚠️ "김팀장이" → "김팀장은" 같은 진짜 오류까지 사라졌습니다. 과한 정규화는 모델을 실제보다 좋아 보이게 만듭니다.':'남은 오류가 모델이 실제로 잘못 들은 부분입니다. 마지막 줄의 "이 → 은"은 진짜 오류이므로 남아야 정상.'}`;}
+REDRAW.norm=drawNm;
+
+/* ===== D10-5 numbers ===== */
+const NATIVE=['','한','두','세','네','다섯','여섯','일곱','여덟','아홉','열','열한','열두'];
+const MON={6:'유월',10:'시월'};
+let NU='시';chipRow($('nuUnit'),'data-nu',[['','(없음)'],['시','시'],['월','월'],['원','원'],['개','개']],'시','--llm',v=>{NU=v;drawNu();});
+chipRow($('nuQuick'),'data-nq',[['3','3'],['10','10'],['12','12'],['2026','2026'],['1001','1001']],'3','--net',v=>{$('nuN').value=v;drawNu();});
+$('nuN').oninput=drawNu;
+function spoken(n,u){if((u==='시')&&n>=1&&n<=12)return NATIVE[n]+' 시';if(u==='개'&&n>=1&&n<=12)return NATIVE[n]+' 개';if(u==='월'&&MON[n])return MON[n];return num2kor(n)+(u?(u==='원'?' 원':u):'');}
+function drawNu(){const n=+$('nuN').value;$('nuNO').textContent=n;const rule=num2kor(n)+(NU?(NU==='원'?' 원':NU):'');const real=spoken(n,NU);const same=rule.replace(/\s/g,'')===real.replace(/\s/g,'');
+  $('nuKv').innerHTML=`<div><span>숫자 표기</span><b>${n}${NU}</b></div><div><span>num2kor 규칙</span><b>${esc(rule)}</b></div><div><span>사람이 실제로 읽기</span><b style="color:${same?css('--ok'):css('--bad')}">${esc(real)}</b></div>`;
+  $('nuFx').innerHTML=same?'✅ 규칙과 실제 읽기가 같습니다. 정규화 후 같은 글자로 비교됩니다.':`⚠️ 다릅니다. Whisper가 "${esc(real)}"라고 적고 정답이 "${n}${NU}"이면, 정규화 후에도 "${esc(rule)}" vs "${esc(real)}"로 오류가 남습니다.<br>시각 · 개수(1~12)는 고유어(한 · 두 · 세), 6월 · 10월은 유월 · 시월. 규칙을 더할 수도 있지만 끝이 없으니, 한계를 알고 보고서에 적습니다.`;}
+REDRAW.numbers=drawNu;
+
+/* ===== D10-6 pipeline ===== */
+const PP=[['① 받아쓰기 + 정렬','aligned = transcribe_align(y)','WhisperX: 단어마다 start · end (D9 Part 3)'],['② 화자 분리','diar = diarize(y, num_speakers)','pyannote 또는 직접 만든 것 → SPEAKER_00 … (D9 Part 4 · 5)'],['③ 단어에 화자 + 줄 묶기','lines, words = to_lines(aligned, diar)','가장 많이 겹치는 화자, 같은 화자면 이어 붙이기 (D9 Part 6)'],['④ 이름 붙이기','NAME = name_speakers(y, diar, ENROLL)','등록 음성 지문과 비교 (D9 6-2)'],['⑤ LLM 요약','summary, how = summarize(lines, transcript)','요약 · 결정 · 할 일 JSON (Part 4)'],['⑥ 회의록 문서','render_minutes(summary, lines)','.md · .json · Gradio 화면 (Part 5)']];
+const PL=[['김팀장','오늘은 회의록 생성기 개발 일정을 정하겠습니다'],['이연구원','받아쓰기는 위스퍼 스몰 모델을 그대로 쓰기로 했습니다'],['박대리','저는 수요일까지 단어 시각 정렬을 붙이겠습니다'],['이연구원','저는 목요일까지 평가 스크립트를 만들겠습니다']];
+const PCOL={'김팀장':'--asr','이연구원':'--llm','박대리':'--tts'};const PSPK={'김팀장':'SPEAKER_00','이연구원':'SPEAKER_01','박대리':'SPEAKER_02'};
+let ppCur=0;$('ppSteps').innerHTML=PP.map((s,i)=>`<div class="stp" data-i="${i}" role="button" tabindex="0"><b>${s[0]}</b> · <code>${esc(s[1])}</code></div>`).join('');
+[...$('ppSteps').children].forEach(d=>d.onclick=()=>{ppCur=+d.dataset.i;drawPp();});$('ppFail').onchange=drawPp;
+function drawPp(){[...$('ppSteps').children].forEach((d,i)=>{d.classList.toggle('on',i<=ppCur);d.classList.toggle('cur',i===ppCur);});const fail=$('ppFail').checked;
+  const who=n=>fail&&n==='박대리'?'김팀장':n;let html='';
+  if(ppCur===0)html=PL.map(([n,t],i)=>`<div class="ln"><span class="tm">${(i*3.4).toFixed(1)}s</span>${esc(t)}</div>`).join('');
+  else if(ppCur<=2)html=PL.map(([n,t],i)=>`<div class="ln"><span class="tm">${(i*3.4).toFixed(1)}s</span>${ppCur>=1?`<span class="sp" style="--c:var(${PCOL[who(n)]})">${PSPK[who(n)]}</span>`:''}${esc(t)}</div>`).join('');
+  else if(ppCur===3)html=PL.map(([n,t],i)=>`<div class="ln"><span class="tm">[00:0${Math.floor(i*3.4)}]</span><span class="sp" style="--c:var(${PCOL[who(n)]})">${who(n)}</span>${esc(t)}</div>`).join('');
+  else{const acts=[[who('박대리'),'단어 시각 정렬','수요일'],['이연구원','평가 스크립트','목요일']];
+    html=`<b>요약</b>: 회의록 생성기 일정 결정 · 위스퍼 스몰 사용<br><b>할 일</b><table class="mtable"><tr><th>담당</th><th>할 일</th><th>기한</th></tr>${acts.map(a=>`<tr><td style="color:${a[0]!==(a[1]==='단어 시각 정렬'?'박대리':'이연구원')?css('--bad'):'inherit'}">${a[0]}</td><td>${a[1]}</td><td>${a[2]}</td></tr>`).join('')}</table>${ppCur===5?'<br>→ meeting_minutes.md · meeting_minutes.json 저장, Gradio 화면에 표시':''}`;}
+  $('ppOut').innerHTML=html;$('ppFx').innerHTML=`<b>${PP[ppCur][0]}</b>: ${esc(PP[ppCur][1])}<br>${esc(PP[ppCur][2])}${fail&&ppCur>=1?'<br>⚠️ 화자 분리 오류가 이름 → 할 일 담당자까지 그대로 이어졌습니다. 마지막 결과만 보면 어디서 틀렸는지 모릅니다 → 단계별 평가 (D10-8).':''}`;}
+REDRAW.pipeline=drawPp;
+
+/* ===== D10-7 prompt ===== */
+const PRULES=[['role','역할 주기 (system: 회의록 비서)'],['fmt','출력 형식 지정 (JSON 키 3개)'],['nohal','녹취에 없는 내용 추측 금지'],['owner','담당자 · 기한은 말한 그대로'],['asr','받아쓰기 오류가 있을 수 있다고 알려 주기']];
+const PON={role:true,fmt:true,nohal:true,owner:true,asr:true};
+$('prTg').innerHTML=PRULES.map(([k,l])=>`<label><input type="checkbox" data-pr="${k}" checked><span>${l}</span></label>`).join('');
+$('prTg').querySelectorAll('[data-pr]').forEach(b=>b.onchange=()=>{PON[b.dataset.pr]=b.checked;drawPr();});
+function drawPr(){const p=[];if(PON.role)p.push('[system] 당신은 한국어 회의록을 정리하는 비서입니다.');if(PON.asr)p.push('음성 인식 녹취입니다. 받아쓰기 오류는 문맥으로 이해하세요.');
+  p.push('<녹취>\n[00:03] 박대리: 저는 수요일까지 단어 시각 정렬을 붙이겠습니다\n[00:06] 이연구원: 평가는 위스퍼 스모로 하겠습니다\n</녹취>');
+  if(PON.fmt)p.push('JSON으로만: {"summary": [], "decisions": [], "action_items": [{"owner","task","due"}]}');else p.push('회의 내용을 요약해 주세요.');
+  if(PON.nohal)p.push('규칙: 녹취에 없는 내용은 쓰지 않습니다.');if(PON.owner)p.push('담당자와 기한은 말한 그대로 씁니다.');
+  $('prIn').textContent=p.join('\n\n');
+  let out,parse=true,hal=false,own=true;
+  const items=[`{"owner": "박대리", "task": "단어 시각 정렬", "due": "${PON.owner?'수요일':'이번 주'}"}`];if(!PON.nohal){items.push('{"owner": "김팀장", "task": "예산 승인", "due": "월요일"}');hal=true;}if(!PON.owner)own=false;
+  const model=PON.asr?'위스퍼 스몰':'위스퍼 스모';
+  if(PON.fmt){out=`{"summary": ["단어 시각 정렬 일정 확정", "평가에 ${model} 사용"],\n "decisions": ["평가는 ${model}로"],\n "action_items": [${items.join(',\n   ')}]}`;if(!PON.role)out='네, 요청하신 형식으로 정리했습니다.\n```json\n'+out+'\n```';}
+  else{out=`회의에서는 여러 이야기가 오갔습니다. 박대리님이 단어 시각 정렬을 맡으셨고${hal?', 김팀장님이 월요일까지 예산을 승인하기로 하셨습니다':''}. 평가에는 ${model} 모델을 쓰기로 했습니다. 전반적으로 생산적인 회의였습니다.`;parse=false;}
+  $('prOut').textContent=out;const fence=PON.fmt&&!PON.role;
+  $('prKv').innerHTML=`<div><span>json.loads 가능?</span><b style="color:${parse?css('--ok'):css('--bad')}">${parse?(fence?'펜스 떼면 가능':'가능'):'불가'}</b></div><div><span>지어낸 내용</span><b style="color:${hal?css('--bad'):css('--ok')}">${hal?'있음':'없음'}</b></div><div><span>기한 정확</span><b style="color:${own?css('--ok'):css('--bad')}">${own?'예':'아니오'}</b></div><div><span>오타 보정 (스모 → 스몰)</span><b>${PON.asr?'예':'아니오'}</b></div>`;
+  $('prFx').innerHTML=`${!PON.fmt?'형식이 없으면 사람이 읽기엔 괜찮아도 코드가 표로 만들 수 없습니다. ':''}${fence?'앞뒤에 설명 · 코드펜스가 붙어 parse_json()의 펜스 떼기가 필요합니다. ':''}${hal?'"예산 승인"은 녹취에 없습니다 (환각, D7). ':''}${!own?'"이번 주"처럼 기한을 바꿔 썼습니다. ':''}${PON.fmt&&PON.nohal&&PON.owner&&PON.role&&PON.asr?'✅ 다섯 규칙을 모두 켠 상태가 노트북 build_prompt()와 같습니다.':''}<br>(설명용 예시. 실제 LLM 답은 매번 조금씩 다릅니다)`;}
+REDRAW.prompt=drawPr;
+
+/* ===== D10-8 eval ===== */
+let EVS='llm';chipRow($('evSum'),'data-es',[['rule','요약: 규칙 기반'],['llm','요약: LLM']],'llm','--tts',v=>{EVS=v;drawEv();});
+$('evCer').oninput=drawEv;$('evSpk').oninput=drawEv;
+function drawEv(){const cer=+$('evCer').value/100,spk=+$('evSpk').value/100;$('evCerO').textContent=(cer*100).toFixed(0)+'%';$('evSpkO').textContent=(spk*100).toFixed(0)+'%';
+  const words=300;const fixT=Math.round(words*2.6*cer);const fixS=Math.round(words*(1-spk));const keys=EVS==='llm'?Math.max(1,Math.round(5-cer*8-(1-spk)*6)):Math.max(0,Math.round(3-cer*10-(1-spk)*4));
+  const {c,w,h}=fit($('evCv'),200);c.clearRect(0,0,w,h);const bars=[['받아쓰기 고칠 글자',fixT,'--asr',200],['화자 고칠 단어',fixS,'--llm',150],['요약 빠진 핵심',5-keys,'--tts',5]];
+  bars.forEach(([n,v,col,mx],i)=>{const y=20+i*58;c.fillStyle=css('--ink');c.font='13px '+FONT;c.fillText(n,10,y+20);const bw=(w-260)*Math.min(v,mx)/mx;c.fillStyle=css(col);rr(c,170,y,Math.max(3,bw),30,6);c.fill();c.fillStyle=css('--ink');c.font='700 13px '+FONT;c.fillText(i===2?`${v} / 5`:`${v}`,178+bw,y+20);});
+  $('evKv').innerHTML=`<div><span>CER (정규화 후)</span><b>${(cer*100).toFixed(0)}%</b></div><div><span>화자 정확도</span><b>${(spk*100).toFixed(0)}%</b></div><div><span>요약 점검</span><b>${keys} / 5</b></div>`;
+  const worst=fixT>fixS*1.5?'받아쓰기 (모델 크기 · 용어 프롬프트 · 3주차 Fine-tuning)':(fixS>fixT?'화자 (pyannote · 화자 수 알려 주기 · 녹음 환경)':'두 단계 모두 비슷');
+  $('evFx').innerHTML=`5분 회의(약 ${words}단어) 기준으로 사람이 고쳐야 할 양 (설명용 모형)<br>먼저 고칠 단계: <b>${worst}</b><br>요약은 앞 단계 품질에 기대므로, 앞 단계가 나쁘면 LLM도 핵심을 놓칩니다.`;}
+REDRAW.eval=drawEv;
+
+/* ===== D10-9 demo ===== */
+let DM='llm';chipRow($('dmHow'),'data-dm',[['rule','규칙 기반 요약'],['llm','LLM 요약 (Claude)']],'llm','--s2s',v=>{DM=v;drawDm();});
+const TR=[['00:00','김팀장','오늘은 회의록 생성기 개발 일정을 정하겠습니다.'],['00:04','이연구원','받아쓰기는 위스퍼 스몰 모델을 그대로 쓰기로 했습니다.'],['00:09','박대리','화자 분리는 파이아노트를 쓰고, 토큰이 없으면 직접 만든 방법을 쓰겠습니다.'],['00:16','김팀장','좋습니다. 그렇게 결정하겠습니다.'],['00:19','이연구원','평가는 정규화를 한 뒤에 글자 오류율로 하겠습니다.'],['00:24','박대리','저는 수요일까지 단어 시각 정렬을 붙이겠습니다.'],['00:28','이연구원','저는 목요일까지 평가 스크립트를 만들겠습니다.'],['00:32','김팀장','그럼 금요일 오후에 결과를 같이 검토합시다.']];
+function drawDm(){let S,D,A;
+  if(DM==='llm'){S=['회의록 생성기 개발 일정을 정함','받아쓰기는 Whisper small, 화자 분리는 pyannote(토큰 없으면 직접 구현)','금요일 오후에 결과 공동 검토'];D=['받아쓰기 모델: Whisper small 유지','화자 분리: pyannote 사용','평가: 정규화 후 CER'];A=[['박대리','단어 시각 정렬 적용','수요일'],['이연구원','평가 스크립트 작성','목요일'],['전원','결과 검토','금요일 오후']];}
+  else{S=['발언 8건, 참석자 3명','결정 사항 2건, 할 일 3건'];D=['받아쓰기는 위스퍼 스몰 모델을 그대로 쓰기로 했습니다.','좋습니다. 그렇게 결정하겠습니다.'];A=[['박대리','저는 수요일까지 단어 시각 정렬을 붙이겠습니다.','수요일'],['이연구원','저는 목요일까지 평가 스크립트를 만들겠습니다.','목요일'],['김팀장','그럼 금요일 오후에 결과를 같이 검토합시다.','금요일']];}
+  $('dmCards').innerHTML=`<div class="card" style="--c:var(--asr)"><h4>요약</h4><ul>${S.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div><div class="card" style="--c:var(--ok)"><h4>결정 사항</h4><ul>${D.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div><div class="card" style="--c:var(--llm)"><h4>할 일</h4><table class="mtable"><tr><th>담당</th><th>할 일</th><th>기한</th></tr>${A.map(a=>`<tr><td>${a[0]}</td><td>${esc(a[1])}</td><td>${a[2]}</td></tr>`).join('')}</table></div>`;
+  $('dmTr').innerHTML=TR.map(([t,n,x])=>`<div class="ln"><span class="tm">[${t}]</span><span class="sp" style="--c:var(${PCOL[n]})">${n}</span>${esc(x)}</div>`).join('');
+  $('dmFx').innerHTML=DM==='llm'?'LLM: 문장을 다듬어 핵심만 모으고, 할 일을 동사로 정리하며, "평가는 정규화 후 CER"처럼 흩어진 결정을 찾아냅니다. 대신 검토(사람 확인)가 필요합니다.':'규칙 기반: 키워드가 든 발언을 그대로 옮깁니다. 지어내지는 않지만 "평가는 … 글자 오류율로" 같은 결정을 놓치고, 문장이 깁니다.';}
+REDRAW.demo=drawDm;
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>
