@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D13 PEFT · LoRA Fine-tuning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.toggles{display:flex;flex-wrap:wrap;gap:6px 18px;margin:6px 0 12px}
+.toggles label{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;cursor:pointer}
+.toggles label small{display:block;color:var(--muted)}
+.outbox{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:.98rem;line-height:1.8;min-height:44px}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}
+.cmp>div{background:var(--soft);border-radius:12px;padding:10px 12px;border-top:4px solid var(--c)}
+.cmp h4{margin:0 0 6px;font-size:.95rem}
+.cmp p{margin:0;font-size:.92rem;line-height:1.6}
+.hit{background:color-mix(in srgb,var(--ok) 25%,var(--panel));border-radius:4px;padding:0 3px}
+.miss{background:color-mix(in srgb,var(--bad) 25%,var(--panel));border-radius:4px;padding:0 3px}
+.mtable{width:100%;border-collapse:collapse;font-size:.88rem}
+.mtable td,.mtable th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
+.mtable th{color:var(--muted);font-weight:600}
+.tblwrap{overflow-x:auto}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D13 PEFT · LoRA Fine-tuning</h1>
+  <p>LoRA 행렬, 도메인 데이터 설계, 프롬프트와 LoRA 비교, 붙일 위치와 파라미터 수, GPU 메모리, 학습률, 어댑터 갈아 끼우기, 양자화를 직접 움직여 보는 수업 자료입니다. 탭 번호 D13-1 ~ D13-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D13-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="lora"><span class="tc">D13-2</span>LoRA 행렬</button>
+  <button role="tab" aria-selected="false" data-t="domain"><span class="tc">D13-3</span>도메인 데이터</button>
+  <button role="tab" aria-selected="false" data-t="prompt"><span class="tc">D13-4</span>프롬프트 vs LoRA</button>
+  <button role="tab" aria-selected="false" data-t="targets"><span class="tc">D13-5</span>어디에 붙일까</button>
+  <button role="tab" aria-selected="false" data-t="memory"><span class="tc">D13-6</span>GPU 메모리</button>
+  <button role="tab" aria-selected="false" data-t="lr"><span class="tc">D13-7</span>LoRA 학습률</button>
+  <button role="tab" aria-selected="false" data-t="adapters"><span class="tc">D13-8</span>어댑터 갈아 끼우기</button>
+  <button role="tab" aria-selected="false" data-t="quant"><span class="tc">D13-9</span>양자화</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D13-1</span>오늘 할 것: 원래 모델은 두고, 작은 덧붙임으로 용어 가르치기</h2>
+  <p class="lead">단계를 눌러 무엇을 하는지 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="lora">
+  <h2><span class="hc">D13-2</span>LoRA 행렬 놀이터</h2>
+  <p class="lead">r을 바꾸면 B(세로) · A(가로) 막대의 폭과 학습 파라미터 수가 바뀝니다. "학습 한 번"을 누르면 B가 0에서 조금씩 자라며 ΔW = B·A가 생깁니다.</p>
+  <div class="stage">
+    <label class="sl"><span>rank r</span><input type="range" id="loR" min="1" max="128" step="1" value="32"><output id="loRO"></output></label>
+    <label class="sl"><span>d (행렬 크기)</span><input type="range" id="loD" min="256" max="1280" step="128" value="768"><output id="loDO"></output></label>
+    <div class="row"><button class="btn primary" id="loStep">▶ 학습 한 번</button><button class="btn" id="loReset">B = 0으로</button></div>
+    <canvas id="loCv" height="260"></canvas>
+    <div class="kv" id="loKv"></div>
+    <div class="fx" id="loFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="domain">
+  <h2><span class="hc">D13-3</span>도메인 데이터 설계</h2>
+  <p class="lead">도메인과 나누는 방식을 바꿔 보세요. 시험 문장이 학습 문장과 겹치면(누수) 점수가 부풀려집니다. 증강 · replay를 켜고 끄면 데이터 수와 위험이 바뀝니다.</p>
+  <div class="stage">
+    <div class="row" id="dmDom"></div>
+    <div class="row" id="dmSplit"></div>
+    <div class="toggles">
+      <label><input type="checkbox" id="dmAug" checked><span>증강 (속도 · 잡음)<small>학습 문장마다 1개 추가</small></span></label>
+      <label><input type="checkbox" id="dmRep" checked><span>replay (일반 문장 200개)<small>원래 실력 지키기</small></span></label>
+    </div>
+    <div class="tblwrap"><table class="mtable" id="dmTab"></table></div>
+    <div class="kv" id="dmKv"></div>
+    <div class="fx" id="dmFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="prompt">
+  <h2><span class="hc">D13-4</span>프롬프트 vs LoRA</h2>
+  <p class="lead">시험 문장을 고르면 네 방법의 받아쓰기 예시가 나옵니다(설명용 예). 초록 = 용어 맞음, 빨강 = 틀림. 프롬프트 길이(용어 수)를 늘리면 무슨 일이 생기는지 보세요.</p>
+  <div class="stage">
+    <div class="row" id="prEx"></div>
+    <label class="sl"><span>프롬프트에 넣는 용어 수</span><input type="range" id="prN" min="0" max="200" step="10" value="20"><output id="prNO"></output></label>
+    <div class="cmp" id="prOut"></div>
+    <div class="kv" id="prKv"></div>
+    <div class="fx" id="prFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="targets">
+  <h2><span class="hc">D13-5</span>어디에 붙일까: target_modules</h2>
+  <p class="lead">LoRA를 붙일 모듈을 고르세요. 모델 크기와 r에 따라 학습 파라미터 수 · 어댑터 파일 크기가 계산됩니다. (Whisper 구조로 계산한 값)</p>
+  <div class="stage">
+    <div class="row" id="tgSize"></div>
+    <div class="toggles" id="tgMods"></div>
+    <label class="sl"><span>rank r</span><input type="range" id="tgR" min="4" max="128" step="4" value="32"><output id="tgRO"></output></label>
+    <canvas id="tgCv" height="150"></canvas>
+    <div class="kv" id="tgKv"></div>
+    <div class="fx" id="tgFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="memory">
+  <h2><span class="hc">D13-6</span>GPU 메모리: Full · LoRA · 8-bit + LoRA</h2>
+  <p class="lead">모델과 batch를 바꿔 세 방식의 메모리를 비교하세요. T4(15 GB) 선을 넘으면 학습할 수 없습니다. (설명용 근사)</p>
+  <div class="stage">
+    <div class="row" id="mmSize"></div>
+    <label class="sl"><span>batch</span><input type="range" id="mmB" min="1" max="32" step="1" value="16"><output id="mmBO"></output></label>
+    <div class="toggles"><label><input type="checkbox" id="mmCk"><span>gradient_checkpointing<small>activation 크게 절약</small></span></label></div>
+    <canvas id="mmCv" height="220"></canvas>
+    <div class="fx" id="mmFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="lr">
+  <h2><span class="hc">D13-7</span>학습률: Full과 LoRA는 다르다</h2>
+  <p class="lead">방식을 고르고 학습률을 바꿔 보세요. 같은 1e-3이라도 Full에는 너무 크고 LoRA에는 알맞습니다. (설명용 모형)</p>
+  <div class="stage">
+    <div class="row" id="lrMode"></div>
+    <label class="sl"><span>learning_rate</span><input type="range" id="lrP" min="-6" max="-2" step="0.25" value="-3"><output id="lrPO"></output></label>
+    <canvas id="lrCv" height="240"></canvas>
+    <div class="kv" id="lrKv"></div>
+    <div class="fx" id="lrFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="adapters">
+  <h2><span class="hc">D13-8</span>어댑터 갈아 끼우기</h2>
+  <p class="lead">원래 모델에 끼울 어댑터와 받아쓸 문장 분야를 고르세요. 맞는 어댑터를 끼우면 용어를 잘 맞히고, 다른 분야 어댑터는 도움이 안 됩니다. "병합"을 누르면 어댑터를 W에 합칩니다. (설명용 예)</p>
+  <div class="stage">
+    <div class="row" id="adOn"></div>
+    <div class="row" id="adSent"></div>
+    <div class="row"><button class="btn" id="adMerge">merge_and_unload()</button><button class="btn" id="adUnmerge">처음으로</button></div>
+    <canvas id="adCv" height="180"></canvas>
+    <div class="outbox" id="adOut"></div>
+    <div class="fx" id="adFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="quant">
+  <h2><span class="hc">D13-9</span>양자화와 가중치 메모리</h2>
+  <p class="lead">비트 수와 모델을 바꾸면 가중치 메모리와 숫자의 정밀도(표현할 수 있는 칸 수)가 바뀝니다.</p>
+  <div class="stage">
+    <div class="row" id="qtSize"></div>
+    <div class="row" id="qtBits"></div>
+    <canvas id="qtCv" height="220"></canvas>
+    <div class="kv" id="qtKv"></div>
+    <div class="fx" id="qtFx"></div>
+  </div>
+</section>
+
+<footer class="note" style="margin:30px 0 10px">음성 AI 전문가 과정 · Day 13 · 그림의 숫자는 설명용 예시입니다. 실제 값은 노트북에서 직접 잽니다.</footer>
+</div>
+
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function rr(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function axes(c,x0,y0,x1,y1){c.strokeStyle=css('--line');c.lineWidth=1;c.beginPath();c.moveTo(x0,y0);c.lineTo(x0,y1);c.lineTo(x1,y1);c.stroke();}
+const fmt=n=>n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n);
+
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.01;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const n=Math.floor(w/10);
+  for(let i=0;i<n;i++){const on=(i*7+Math.floor(heroT*20))%41<3;c.fillStyle=on?css('--asr'):css('--line');c.globalAlpha=on?1:0.6;c.fillRect(i*10,6,7,h-12);}c.globalAlpha=1;
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'LoRA 원리',c:'--net',go:'lora',items:['W는 얼리고 B · A만 학습','출력 = W·x + (α/r)·B·A·x','B = 0 시작 → 처음엔 원래 모델 그대로'],q:'🧩 빈칸 1, 2: d_out, zeros',more:[['memory','GPU 메모리']]},
+ {p:'Part 2',t:'도메인 데이터',c:'--asr',go:'domain',items:['용어 20 × 문장 틀 10 → gTTS','시험 = 처음 보는 문장 틀 3개','증강 + Zeroth replay 200'],q:'(빈칸 없음) ⚠️ gTTS 목소리 한계'},
+ {p:'Part 3',t:'기준선',c:'--llm',go:'prompt',items:['CER + 용어 정확도','원래 모델 vs 프롬프트(get_prompt_ids)','일반 문장 CER도 함께'],q:'🧩 빈칸 3, 4: preds, PROMPT'},
+ {p:'Part 4',t:'LoRA 붙이기',c:'--s2s',go:'targets',items:['LoraConfig(r=32, alpha=64, q_proj · v_proj)','get_peft_model → print_trainable_parameters','whisper-small 약 354만 개 (1.4%)'],q:'🧩 빈칸 5, 6: "v_proj", get_peft_model'},
+ {p:'Part 5',t:'LoRA 학습',c:'--tts',go:'lr',items:['D12 Collator · Trainer 그대로','lr 1e-3 · label_names=["labels"]','T4 약 5~10분'],q:'🧩 빈칸 7: 1e-3'},
+ {p:'Part 6',t:'4자 비교',c:'--bad',go:'prompt',items:['원래 · 프롬프트 · LoRA · LoRA + 프롬프트','일반 CER로 원래 실력 확인','disable_adapter()로 잠깐 끄기'],q:'(빈칸 없음) ❓ 처음 보는 용어는?'},
+ {p:'Part 7',t:'어댑터',c:'--ok',go:'adapters',items:['save_pretrained → 약 14 MB','PeftModel.from_pretrained → merge_and_unload','load_adapter · set_adapter로 갈아 끼우기'],q:'🧩 빈칸 8, 9: save_pretrained, merge_and_unload',more:[['quant','양자화 (Part 8)']]}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== lora ===== */
+let loT=0;['loR','loD'].forEach(id=>$(id).oninput=drawLo);$('loStep').onclick=()=>{loT=Math.min(loT+1,8);drawLo();};$('loReset').onclick=()=>{loT=0;drawLo();};
+function drawLo(){const r=+$('loR').value,d=+$('loD').value;$('loRO').textContent=r;$('loDO').textContent=d;
+  const {c,w,h}=fit($('loCv'),260);c.clearRect(0,0,w,h);const S=190/d*d/1;const sz=190;
+  // W
+  c.fillStyle=css('--soft');c.fillRect(20,30,sz,sz);c.strokeStyle=css('--muted');c.strokeRect(20,30,sz,sz);c.fillStyle=css('--ink');c.font='600 13px '+FONT;c.fillText(`W  ${d}×${d}  (고정)`,20,22);
+  c.fillStyle=css('--ink');c.font='26px '+FONT;c.fillText('+',sz+34,30+sz/2+8);
+  const bw=Math.max(3,sz*r/d);const x0=sz+64;
+  // B
+  const g=Math.min(1,loT/6);c.fillStyle=css('--asr');c.globalAlpha=0.15+0.8*g;c.fillRect(x0,30,bw,sz);c.globalAlpha=1;c.strokeStyle=css('--asr');c.strokeRect(x0,30,bw,sz);
+  c.fillStyle=css('--asr');c.font='12px '+FONT;c.fillText(`B ${d}×${r}`,x0,22);if(loT===0){c.fillText('= 0',x0+bw+4,30+sz/2);}
+  c.fillStyle=css('--ink');c.font='20px '+FONT;c.fillText('×',x0+bw+28,30+sz/2+6);
+  const ax=x0+bw+52;c.fillStyle=css('--warn');c.globalAlpha=0.85;c.fillRect(ax,30+sz/2-bw/2,sz,bw);c.globalAlpha=1;c.fillStyle=css('--warn');c.fillText(`A ${r}×${d}`,ax,30+sz/2-bw/2-6);
+  // ΔW
+  const dx=ax+sz+30;if(dx+sz<w){c.fillStyle=css('--ink');c.font='20px '+FONT;c.fillText('=',dx-20,30+sz/2+6);
+    const rng=mulberry(r*7+3);const cells=24;for(let i=0;i<cells;i++)for(let j=0;j<cells;j++){let v=0;for(let k=0;k<Math.min(r,6);k++)v+=Math.sin((i+1)*(k+1)*0.37+k)*Math.cos((j+1)*(k+2)*0.29);v*=g;
+      c.fillStyle=v>0?css('--asr'):css('--bad');c.globalAlpha=Math.min(1,Math.abs(v)/3);c.fillRect(dx+i*sz/cells,30+j*sz/cells,sz/cells,sz/cells);}c.globalAlpha=1;c.strokeStyle=css('--line');c.strokeRect(dx,30,sz,sz);
+    c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(`ΔW = B·A (rank ≤ ${r})`,dx,22);}
+  const full=d*d,lo=r*2*d;
+  $('loKv').innerHTML=`<div><span>W 파라미터</span><b>${full.toLocaleString()}</b></div><div><span>LoRA (A + B)</span><b>${lo.toLocaleString()}</b></div><div><span>비율</span><b>${(100*lo/full).toFixed(1)}%</b></div><div><span>학습 횟수</span><b>${loT}</b></div>`;
+  $('loFx').innerHTML=`lora_params = r × (d_in + d_out) = ${r} × (${d} + ${d}) = ${lo.toLocaleString()}<br>${loT===0?'B = 0 → B·A = 0 → 지금은 원래 모델과 똑같습니다. "학습 한 번"을 눌러 보세요.':'B가 자라면서 ΔW가 생깁니다. ΔW는 r개 방향의 조합이라 "몇 가지 방향으로만 조금 바꾸기"입니다.'}${r>=d/2?'<br>⚠️ r이 d의 절반을 넘으면 W보다 파라미터가 많아집니다 → LoRA를 쓰는 의미가 없음':''}`;}
+REDRAW.lora=drawLo;
+
+/* ===== domain ===== */
+const DT={'의료':['심방세동','트로포닌','와파린','메트포르민'],'법률':['소멸시효','가압류','근저당권','집행유예'],'산업':['서보모터','공압 실린더','용접 비드','예지 정비']};
+const TPL=['오늘 회의에서 {t} 문제를 다시 다뤘습니다','{t} 관련 자료를 정리해 주세요','보고서에 {t} 항목을 추가했습니다','{t} 경과를 내일 다시 보겠습니다','고객에게 {t} 설명을 드렸습니다'];
+let dmD='의료',dmS='tpl';chipRow($('dmDom'),'data-dd',Object.keys(DT).map(k=>[k,k]),'의료','--asr',v=>{dmD=v;drawDm();});
+chipRow($('dmSplit'),'data-ds',[['tpl','문장 틀 단위 (오늘)'],['rand','문장 무작위'],['term','용어 단위']],'tpl','--llm',v=>{dmS=v;drawDm();});
+['dmAug','dmRep'].forEach(id=>$(id).onchange=drawDm);
+function drawDm(){const terms=DT[dmD];const rows=[];TPL.forEach((t,ti)=>terms.forEach((term,k)=>{let test=dmS==='tpl'?ti>=3:dmS==='term'?k===3:((ti*7+k*3)%5===0);rows.push({s:t.replace('{t}',term),term,ti,test});}));
+  const trainS=new Set(rows.filter(r=>!r.test).map(r=>r.s)),trainT=new Set(rows.filter(r=>!r.test).map(r=>r.ti)),trainTerm=new Set(rows.filter(r=>!r.test).map(r=>r.term));
+  $('dmTab').innerHTML='<tr><th>문장</th><th>용어</th><th>틀</th><th>쓰임</th></tr>'+rows.slice(0,20).map(r=>`<tr><td>${esc(r.s)}</td><td>${esc(r.term)}</td><td>${r.ti+1}</td><td style="color:${r.test?css('--bad'):css('--ok')}">${r.test?'시험':'학습'}${r.test&&trainT.has(r.ti)?' (틀 겹침)':''}${r.test&&!trainTerm.has(r.term)?' (처음 보는 용어)':''}</td></tr>`).join('');
+  const nTr=rows.filter(r=>!r.test).length*(($('dmAug').checked)?2:1)*10/4*5/5,nTe=rows.filter(r=>r.test).length*5;
+  const nTrain=rows.filter(r=>!r.test).length*5*($('dmAug').checked?2:1)+($('dmRep').checked?200:0);
+  $('dmKv').innerHTML=`<div><span>학습 (실제 규모 환산)</span><b>${nTrain}</b></div><div><span>시험</span><b>${nTe}</b></div><div><span>시험이 재는 것</span><b>${dmS==='tpl'?'용어 익힘':dmS==='rand'?'외운 문장도 섞임':'새 용어 일반화'}</b></div><div><span>원래 실력 위험</span><b style="color:${$('dmRep').checked?css('--ok'):css('--bad')}">${$('dmRep').checked?'낮음':'높음'}</b></div>`;
+  $('dmFx').innerHTML=`${dmS==='tpl'?'✅ 문장 틀 단위: 시험 문장은 처음 보는 틀 → 문장을 외워서는 못 맞히고, 용어를 익혀야 맞힘 (오늘 방식)':dmS==='rand'?'⚠️ 문장 무작위: 같은 틀 · 같은 용어가 학습과 시험에 모두 있어 "거의 같은 문장"을 외워 맞힐 수 있음 → 점수가 부풀려짐 (D11 데이터 누수와 같은 이야기)':'용어 단위: 시험 용어는 학습에 없음 → LoRA가 처음 보는 용어를 맞히는지 재는 어려운 시험 (대체로 잘 못함)'}<br>${$('dmAug').checked?'증강: 같은 문장을 속도 · 잡음만 바꿔 한 번 더 → 한 목소리 · 한 속도에만 맞춰지는 것을 줄임':'증강 없음: 데이터가 적고 gTTS 목소리에만 맞춰지기 쉬움'}<br>${$('dmRep').checked?'replay: 일반 문장을 섞어 "용어만 배우다 원래 실력을 잊는 것"을 막음':'⚠️ replay 없음: 도메인 문장만 학습 → 일반 문장 실력이 떨어질 수 있음'}`;}
+REDRAW.domain=drawDm;
+
+/* ===== prompt ===== */
+const PX=[{ref:'환자에게 와파린 설명을 드렸습니다',term:'와파린',base:'환자에게 와 파리 설명을 드렸습니다',pr:'환자에게 와파린 설명을 드렸습니다',lo:'환자에게 와파린 설명을 드렸습니다',both:'환자에게 와파린 설명을 드렸습니다'},
+ {ref:'트로포닌 경과를 내일 다시 보겠습니다',term:'트로포닌',base:'트로포 닌 경과를 내일 다시 보겠습니다',pr:'트로포닌 경과를 내일 다시 보겠습니다',lo:'트로포닌 경과를 내일 다시 보겠습니다',both:'트로포닌 경과를 내일 다시 보겠습니다'},
+ {ref:'기록지에 프레드니솔론 항목을 표시해 주세요',term:'프레드니솔론',base:'기록지에 프레드니 솔로 항목을 표시해 주세요',pr:'기록지에 프레드니솔론 항목을 표시해 주세요',lo:'기록지에 프레드니솔론 항목을 표시해 주세요',both:'기록지에 프레드니솔론 항목을 표시해 주세요'},
+ {ref:'고객에게 혈소판감소증 설명을 드렸습니다',term:'혈소판감소증',base:'고객에게 혈소판 감수증 설명을 드렸습니다',pr:'고객에게 혈소판 감수증 설명을 드렸습니다',lo:'고객에게 혈소판감소증 설명을 드렸습니다',both:'고객에게 혈소판감소증 설명을 드렸습니다'},
+ {ref:'오늘 날씨가 맑아서 산책하기 좋습니다',term:null,base:'오늘 날씨가 맑아서 산책하기 좋습니다',pr:'오늘 날씨가 맑아서 산책하기 좋습니다 와파린',lo:'오늘 날씨가 맑아서 산책하기 좋습니다',both:'오늘 날씨가 맑아서 산책하기 좋습니다'}];
+let prI=0;chipRow($('prEx'),'data-pe',PX.map((x,i)=>[String(i),i===4?'일반 문장':'예'+(i+1)]),'0','--net',v=>{prI=+v;drawPr();});$('prN').oninput=drawPr;
+const nz=s=>s.replace(/\s+/g,'');
+function mark(s,term){if(!term)return esc(s);const ok=nz(s).includes(nz(term));return ok?esc(s).replace(new RegExp(term.split('').join('\\s*')),m=>`<span class="hit">${m}</span>`):`${esc(s)} <span class="miss">✕ ${esc(term)}</span>`;}
+function drawPr(){const x=PX[prI],n=+$('prN').value;$('prNO').textContent=n+'개';const tok=Math.round(n*6.5);const over=tok>224;
+  let pr=x.pr,both=x.both;if(n===0){pr=x.base;both=x.lo;}if(over){pr=x.base+' (프롬프트 잘림)';}
+  const items=[['① 원래 모델','--muted',x.base],['② + 프롬프트','--warn',pr],['③ LoRA','--asr',x.lo],['④ LoRA + 프롬프트','--ok',over?x.lo:both]];
+  $('prOut').innerHTML=`<div style="--c:var(--line)"><h4>정답</h4><p>${esc(x.ref)}</p></div>`+items.map(([n0,col,s])=>`<div style="--c:var(${col})"><h4>${n0}</h4><p>${mark(s,x.term)}</p></div>`).join('');
+  $('prKv').innerHTML=`<div><span>프롬프트 토큰 (대략)</span><b style="color:${over?css('--bad'):css('--ink')}">${tok} / 224</b></div><div><span>학습 필요</span><b>② 없음 · ③ 있음</b></div>`;
+  $('prFx').innerHTML=`${x.term?`용어 '${esc(x.term)}': `+(nz(x.base).includes(nz(x.term))?'원래 모델도 맞힘':'원래 모델은 띄어쓰기 · 비슷한 소리로 틀림'):'일반 문장: 프롬프트의 용어를 엉뚱하게 끼워 넣는 부작용이 생길 수 있음 → 일반 CER도 꼭 확인'}<br>${over?'⚠️ 프롬프트가 약 224 토큰을 넘으면 앞부분이 잘려 힌트가 사라집니다 → 용어가 수백 개면 프롬프트만으로는 부족 → LoRA':'프롬프트는 학습 없이 바로 쓸 수 있는 가장 싼 방법입니다.'}<br>예4(혈소판감소증): 소리가 '감수증'처럼 들리면 힌트만으로는 못 고치지만, LoRA는 그 소리와 용어의 연결을 학습했습니다.`;}
+REDRAW.prompt=drawPr;
+
+/* ===== targets ===== */
+const ARCH={tiny:{d:384,L:4,P:39},base:{d:512,L:6,P:74},small:{d:768,L:12,P:244},medium:{d:1024,L:24,P:769},'large-v3':{d:1280,L:32,P:1550}};
+const MODS=[['q_proj',true],['k_proj',false],['v_proj',true],['out_proj',false],['fc1',false],['fc2',false]];
+let tgS='small';chipRow($('tgSize'),'data-ts',Object.keys(ARCH).map(k=>[k,'whisper-'+k]),'small','--asr',v=>{tgS=v;drawTg();});
+$('tgMods').innerHTML=MODS.map(([m,on])=>`<label><input type="checkbox" data-tm="${m}" ${on?'checked':''}><span>${m}</span></label>`).join('');
+$('tgMods').querySelectorAll('[data-tm]').forEach(b=>b.onchange=drawTg);$('tgR').oninput=drawTg;
+function drawTg(){const a=ARCH[tgS],r=+$('tgR').value;$('tgRO').textContent=r;const sel=[...$('tgMods').querySelectorAll('[data-tm]')].filter(b=>b.checked).map(b=>b.dataset.tm);
+  // 행렬 개수: attn 모듈은 enc L(self) + dec 2L(self, cross), fc는 enc L + dec L. fc1: d→4d, fc2: 4d→d
+  let T=0;sel.forEach(m=>{if(['q_proj','k_proj','v_proj','out_proj'].includes(m))T+=3*a.L*r*(a.d+a.d);else T+=2*a.L*r*(a.d+4*a.d);});
+  const pct=100*T/(a.P*1e6);const mb=T*4/1024/1024;
+  const {c,w,h}=fit($('tgCv'),150);c.clearRect(0,0,w,h);const X=v=>30+(w-60)*Math.min(1,v/100);
+  c.fillStyle=css('--soft');rr(c,30,40,w-60,36,8);c.fill();c.fillStyle=css('--asr');rr(c,30,40,Math.max(4,X(pct*10)-30),36,8);c.fill();
+  c.fillStyle=css('--ink');c.font='600 13px '+FONT;c.fillText(`학습 비율 ${pct.toFixed(2)}%  (막대는 10배 확대: 끝 = 10%)`,30,30);
+  c.fillStyle=css('--muted');c.font='12px '+FONT;c.fillText(`전체 ${a.P}M 중 ${fmt(T)} 학습 · 어댑터 파일 약 ${mb.toFixed(1)} MB`,30,100);
+  $('tgKv').innerHTML=`<div><span>학습 파라미터</span><b>${fmt(T)}</b></div><div><span>비율</span><b>${pct.toFixed(2)}%</b></div><div><span>어댑터 크기 (fp32)</span><b>${mb.toFixed(1)} MB</b></div><div><span>선택 모듈</span><b>${sel.length}</b></div>`;
+  $('tgFx').innerHTML=`LoraConfig(r=${r}, target_modules=${JSON.stringify(sel)})<br>${sel.length===0?'⚠️ 아무 모듈도 고르지 않으면 학습할 것이 없습니다.':sel.join()==='q_proj,v_proj'?'✅ q · v: Whisper LoRA의 흔한 시작점 (오늘 노트북). whisper-small r=32 → 약 3.54M (1.4%), 어댑터 약 14 MB':sel.includes('fc1')||sel.includes('fc2')?'fc1 · fc2(피드포워드)까지 붙이면 파라미터가 크게 늘어 표현력이 커지지만 Full에 가까워집니다.':'모듈을 늘리면 표현력 ↑ · 파라미터 ↑. 데이터가 적으면 q · v로 충분한 경우가 많습니다.'}<br>계산: attention 모듈마다 Encoder ${a.L}층(self) + Decoder ${a.L}층 × 2(self · cross) = ${3*a.L}개 행렬 × r × (${a.d} + ${a.d})`;}
+REDRAW.targets=drawTg;
+
+/* ===== memory ===== */
+const MM={small:{P:244,act:0.85,T:3.54},medium:{P:769,act:1.6,T:9.44},'large-v3':{P:1550,act:2.8,T:15.7}};
+let mmS='small';chipRow($('mmSize'),'data-mm',Object.keys(MM).map(k=>[k,'whisper-'+k]),'small','--asr',v=>{mmS=v;drawMm();});$('mmB').oninput=drawMm;$('mmCk').onchange=drawMm;
+function drawMm(){const m=MM[mmS],B=+$('mmB').value,ck=$('mmCk').checked;$('mmBO').textContent=B;const act=m.act*B*0.6*(ck?0.3:1);
+  const rows=[['Full',m.P*4/1000,m.P*12/1000,act],['LoRA',m.P*4/1000,m.T*12/1000,act],['8-bit + LoRA',m.P*1/1000,m.T*12/1000,act*0.95]];
+  const {c,w,h}=fit($('mmCv'),220);c.clearRect(0,0,w,h);const mx=Math.max(26,...rows.map(r=>r[1]+r[2]+r[3]+0.4))*1.05;const X=v=>120+(w-160)*v/mx;
+  rows.forEach(([n,wt,op,a],i)=>{const y=30+i*55;c.fillStyle=css('--ink');c.font='600 13px '+FONT;c.fillText(n,10,y+24);let x=0;
+    [[wt,'--asr','가중치'],[op,'--s2s','기울기+Adam'],[a,'--tts','activation'],[0.4,'--line','기타']].forEach(([v,col,lab])=>{c.fillStyle=css(col);c.fillRect(X(x),y,X(x+v)-X(x),36);if(X(x+v)-X(x)>70){c.fillStyle='#fff';c.font='11px '+FONT;c.fillText(lab,X(x)+4,y+22);}x+=v;});
+    const tot=x;c.fillStyle=tot>15?css('--bad'):css('--ok');c.font='600 12px '+FONT;c.fillText(`${tot.toFixed(1)} GB ${tot>15?'✕':'○'}`,X(tot)+6,y+23);});
+  c.strokeStyle=css('--bad');c.setLineDash([5,4]);c.beginPath();c.moveTo(X(15),16);c.lineTo(X(15),h-10);c.stroke();c.setLineDash([]);c.fillStyle=css('--bad');c.font='11px '+FONT;c.fillText('T4 15GB',X(15)-20,12);
+  $('mmFx').innerHTML=`whisper-${mmS} · batch ${B}${ck?' · gradient_checkpointing':''}<br>LoRA는 기울기 + Adam 칸(보라)을 거의 없애고, 8-bit는 가중치 칸(초록)을 1/4로 줄입니다. activation(분홍)은 둘 다 그대로 → batch를 줄이거나 gradient_checkpointing.<br>${rows.map(r=>r[0]+' '+((r[1]+r[2]+r[3]+0.4)>15?'✕':'○')).join(' · ')} — ${rows[1][1]+rows[1][2]+rows[1][3]+0.4>15?'LoRA도 넘칩니다 → batch를 줄이거나 gradient_checkpointing을 켜 보세요.':'LoRA는 T4에 들어갑니다.'}`;}
+REDRAW.memory=drawMm;
+
+/* ===== lr ===== */
+let lrM='lora';chipRow($('lrMode'),'data-lm',[['lora','LoRA'],['full','Full Fine-tuning']],'lora','--asr',v=>{lrM=v;drawLr();});$('lrP').oninput=drawLr;
+function drawLr(){const lg=+$('lrP').value,lr=Math.pow(10,lg);$('lrPO').textContent=lr.toExponential(0);const best=lrM==='lora'?-3:-5;const dist=lg-best;
+  const rng=mulberry(Math.round(lg*100)+(lrM==='lora'?1:2));const N=200;const L=[],G=[];let l=0.75;
+  for(let s=0;s<=N;s++){const sp=dist<0?0.02*Math.pow(10,dist*1.2):0.02;l+=(0.25-l)*sp;let shake=dist>0.4?(dist-0.3)*0.25:0;if(dist>0.9)l+=0.003*(dist-0.9)*3;L.push(Math.max(0.05,l+(rng()-0.5)*(0.02+shake)));
+    G.push(8+Math.max(0,dist+0.2)*(lrM==='full'?7:2)*s/N+(rng()-0.5)*0.3);}
+  const {c,w,h}=fit($('lrCv'),240);c.clearRect(0,0,w,h);axes(c,40,10,w-10,h-24);const X=s=>40+(w-50)*s/N;const ym=1.1;
+  c.strokeStyle=css('--llm');c.lineWidth=1.8;c.beginPath();L.forEach((v,s)=>{const y=h-24-(h-34)*Math.min(v,ym)/ym;s?c.lineTo(X(s),y):c.moveTo(X(s),y);});c.stroke();
+  c.strokeStyle=css('--bad');c.setLineDash([5,4]);c.beginPath();G.forEach((v,s)=>{const y=h-24-(h-34)*Math.min(v,30)/30;s?c.lineTo(X(s),y):c.moveTo(X(s),y);});c.stroke();c.setLineDash([]);
+  c.font='11px '+FONT;c.fillStyle=css('--llm');c.fillText('도메인 eval loss',46,22);c.fillStyle=css('--bad');c.fillText('일반 CER (점선)',160,22);
+  const verdict=Math.abs(dist)<0.6?'적당':dist>0?'너무 큼':'너무 작음';
+  $('lrKv').innerHTML=`<div><span>방식</span><b>${lrM==='lora'?'LoRA':'Full'}</b></div><div><span>권장</span><b>${lrM==='lora'?'1e-3 근처':'1e-5 근처'}</b></div><div><span>판정</span><b style="color:${verdict==='적당'?css('--ok'):css('--bad')}">${verdict}</b></div>`;
+  $('lrFx').innerHTML=`${lrM==='lora'?'LoRA: B는 0에서 시작하는 작은 행렬 → 크게 키워야 하므로 1e-3 안팎. 1e-5면 거의 자라지 않습니다.':'Full: 이미 잘 학습된 2.4억 개를 직접 고침 → 1e-5 안팎. 1e-3이면 원래 실력이 무너집니다(일반 CER 급상승).'}<br>${verdict!=='적당'?(dist>0?'⚠️ 너무 큼: loss가 흔들리고 원래 실력이 떨어집니다.':'너무 작음: 200 step 동안 거의 변하지 않습니다.'):'✅ 이 정도면 도메인 loss는 내려가고 원래 실력은 유지됩니다.'}`;}
+REDRAW.lr=drawLr;
+
+/* ===== adapters ===== */
+const AS={'의료':{s:'환자는 심방세동 때문에 와파린을 복용 중입니다',terms:['심방세동','와파린'],wrong:'환자는 심방 세 동 때문에 와 파리를 복용 중입니다'},
+ '법률':{s:'근저당권 설정 후 가압류 신청이 들어왔습니다',terms:['근저당권','가압류'],wrong:'근저당 권 설정 후 가 압류 신청이 들어왔습니다'},
+ '산업':{s:'서보모터 과열로 공압 실린더가 멈췄습니다',terms:['서보모터','공압 실린더'],wrong:'서보 모터 과열로 공 압 실린다가 멈췄습니다'}};
+let adOn='none',adS='의료',adMerged=false;
+chipRow($('adOn'),'data-ao',[['none','어댑터 없음'],['의료','의료 어댑터'],['법률','법률 어댑터'],['산업','산업 어댑터']],'none','--asr',v=>{if(adMerged)return;adOn=v;drawAd();});
+chipRow($('adSent'),'data-as',Object.keys(AS).map(k=>[k,k+' 문장']),'의료','--llm',v=>{adS=v;drawAd();});
+$('adMerge').onclick=()=>{if(adOn!=='none'){adMerged=true;drawAd();}};$('adUnmerge').onclick=()=>{adMerged=false;adOn='none';$('adOn').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ao==='none'));drawAd();};
+function drawAd(){const {c,w,h}=fit($('adCv'),180);c.clearRect(0,0,w,h);
+  const bx=30,bw=Math.min(260,w*0.35);c.fillStyle=adMerged?css('--asr'):css('--soft');c.globalAlpha=adMerged?0.3:1;rr(c,bx,40,bw,100,12);c.fill();c.globalAlpha=1;c.strokeStyle=css('--muted');c.stroke();
+  c.fillStyle=css('--ink');c.font='600 13px '+FONT;c.fillText(adMerged?`whisper-small + ${adOn} (병합됨)`:'whisper-small (원래, 고정)',bx+12,94);
+  const names=['의료','법률','산업'],cols={'의료':'--tts','법률':'--s2s','산업':'--warn'};
+  names.forEach((n,i)=>{const x=bx+bw+60+i*((w-bx-bw-80)/3);const on=adOn===n;const y=on&&!adMerged?50:20+i*0;const yy=on?(adMerged?-100:56):110;
+    if(adMerged&&on)return;c.fillStyle=css(cols[n]);c.globalAlpha=on?1:0.35;rr(c,x,yy,90,44,8);c.fill();c.globalAlpha=1;c.fillStyle='#fff';c.font='600 12px '+FONT;c.fillText(n+' 14MB',x+12,yy+27);
+    if(on){c.strokeStyle=css(cols[n]);c.lineWidth=2;c.beginPath();c.moveTo(x,yy+22);c.lineTo(bx+bw,90);c.stroke();}});
+  const a=AS[adS];const match=adOn===adS;const out=match?a.s:a.wrong;
+  $('adOut').innerHTML=`정답: ${esc(a.s)}<br>결과: ${match?`<span class="hit">${esc(out)}</span>`:`<span class="${adOn==='none'?'':'miss'}">${esc(out)}</span>`}`;
+  $('adFx').innerHTML=`${adMerged?`merged = lora_model.merge_and_unload() → W ← W + (α/r)·B·A, 보통 WhisperForConditionalGeneration (속도 손해 없음, 대신 갈아 끼우기 불가)`:adOn==='none'?'PeftModel.from_pretrained(base, "lora-medical") 로 어댑터를 붙여 보세요.':`model.set_adapter("${adOn}")`}<br>${match?'✅ 같은 분야 어댑터 → 용어를 맞힘':adOn==='none'?'원래 모델: 전문 용어를 비슷한 소리 · 띄어쓰기로 틀리기 쉬움':'다른 분야 어댑터 → 이 문장의 용어는 배운 적이 없어 도움이 안 됨'}`;}
+REDRAW.adapters=drawAd;
+
+/* ===== quant ===== */
+let qtS='small',qtB='32';
+chipRow($('qtSize'),'data-qs',[['small','whisper-small 244M'],['medium','whisper-medium 769M'],['large','whisper-large-v3 1550M']],'small','--asr',v=>{qtS=v;drawQt();});
+chipRow($('qtBits'),'data-qb',[['32','fp32'],['16','fp16'],['8','int8'],['4','int4']],'32','--llm',v=>{qtB=v;drawQt();});
+function drawQt(){const P={small:244,medium:769,large:1550}[qtS],b=+qtB;const gb=P*b/8/1000;
+  const {c,w,h}=fit($('qtCv'),220);c.clearRect(0,0,w,h);
+  // 숫자 눈금: 한 가중치 값 분포를 2^b 칸으로 나누기
+  const L=Math.min(2**b,64),x0=30,x1=w-30,y=110;c.strokeStyle=css('--line');c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.stroke();
+  for(let i=0;i<=L;i++){const x=x0+(x1-x0)*i/L;c.strokeStyle=css('--asr');c.beginPath();c.moveTo(x,y-10);c.lineTo(x,y+10);c.stroke();}
+  c.fillStyle=css('--muted');c.font='12px '+FONT;c.fillText(`-1 … +1 사이를 ${b>=16?'아주 촘촘히 (그림은 64칸까지만)':2**b+'칸'}으로 나눠 저장`,x0,y-24);
+  const vals=[0.137,-0.42,0.81];vals.forEach((v,i)=>{const q=b>=16?v:Math.round((v+1)/2*(2**b-1))/(2**b-1)*2-1;const xv=x0+(x1-x0)*(v+1)/2,xq=x0+(x1-x0)*(q+1)/2;
+    c.fillStyle=css('--bad');c.beginPath();c.arc(xv,y+30+i*16,4,0,7);c.fill();c.fillStyle=css('--ok');c.beginPath();c.arc(xq,y+30+i*16,4,0,7);c.fill();
+    c.fillStyle=css('--muted');c.fillText(`${v} → ${q.toFixed(3)}`,Math.min(xv,xq)+10,y+34+i*16);});
+  $('qtKv').innerHTML=`<div><span>숫자 하나</span><b>${b/8} 바이트</b></div><div><span>가중치 메모리</span><b>${gb.toFixed(2)} GB</b></div><div><span>fp32 대비</span><b>${(100*b/32).toFixed(0)}%</b></div>`;
+  $('qtFx').innerHTML=`가중치 메모리 = 파라미터 ${P}M × ${b/8} 바이트 = ${gb.toFixed(2)} GB (D8 복습)<br>${b>=16?'fp16: 학습 · 추론에 흔히 씀 (오늘 fp16=True 혼합 정밀도)':b===8?'int8: 얼린 W를 8-bit로 → 메모리 1/4. LoRA(B · A)는 정밀하게 두고 학습 = 8-bit LoRA':'int4: 메모리 1/8, 오차가 커짐 → QLoRA는 4-bit W + LoRA로 큰 모델을 작은 GPU에서 학습'}<br>빨강 = 원래 값, 초록 = 저장된 값. 칸이 적을수록 반올림 오차가 커집니다.`;}
+REDRAW.quant=drawQt;
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>
