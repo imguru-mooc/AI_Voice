@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D15 미니 프로젝트 · 도메인 특화 ASR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.toggles{display:flex;flex-wrap:wrap;gap:6px 18px;margin:6px 0 12px}
+.toggles label{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;cursor:pointer}
+.toggles label small{display:block;color:var(--muted)}
+.outbox{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:.95rem;line-height:1.7;min-height:44px}
+.mtable{width:100%;border-collapse:collapse;font-size:.88rem}
+.mtable td,.mtable th{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:middle}
+.mtable th{color:var(--muted);font-weight:600}
+.mtable input{font:inherit;width:80px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.tblwrap{overflow-x:auto}
+.formgrid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 14px;margin-bottom:10px}
+.formgrid2 label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:3px}
+.formgrid2 input,.formgrid2 select,.formgrid2 textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+.hit{background:color-mix(in srgb,var(--ok) 25%,var(--panel));border-radius:4px;padding:0 3px}
+.miss{background:color-mix(in srgb,var(--bad) 25%,var(--panel));border-radius:4px;padding:0 3px}
+.okc{color:var(--ok);font-weight:700}.badc{color:var(--bad);font-weight:700}.warnc{color:var(--warn);font-weight:700}
+.badge2{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.82rem;font-weight:700;margin:2px 4px 2px 0;background:var(--soft)}
+.badge2.ok{background:color-mix(in srgb,var(--ok) 22%,var(--panel));color:var(--ok)}
+.badge2.bad{background:color-mix(in srgb,var(--bad) 22%,var(--panel));color:var(--bad)}
+.exgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.exgrid>div{border-radius:12px;padding:12px 14px;background:var(--soft);border-top:4px solid var(--c);font-size:.93rem}
+.exgrid h4{margin:0 0 6px;color:var(--c)}
+@media (max-width:700px){.exgrid{grid-template-columns:1fr}}
+.checks label{display:flex;gap:8px;align-items:flex-start;margin:5px 0;font-size:.93rem;cursor:pointer}
+textarea{font:inherit;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D15 미니 프로젝트 · 도메인 특화 ASR</h1>
+  <p>요구 사항을 지표로 바꾸기, 데이터 설계와 누수 검사, 녹음 품질, 학습 곡선 진단, 목표 판정과 신뢰구간, 용어 사전 후처리, 리포트 점검, 발표 평가표를 직접 움직여 보는 수업 자료입니다. 탭 번호 D15-1 ~ D15-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D15-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="goals"><span class="tc">D15-2</span>요구 사항 → 지표</button>
+  <button role="tab" aria-selected="false" data-t="data"><span class="tc">D15-3</span>데이터 설계</button>
+  <button role="tab" aria-selected="false" data-t="record"><span class="tc">D15-4</span>녹음 품질</button>
+  <button role="tab" aria-selected="false" data-t="curves"><span class="tc">D15-5</span>학습 곡선 진단</button>
+  <button role="tab" aria-selected="false" data-t="ci"><span class="tc">D15-6</span>목표 · 신뢰구간</button>
+  <button role="tab" aria-selected="false" data-t="fix"><span class="tc">D15-7</span>용어 사전 후처리</button>
+  <button role="tab" aria-selected="false" data-t="report"><span class="tc">D15-8</span>리포트 점검</button>
+  <button role="tab" aria-selected="false" data-t="rubric"><span class="tc">D15-9</span>발표 평가표</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D15-1</span>오늘 할 것: 요구 사항에서 리포트까지</h2>
+  <p class="lead">단계를 눌러 할 일 · 빈칸 · 체크포인트 시각을 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="goals">
+  <h2><span class="hc">D15-2</span>요구 사항 → 지표 → 목표</h2>
+  <p class="lead">사용 장면을 고르면 중요한 요구 사항과 지표가 바뀝니다. 목표값을 고쳐 보고, 예시 결과가 달성인지 확인하세요. 아래에 노트북 `GOALS` 코드가 만들어집니다. (설명용 예시 숫자)</p>
+  <div class="stage">
+    <div class="row" id="glScen"></div>
+    <div class="tblwrap"><table class="mtable" id="glTab"></table></div>
+    <div class="fx" id="glFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="data">
+  <h2><span class="hc">D15-3</span>데이터 설계 · 누수 검사</h2>
+  <p class="lead">용어 수 · 문장 틀 · 증강 · replay를 바꿔 데이터 양과 '한 문장을 몇 번 보나(에폭)'를 확인하세요. 누수를 켜면 시험 점수가 어떻게 부풀려지는지 나옵니다. (설명용 모형)</p>
+  <div class="stage">
+    <label class="sl">용어 수<input type="range" id="dtT" min="5" max="40" value="20"><output id="dtTo"></output></label>
+    <label class="sl">문장 틀 전체<input type="range" id="dtN" min="4" max="15" value="10"><output id="dtNo"></output></label>
+    <label class="sl">그중 학습용<input type="range" id="dtK" min="1" max="14" value="7"><output id="dtKo"></output></label>
+    <label class="sl">증강 (문장당)<input type="range" id="dtA" min="0" max="3" value="1"><output id="dtAo"></output></label>
+    <label class="sl">replay (Zeroth)<input type="range" id="dtR" min="0" max="400" step="20" value="200"><output id="dtRo"></output></label>
+    <div class="toggles"><label><input type="checkbox" id="dtLeak"><span>문장 단위로 섞어 나누기 <small>같은 문장 틀이 학습 · 시험 양쪽에 들어감 (누수)</small></span></label></div>
+    <canvas id="dtCv" height="170"></canvas>
+    <div class="kv" id="dtKv"></div>
+    <div class="fx" id="dtFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="record">
+  <h2><span class="hc">D15-4</span>녹음 품질 점검</h2>
+  <p class="lead">소리 크기 · 잡음 · 앞 무음을 바꿔 보세요. 노트북의 `quality()`와 같은 기준으로 문제를 찾고, 무엇을 고쳐야 하는지 알려 줍니다. (합성한 예시 파형)</p>
+  <div class="stage">
+    <label class="sl">마이크 크기<input type="range" id="rcG" min="0.02" max="3" step="0.02" value="0.6"><output id="rcGo"></output></label>
+    <label class="sl">배경 잡음<input type="range" id="rcN" min="0" max="0.3" step="0.01" value="0.02"><output id="rcNo"></output></label>
+    <label class="sl">앞 무음 (초)<input type="range" id="rcS" min="0" max="3" step="0.1" value="0.3"><output id="rcSo"></output></label>
+    <canvas id="rcCv" height="170"></canvas>
+    <div id="rcBadges" style="margin-top:8px"></div>
+    <div class="fx" id="rcFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="curves">
+  <h2><span class="hc">D15-5</span>학습 곡선 진단</h2>
+  <p class="lead">곡선 A ~ D를 하나씩 보고 진단을 고르세요. 회색 = train loss, 색 = eval loss.</p>
+  <div class="stage">
+    <div class="row" id="cvPick"></div>
+    <canvas id="cvCv" height="220"></canvas>
+    <div class="scen" id="cvQ" style="--c:var(--s2s)"><div class="q">이 곡선의 진단은?</div><div class="opts" id="cvOpts"></div><div class="fb" id="cvFb"></div></div>
+    <div class="fx" id="cvFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="ci">
+  <h2><span class="hc">D15-6</span>목표 판정과 신뢰구간</h2>
+  <p class="lead">내 목소리 시험 문장 수(n)와 실제 개선 크기를 바꿔 보세요. 같은 개선이라도 n이 작으면 95% 구간이 0을 포함해 '개선'을 말할 수 없습니다. (시뮬레이션: 원래 용어 정확도 30%)</p>
+  <div class="stage">
+    <label class="sl">시험 문장 수 n<input type="range" id="ciN" min="5" max="200" step="5" value="10"><output id="ciNo"></output></label>
+    <label class="sl">실제 개선 (%p)<input type="range" id="ciD" min="0" max="50" step="1" value="25"><output id="ciDo"></output></label>
+    <div class="row"><button class="btn primary" id="ciGo">새 시험 세트 뽑기</button></div>
+    <canvas id="ciCv" height="190"></canvas>
+    <div class="kv" id="ciKv"></div>
+    <div class="fx" id="ciFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="fix">
+  <h2><span class="hc">D15-7</span>용어 사전 후처리</h2>
+  <p class="lead">받아쓴 문장과 용어 목록, 기준(cutoff)을 바꿔 보세요. 노트북 `fix_terms()`와 같은 규칙(1~3단어 묶음, 앞부분 비교, 두 글자 용어는 정확히 같을 때만)으로 고칩니다.</p>
+  <div class="stage">
+    <div class="row" id="fxPre"></div>
+    <div class="formgrid2">
+      <label>받아쓴 문장<input type="text" id="fxIn"></label>
+      <label>용어 목록 (쉼표로)<input type="text" id="fxTerms"></label>
+    </div>
+    <label class="sl">cutoff<input type="range" id="fxC" min="0.4" max="1" step="0.05" value="0.75"><output id="fxCo"></output></label>
+    <div class="outbox" id="fxOut"></div>
+    <div class="tblwrap" style="margin-top:10px"><table class="mtable" id="fxTab"></table></div>
+    <div class="fx" id="fxFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="report">
+  <h2><span class="hc">D15-8</span>리포트 점검</h2>
+  <p class="lead">장을 눌러 나쁜 예 · 좋은 예를 비교하고, 아래 체크리스트로 우리 팀 리포트에 빠진 것을 찾으세요.</p>
+  <div class="stage">
+    <div class="row" id="rpSec"></div>
+    <div class="exgrid" id="rpEx"></div>
+    <h3 class="sub3">제출 전 체크리스트</h3>
+    <div class="checks" id="rpChk"></div>
+    <div class="meter" style="--c:var(--ok)"><i id="rpBar"></i></div>
+    <div class="fx" id="rpFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="rubric">
+  <h2><span class="hc">D15-9</span>발표 평가표 계산기 (동료 평가)</h2>
+  <p class="lead">발표를 듣고 항목마다 0 ~ 5점을 매기세요. 배점에 맞춰 100점 만점으로 바뀝니다. 좋은 점 하나 · 궁금한 점 하나를 적고 <b>복사</b>해 노션 평가 페이지에 붙이세요.</p>
+  <div class="stage">
+    <div class="formgrid2">
+      <label>평가하는 팀<input type="text" id="rbTeam" value="2조"></label>
+      <label>평가자<input type="text" id="rbMe" placeholder="이름"></label>
+    </div>
+    <div id="rbSl"></div>
+    <div class="formgrid2">
+      <label>👍 좋은 점 하나<textarea id="rbGood" rows="2" placeholder="예: 내 목소리 결과를 합성음 결과와 나란히 보여 줘서 믿음이 갔다"></textarea></label>
+      <label>❓ 궁금한 점 하나<textarea id="rbAsk" rows="2" placeholder="예: cutoff를 낮췄을 때 일반 CER은 얼마나 나빠졌나요?"></textarea></label>
+    </div>
+    <div class="kv" id="rbKv"></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" id="rbCopy">📋 복사 (노션용)</button><span class="note" id="rbMsg"></span></div>
+    <div class="fx" id="rbFx"></div>
+  </div>
+</section>
+
+<footer>음성 AI 전문가 과정 · Day 15 · 3주차 미니 프로젝트 · 숫자는 설명용 예시입니다. 실제 결과는 각 팀 노트북의 값을 쓰세요.</footer>
+</div>
+
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(2*Math.PI*r());}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function rr(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function axes(c,x0,y0,x1,y1){c.strokeStyle=css('--line');c.lineWidth=1;c.beginPath();c.moveTo(x0,y0);c.lineTo(x0,y1);c.lineTo(x1,y1);c.stroke();}
+function bindSl(ids,fmt,cb){ids.forEach(id=>{const el=$(id);const o=$(id+'o');const up=()=>{if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;cb();};el.addEventListener('input',up);});}
+
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.01;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const cols=['--asr','--llm','--s2s','--tts','--net'];
+  cols.forEach((col,k)=>{const v=0.3+0.6*Math.abs(Math.sin(heroT*1.3+k*1.1));const bw=(w-40)/cols.length;c.fillStyle=css(col);c.globalAlpha=0.8;c.fillRect(20+k*bw,h-4-v*(h-8),bw-8,v*(h-8));});c.globalAlpha=1;
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'프로젝트 카드',c:'--net',go:'goals',items:['팀 · 역할 · 도메인 · slug','사용 장면 · 사용자 · 개인정보 조건','GOALS: (지표, 방향, 목표, 이유)'],q:'(빈칸 없음) · ⏱️ 0:20'},
+ {p:'Part 2',t:'데이터 설계',c:'--asr',go:'data',items:['용어 20~30개 × 문장 틀 10 (학습 7 · 시험 3)','증강 + Zeroth replay','누수 검사: set(학습) ∩ set(시험) = ∅'],q:'🧩 빈칸 1, 2: N_TRAIN_TPL, test_texts'},
+ {p:'Part 3',t:'내 목소리',c:'--tts',go:'record',items:['도메인 10 + 일상 10 녹음 (시험용 틀만)','ffmpeg → 16 kHz 모노 → trim','품질 점검: 짧음 · 클리핑 · 너무 작음'],q:'🧩 빈칸 3: SR · ⏱️ 0:50 체크포인트'},
+ {p:'Part 4',t:'기준선',c:'--llm',go:'goals',items:['① 원래 Whisper','② 원래 + 프롬프트(용어 목록)','시험 세트: 도메인 TTS · 일반 · 내 목소리'],q:'🧩 빈칸 4: PROMPT'},
+ {p:'Part 5',t:'LoRA 학습',c:'--s2s',go:'curves',items:['q_proj · v_proj, r 32, lr 1e-3','학습 중 리포트 1장 쓰기','학습 곡선 → 진단 한 문장 → 어댑터 저장'],q:'🧩 빈칸 5, 6: "v_proj", 1e-3 · ⏱️ 1:50'},
+ {p:'Part 6',t:'판정',c:'--bad',go:'ci',items:['⑤ 용어 사전 후처리 (부작용 확인)','최종 시스템 → 목표표 ✅ · ❌','부트스트랩 · 오류 분석 · 약한 용어'],q:'🧩 빈칸 7, 8: <=, ratio · ⏱️ 2:50',more:[['fix','용어 사전 후처리']]},
+ {p:'Part 7',t:'리포트',c:'--ok',go:'report',items:['REPORT_TEXT 네 칸 (TODO 0개)','report.md · report.html (그림 포함)','요약 카드 · 결과 그림 · 학습 곡선'],q:'🧩 빈칸 9: "utf-8" · ⏱️ 3:20'},
+ {p:'Part 8',t:'Hub (선택)',c:'--warn',go:'report',items:['비공개 저장소','어댑터 + 모델 카드 + report.md','녹음은 올리지 않음'],q:'(빈칸 없음)'},
+ {p:'Part 9',t:'발표 · 평가',c:'--asr',go:'rubric',items:['3분 발표 + 질문 1분','동료 평가 (D15-9) · 강사 50% + 동료 50%','워크시트 · 노션 제출'],q:'⏱️ 3:50'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== goals ===== */
+const SCEN={
+ hospital:{n:'병원 진료 기록',rows:[['핵심 약품 · 질환 용어를 정확히','용어(%) · 도메인 TTS','>=',90,96],['사람 목소리에서도','용어(%) · 내 목소리 도메인','>=',70,65],['일상 문장은 그대로','CER 변화(%p) · 일반 Zeroth','<=',1,0.4],['진료 직후 초안','RTF','<=',0.2,0.04]],note:'환자 음성 → 외부 전송 불가 → 로컬 모델만 후보'},
+ legal:{n:'법률 상담 녹취',rows:[['법률 용어 · 조문 번호','용어(%) · 도메인 TTS','>=',85,91],['상담 전체 문장 품질','CER(%) · 내 목소리 일상','<=',12,14.2],['일상 문장은 그대로','CER 변화(%p) · 일반 Zeroth','<=',1,0.8]],note:'녹취 동의 · 보관 기간 확인 · 긴 녹음은 RTF보다 처리 비용이 중요'},
+ factory:{n:'공장 음성 보고',rows:[['설비 · 공정 용어','용어(%) · 도메인 TTS','>=',90,88],['소음 속 사람 목소리','용어(%) · 내 목소리 도메인','>=',60,62],['바로 화면에 표시','RTF','<=',0.1,0.06]],note:'소음 증강 · 현장 녹음 시험 세트가 특히 중요'},
+ call:{n:'콜센터 상담 요약',rows:[['상품명 · 요금제 이름','용어(%) · 도메인 TTS','>=',85,93],['전화 음질(8 kHz)에서도','CER(%) · 내 목소리 일상','<=',15,18.5],['상담 중 실시간','RTF','<=',0.3,0.05],['일상 문장은 그대로','CER 변화(%p) · 일반 Zeroth','<=',1,1.6]],note:'통화 녹음 고지 · 실시간이면 RTF보다 문장당 지연(5 · 6주차)'}};
+let glS='hospital';const glT={};
+chipRow($('glScen'),'data-gs',Object.entries(SCEN).map(([k,v])=>[k,v.n]),glS,'--asr',v=>{glS=v;drawGl();});
+function drawGl(){const S=SCEN[glS];glT[glS]=glT[glS]||S.rows.map(r=>r[3]);
+  $('glTab').innerHTML='<tr><th>요구 사항 (말)</th><th>지표</th><th>방향</th><th>목표</th><th>예시 결과</th><th>판정</th></tr>'+S.rows.map((r,i)=>{const t=glT[glS][i];const ok=r[2]==='>='?r[4]>=t:r[4]<=t;
+    return `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${r[2]==='>='?'≥':'≤'}</td><td><input type="number" step="any" data-gi="${i}" value="${t}"></td><td>${r[4]}</td><td class="${ok?'okc':'badc'}">${ok?'✅ 달성':'❌ 미달'}</td></tr>`;}).join('');
+  $('glTab').querySelectorAll('input').forEach(inp=>inp.onchange=()=>{const v=parseFloat(inp.value);if(!isNaN(v)){glT[glS][+inp.dataset.gi]=v;}drawGl();});
+  const nOk=S.rows.filter((r,i)=>r[2]==='>='?r[4]>=glT[glS][i]:r[4]<=glT[glS][i]).length;
+  $('glFx').innerHTML='GOALS = [<br>'+S.rows.map((r,i)=>`&nbsp;&nbsp;("${esc(r[1])}", "${r[2]}", ${glT[glS][i]}, "${esc(r[0])}"),`).join('<br>')+`<br>]<br><b>목표 ${nOk}/${S.rows.length} 달성</b> · ${esc(S.note)}<br>목표는 결과를 보기 <b>전에</b> 정합니다. 결과를 본 뒤 목표를 낮췄다면 그 이유를 리포트에 적어야 합니다.`;}
+REDRAW.goals=drawGl;
+
+/* ===== data ===== */
+bindSl(['dtT','dtN','dtK','dtA','dtR'],{dtT:v=>v+'개',dtN:v=>v+'개',dtK:v=>v+'개',dtA:v=>v+'개',dtR:v=>v+'개'},()=>drawDt());
+$('dtLeak').onchange=()=>drawDt();
+function drawDt(){let T=+$('dtT').value,N=+$('dtN').value,K=+$('dtK').value,A=+$('dtA').value,R=+$('dtR').value;const leak=$('dtLeak').checked;
+  if(K>=N){K=N-1;$('dtK').value=K;}$('dtKo').textContent=K+'개';$('dtNo').textContent=N+'개';$('dtTo').textContent=T+'개';$('dtAo').textContent=A+'개';$('dtRo').textContent=R+'개';
+  const dom=T*K*(1+A),train=dom+R,test=T*(N-K),steps=200,batch=16,ep=steps*batch/train;
+  const {c,w,h}=fit($('dtCv'),170);c.clearRect(0,0,w,h);const gx=40,gy=14,cw=Math.min(18,(w*0.55-gx)/T),ch=Math.min(13,(h-34)/N);
+  const r=mulberry(7);
+  for(let ti=0;ti<N;ti++)for(let wi=0;wi<T;wi++){let isTest=ti>=K;if(leak)isTest=r()<(N-K)/N;c.fillStyle=css(isTest?'--tts':'--asr');c.globalAlpha=isTest?0.95:0.75;rr(c,gx+wi*cw,gy+ti*ch,cw-2,ch-2,2);c.fill();}
+  c.globalAlpha=1;c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('용어 →',gx,h-6);c.save();c.translate(14,gy+N*ch/2+20);c.rotate(-Math.PI/2);c.fillText('문장 틀 →',0,0);c.restore();
+  const bx=gx+T*cw+30,bw=w-bx-20;if(bw>120){const honest=Math.min(97,40+Math.min(50,dom/6)),inflated=Math.min(99,honest+(leak?12+Math.min(10,K):0));
+    c.font='600 12px '+FONT;c.fillStyle=css('--ink');c.fillText('시험 용어 정확도 (설명용)',bx,gy+10);
+    [['진짜 실력 (처음 보는 틀)',honest,'--ok'],['보이는 점수',inflated,leak?'--bad':'--ok']].forEach(([l,v,col],i)=>{const y=gy+30+i*44;c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText(l,bx,y);c.fillStyle=css('--soft');rr(c,bx,y+6,bw,18,6);c.fill();c.fillStyle=css(col);rr(c,bx,y+6,bw*v/100,18,6);c.fill();c.fillStyle=css('--ink');c.fillText(v.toFixed(0)+'%',bx+bw*v/100-34,y+19);});}
+  $('dtKv').innerHTML=`<div><span>도메인 학습</span><b>${dom}개</b></div><div><span>학습 전체 (+ replay)</span><b>${train}개</b></div><div><span>도메인 시험</span><b>${test}개</b></div><div><span>200 step × 16에서 에폭</span><b>${ep.toFixed(1)}회</b></div>`;
+  const warn=[];if(ep>8)warn.push('에폭이 많음 → 같은 문장을 너무 여러 번 봄 (과적합 위험): step ↓ 또는 데이터 ↑');if(ep<1.5)warn.push('에폭이 적음 → 덜 학습될 수 있음: step ↑');if(R<T*K*0.5)warn.push('replay가 적음 → 일반 CER이 나빠질 수 있음');if(N-K<2)warn.push('시험용 틀이 1개 → 한 문장 모양에만 의존한 시험');
+  if(leak)warn.push('⚠️ 누수: 같은 틀이 양쪽에 → 틀을 외운 효과로 점수가 부풀려짐. 노트북 빈칸 1 · 2처럼 문장 틀 단위로 나누고 교집합 = 0을 확인');
+  $('dtFx').innerHTML=`train_tpl = TEMPLATES[:${K}] · test_tpl = TEMPLATES[${K}:] · 학습 ${T}×${K}×${1+A} + ${R} = <b>${train}</b> · 시험 ${T}×${N-K} = <b>${test}</b><br>${warn.length?warn.map(esc).join('<br>'):'✅ 균형 잡힌 설계입니다.'}`;}
+REDRAW.data=drawDt;
+
+/* ===== record ===== */
+bindSl(['rcG','rcN','rcS'],{rcG:v=>'×'+v.toFixed(2),rcN:v=>v.toFixed(2),rcS:v=>v.toFixed(1)+'초'},()=>drawRc());
+function drawRc(){const g=+$('rcG').value,nz=+$('rcN').value,sil=+$('rcS').value;const sr=800,dur=sil+2.6+0.3,n=Math.round(sr*dur);const r=mulberry(3);const y=new Float32Array(n);
+  for(let i=0;i<n;i++){const t=i/sr;let v=0;if(t>sil&&t<sil+2.6){const u=t-sil;const env=Math.abs(Math.sin(Math.PI*u/0.65))*0.8+0.1;v=env*Math.sin(2*Math.PI*(9+3*Math.sin(u*3))*t)*(0.55+0.35*Math.sin(u*5));}
+    y[i]=Math.max(-1,Math.min(1,v*g+nz*gauss(r)));}
+  let peak=0,ss=0;for(const v of y){peak=Math.max(peak,Math.abs(v));ss+=v*v;}const rms=20*Math.log10(Math.sqrt(ss/n)+1e-9);
+  const thr=Math.max(0.02,peak*0.0178);let lead=0;while(lead<n&&Math.abs(y[lead])<thr)lead++;const leadS=lead/sr;
+  const speech=(()=>{let ps=0,pn=0;for(let i=Math.round(sil*sr);i<Math.round((sil+2.6)*sr)&&i<n;i++){ps+=y[i]*y[i];}return Math.sqrt(ps/(2.6*sr));})();const snr=20*Math.log10((speech+1e-9)/(nz+1e-9));
+  const {c,w,h}=fit($('rcCv'),170);c.clearRect(0,0,w,h);const mid=h/2-8;c.strokeStyle=css('--line');c.beginPath();c.moveTo(0,mid);c.lineTo(w,mid);c.stroke();
+  c.strokeStyle=css('--asr');c.beginPath();for(let x=0;x<w;x++){const i0=Math.floor(x/w*n),i1=Math.floor((x+1)/w*n);let mn=1,mx=-1;for(let i=i0;i<Math.max(i1,i0+1);i++){mn=Math.min(mn,y[i]);mx=Math.max(mx,y[i]);}c.moveTo(x,mid-mx*(mid-6));c.lineTo(x,mid-mn*(mid-6));}c.stroke();
+  c.setLineDash([4,4]);c.strokeStyle=css('--bad');[-1,1].forEach(s=>{c.beginPath();c.moveTo(0,mid-s*(mid-6));c.lineTo(w,mid-s*(mid-6));c.stroke();});c.setLineDash([]);
+  c.fillStyle=css('--warn');c.globalAlpha=0.18;c.fillRect(0,0,w*leadS/dur,h-20);c.globalAlpha=1;c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('빨간 점선 = 최대(±1) · 노란 영역 = 앞 무음 (trim으로 잘림)',6,h-4);
+  const issues=[];if(peak>0.99)issues.push(['클리핑','마이크 입력을 줄이거나 조금 떨어져서 다시 녹음 (찌그러진 소리는 되돌릴 수 없음)']);
+  if(rms<-40)issues.push(['너무 작음','입에서 한 뼘 거리로 가까이 · 입력 장치 확인']);if(snr<15)issues.push(['잡음 많음','조용한 곳으로 이동 · 선풍기 · 에어컨 끄기']);
+  if(leadS>1.5)issues.push(['앞 무음 김','trim이 잘라 주지만, 긴 무음은 Whisper 환각의 원인(D7) → 녹음 시작 후 바로 읽기']);
+  $('rcBadges').innerHTML=[['최대',peak.toFixed(2),peak<=0.99],['평균 dB',rms.toFixed(1),rms>=-40],['SNR 약',snr.toFixed(0)+' dB',snr>=15],['앞 무음',leadS.toFixed(1)+'초',leadS<=1.5]].map(([k,v,ok])=>`<span class="badge2 ${ok?'ok':'bad'}">${k} ${v}</span>`).join('');
+  $('rcFx').innerHTML=(issues.length?issues.map(([a,b])=>`<b>${a}</b> → ${esc(b)}`).join('<br>'):'✅ 좋은 녹음입니다.')+'<br>변환: ffmpeg -i rec.webm -ac 1 -ar 16000 out.wav  →  librosa trim  →  quality()';}
+REDRAW.record=drawRc;
+
+/* ===== curves ===== */
+const CV=[{id:'A',ans:'과적합',tr:s=>2*Math.exp(-s/40)+0.15,ev:s=>2*Math.exp(-s/45)+0.4+Math.max(0,s-90)/250,fix:'eval loss 최저점(best) 이후 올라감 → best 체크포인트 사용(load_best_model_at_end), step ↓, 데이터 · 증강 ↑'},
+ {id:'B',ans:'덜 학습',tr:s=>2.3-s/900,ev:s=>2.45-s/1000,fix:'거의 안 내려감 → step ↑ 또는 학습률이 너무 작지 않은지 (LoRA는 1e-3)'},
+ {id:'C',ans:'정상',tr:s=>2*Math.exp(-s/60)+0.3,ev:s=>2*Math.exp(-s/70)+0.45,fix:'train · eval 모두 꾸준히 ↓ → 그대로. 여유가 있으면 step을 조금 늘려 볼 수도'},
+ {id:'D',ans:'학습률이 너무 큼',tr:s=>1.6+0.5*Math.sin(s/9)+s/300,ev:s=>1.9+0.4*Math.sin(s/11)+s/260,fix:'처음부터 출렁이며 ↑ → 학습률 1e-3 → 5e-4, warmup 확인'}];
+let cvI=0;const cvDone={};
+chipRow($('cvPick'),'data-cv',CV.map((v,i)=>[String(i),'곡선 '+v.id]),'0','--s2s',v=>{cvI=+v;drawCv();});
+function drawCv(){const cur=CV[cvI];const {c,w,h}=fit($('cvCv'),220);c.clearRect(0,0,w,h);const x0=40,y0=10,x1=w-10,y1=h-26;axes(c,x0,y0,x1,y1);
+  const X=s=>x0+(x1-x0)*s/200,Y=v=>y1-(y1-y0)*v/3;
+  [['--net',cur.tr,1.6],['--s2s',cur.ev,2.6]].forEach(([col,f,lw])=>{c.strokeStyle=css(col);c.lineWidth=lw;c.beginPath();for(let s=0;s<=200;s+=2){const v=f(s);s?c.lineTo(X(s),Y(v)):c.moveTo(X(s),Y(v));}c.stroke();});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('step →',x1-40,h-6);c.fillText('loss',4,y0+10);c.fillText('회색 train · 보라 eval',x0+8,y0+12);
+  const opts=['정상','과적합','학습률이 너무 큼','덜 학습'];$('cvOpts').innerHTML=opts.map(o=>`<button data-o="${o}" class="${cvDone[cvI]?(o===cur.ans?'right':(o===cvDone[cvI]?'wrong':'')):''}">${o}</button>`).join('');
+  $('cvQ').classList.toggle('done',!!cvDone[cvI]);$('cvFb').innerHTML=cvDone[cvI]?`${cvDone[cvI]===cur.ans?'✅ 정답':'❌ 정답은 <b>'+cur.ans+'</b>'} · 처방: ${esc(cur.fix)}`:'';
+  $('cvOpts').querySelectorAll('button').forEach(b=>b.onclick=()=>{cvDone[cvI]=b.dataset.o;drawCv();});
+  const n=Object.keys(cvDone).length,ok=Object.entries(cvDone).filter(([i,a])=>CV[i].ans===a).length;
+  $('cvFx').innerHTML=`푼 곡선 ${n}/4 · 맞힘 ${ok}<br>노트북 diagnose(): ① train loss가 처음보다 커지면 → 발산(학습률) ② eval loss가 최저점보다 15% 넘게 오르면 → 과적합 ③ eval loss가 처음의 95%보다 덜 내려가면 → 덜 학습 ④ 그 밖 → 정상`;}
+REDRAW.curves=drawCv;
+
+/* ===== ci ===== */
+bindSl(['ciN','ciD'],{ciN:v=>v+'문장',ciD:v=>'+'+v+'%p'},()=>drawCi());let ciSeed=1;$('ciGo').onclick=()=>{ciSeed++;drawCi();};
+function drawCi(){const n=+$('ciN').value,d=+$('ciD').value/100,p0=0.3;const r=mulberry(ciSeed*97+n);
+  const a=[],b=[];for(let i=0;i<n;i++){const u=r();const base=u<p0?1:0;const fin=base?1:(r()<d/(1-p0)?1:0);a.push(fin);b.push(base);}
+  const obs=(a.reduce((x,y)=>x+y,0)-b.reduce((x,y)=>x+y,0))/n*100;const diffs=[];const rb=mulberry(ciSeed*13+5);
+  for(let k=0;k<1000;k++){let s=0;for(let i=0;i<n;i++){const j=Math.floor(rb()*n);s+=a[j]-b[j];}diffs.push(s/n*100);}diffs.sort((x,y)=>x-y);const lo=diffs[25],hi=diffs[974];
+  const {c,w,h}=fit($('ciCv'),190);c.clearRect(0,0,w,h);const x0=20,x1=w-20,X=v=>x0+(x1-x0)*(v+30)/110;const bins=new Array(55).fill(0);diffs.forEach(v=>{const k=Math.max(0,Math.min(54,Math.floor((v+30)/2)));bins[k]++;});const mx=Math.max(...bins);
+  bins.forEach((v,k)=>{const xx=X(-30+k*2);c.fillStyle=css('--s2s');c.globalAlpha=0.5;c.fillRect(xx,h-30-(h-60)*v/mx,(x1-x0)*2/110-1,(h-60)*v/mx);});c.globalAlpha=1;
+  c.strokeStyle=css('--bad');c.lineWidth=2;c.beginPath();c.moveTo(X(0),10);c.lineTo(X(0),h-28);c.stroke();
+  c.strokeStyle=css(lo>0?'--ok':'--warn');c.lineWidth=6;c.lineCap='round';c.beginPath();c.moveTo(X(lo),h-16);c.lineTo(X(hi),h-16);c.stroke();c.lineCap='butt';
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let v=-20;v<=80;v+=20)c.fillText(v,X(v)-6,h-2);c.fillText('용어 정확도 차이 (우리 − 원래, %p)',x1-210,14);
+  $('ciKv').innerHTML=`<div><span>관측 차이</span><b>${obs.toFixed(1)}%p</b></div><div><span>95% 구간</span><b>[${lo.toFixed(1)}, ${hi.toFixed(1)}]</b></div><div><span>구간 폭</span><b>${(hi-lo).toFixed(1)}%p</b></div><div><span>판정</span><b class="${lo>0?'okc':'warnc'}">${lo>0?'개선 ✓':hi<0?'악화 ✗':'차이 불확실'}</b></div>`;
+  $('ciFx').innerHTML=`n = ${n} · 실제 개선 +${(d*100).toFixed(0)}%p · 부트스트랩 1,000회 (짝지은 복원 추출)<br>${lo>0?'구간 전체가 0보다 큼 → "개선됐다"고 말할 수 있음.':`구간이 0을 포함 → n = ${n}으로는 단정할 수 없음. 리포트에 "${n}문장으로는 차이를 단정할 수 없었다"고 쓰고, 녹음을 늘리는 것을 다음 단계로.`}<br>구간 폭은 대략 1/√n로 줄어듭니다: n을 4배로 늘리면 폭이 약 절반.`;}
+REDRAW.ci=drawCi;
+
+/* ===== fix ===== */
+function lcsBlock(a,b,alo,ahi,blo,bhi){let bi=alo,bj=blo,bk=0;let prev=new Map();for(let i=alo;i<ahi;i++){const cur=new Map();for(let j=blo;j<bhi;j++){if(a[i]===b[j]){const k=(prev.get(j-1)||0)+1;cur.set(j,k);if(k>bk){bi=i-k+1;bj=j-k+1;bk=k;}}}prev=cur;}return [bi,bj,bk];}
+function ratio(a,b){a=[...a];b=[...b];if(!a.length&&!b.length)return 1;let M=0;const q=[[0,a.length,0,b.length]];while(q.length){const [al,ah,bl,bh]=q.pop();const [i,j,k]=lcsBlock(a,b,al,ah,bl,bh);if(k){M+=k;if(al<i&&bl<j)q.push([al,i,bl,j]);if(i+k<ah&&j+k<bh)q.push([i+k,ah,j+k,bh]);}}return 2*M/(a.length+b.length);}
+const norm=s=>s.toLowerCase().replace(/[^\p{L}\p{N}_\s]/gu,'').replace(/\s+/g,'');
+function fixTerms(text,terms,cutoff){const keys=terms.map(t=>[norm(t),t]).filter(k=>k[0]);const words=text.split(/\s+/).filter(Boolean);const out=[],log=[];let i=0;
+  while(i<words.length){let best=null;const cands=[];for(let n=1;n<=3&&i+n<=words.length;n++){const chunk=norm(words.slice(i,i+n).join(''));for(const [key,term] of keys){const sc=ratio([...chunk].slice(0,[...key].length).join(''),key);
+      if(sc<1&&[...key].length<3)continue;cands.push([words.slice(i,i+n).join(' '),term,sc]);if(sc>=cutoff&&(!best||sc>best[0]))best=[sc,n,term,[...chunk].slice([...key].length).join('')];}}
+    cands.sort((x,y)=>y[2]-x[2]);if(cands[0])log.push(cands[0]);
+    if(best){out.push(`<span class="hit">${esc(best[2]+best[3])}</span>`);i+=best[1];}else{out.push(esc(words[i]));i++;}}
+  return {html:out.join(' '),log};}
+const FXP=[['고침','고객에게 서보모타 설명을 드렸습니다','서보모터, 냉각탑, 비상 정지'],['띄어 씀 · 조사','기록에 심방 세동이라고 적었습니다','심방세동, 와파린, 트로포닌'],['잘못 고침 (cutoff ↓)','오늘 상세한 설명을 들었습니다','상세불명 폐렴, 설비 종합 효율, 심방세동'],['두 글자 용어','상대방과 상계 처리를 했습니다','상계, 가압류'],['못 고침 (너무 다름)','트로 포인 수치가 올랐습니다','트로포닌, 크레아티닌']];
+chipRow($('fxPre'),'data-fp',FXP.map((p,i)=>[String(i),p[0]]),'0','--llm',v=>{const p=FXP[+v];$('fxIn').value=p[1];$('fxTerms').value=p[2];if(+v===2)$('fxC').value=0.5;else $('fxC').value=0.75;drawFx();});
+$('fxIn').value=FXP[0][1];$('fxTerms').value=FXP[0][2];['fxIn','fxTerms'].forEach(id=>$(id).oninput=drawFx);bindSl(['fxC'],{fxC:v=>v.toFixed(2)},()=>drawFx());
+function drawFx(){const cut=+$('fxC').value;$('fxCo').textContent=cut.toFixed(2);const terms=$('fxTerms').value.split(',').map(s=>s.trim()).filter(Boolean);const r=fixTerms($('fxIn').value,terms,cut);
+  $('fxOut').innerHTML=`<b>결과</b> ${r.html||'—'}`;
+  $('fxTab').innerHTML='<tr><th>위치의 단어 묶음</th><th>가장 비슷한 용어</th><th>ratio</th><th>≥ cutoff?</th></tr>'+r.log.map(([w,t,s])=>`<tr><td>${esc(w)}</td><td>${esc(t)}</td><td>${s.toFixed(2)}</td><td class="${s>=cut?'okc':''}">${s>=cut?'바꿈':'—'}</td></tr>`).join('');
+  $('fxFx').innerHTML=`ratio = 2 × 같은 글자 수 ÷ 두 길이의 합 (difflib.SequenceMatcher.ratio)<br>cutoff ${cut.toFixed(2)}: ${cut<0.65?'⚠️ 너무 낮음 → 일상 단어까지 바뀔 수 있음 (일반 CER로 부작용 확인)':cut>0.9?'너무 높음 → 거의 고치지 못함':'보통 범위'} · 소리를 다시 듣지 않는 방법이라 너무 다르게 틀린 용어는 못 고칩니다.`;}
+REDRAW.fix=drawFx;
+
+/* ===== report ===== */
+const RP=[['요약','"성능이 좋아졌다."','"합성음 도메인 60문장에서 용어 정확도 42% → 96%, 팀원 목소리 10문장에서 30% → 65%. 일반 CER 변화 +0.4%p. 목표 3/4 달성."'],
+ ['1 문제 정의','"의료 음성 인식을 만들었다."','"외래 의사가 진료 중 말한 약품 · 질환 이름을 원래 Whisper가 42%만 맞혀 기록을 다시 써야 했다. 환자 음성은 외부로 보낼 수 없다."'],
+ ['2 목표','"최대한 높게."','"용어 정확도 ≥ 90%(합성음) · ≥ 70%(사람), 일반 CER 변화 ≤ +1%p, RTF ≤ 0.2 — 결과 전에 정함."'],
+ ['3 데이터','"데이터 200개로 학습."','"용어 20 × 학습용 틀 7 × (원본+증강) = 280 + Zeroth 200. 시험은 처음 보는 틀 3개. 누수 검사 겹침 0개. 녹음은 본인 동의."'],
+ ['4 방법','"LoRA를 썼다."','"whisper-small, LoRA r 32 · alpha 64 · q/v_proj, lr 1e-3, 200 step, T4 7분. 학습 곡선: 정상."'],
+ ['5 결과','"CER 3.1%."','"CER 3.1% (도메인 TTS, 60문장, 문장 부호 · 띄어쓰기 제거 후) — 모든 시스템을 같은 함수로 채점."'],
+ ['6 통계','"내 목소리에서도 개선됐다."','"내 목소리 용어 +35%p, 95% 구간 [−5, 62] → 10문장으로는 단정할 수 없었다."'],
+ ['7 오류','"가끔 틀린다."','"아직 약한 용어: 프레드니솔론 · 신우신염 (외래어 · 받침). 예: \'프레드니 솔론\' → 띄어쓰기는 괜찮지만 \'프레드니조론\'은 틀림."'],
+ ['8 한계','(없음)','"시험 소리 대부분이 합성음 한 목소리, 팀원 2명만 녹음, 조용한 교실 녹음 → 실제 진료실 소음에서는 낮을 수 있음."'],
+ ['9 재현','(없음)','"transformers 5.x · peft 0.21 · seed 0 · CFG {…} · 노트북 이름 · 어댑터 경로."']];
+let rpI=0;chipRow($('rpSec'),'data-rp',RP.map((r,i)=>[String(i),r[0]]),'0','--ok',v=>{rpI=+v;drawRp();});
+const CHK=['숫자마다 어떤 시험 세트(몇 문장)인지 적었다','기준선(① 원래) 숫자가 함께 있다','목표를 결과 전에 정했다 (바꿨다면 이유)','누수 검사 결과(겹침 0)를 적었다','내 목소리 결과를 합성음 결과와 나란히 적었다','부트스트랩 판정을 그대로 해석했다 (불확실은 불확실로)','약한 용어 · 예시 문장이 있다','한계를 2개 이상 적었다','재현 정보(버전 · seed · 설정)가 있다','REPORT_TEXT에 TODO가 없다'];
+$('rpChk').innerHTML=CHK.map((t,i)=>`<label><input type="checkbox" data-ck="${i}"> <span>${esc(t)}</span></label>`).join('');
+$('rpChk').querySelectorAll('input').forEach(x=>x.onchange=drawRp);
+function drawRp(){const r=RP[rpI];$('rpEx').innerHTML=`<div style="--c:var(--bad)"><h4>나쁜 예</h4>${esc(r[1])}</div><div style="--c:var(--ok)"><h4>좋은 예</h4>${esc(r[2])}</div>`;
+  const n=[...$('rpChk').querySelectorAll('input')].filter(x=>x.checked).length;$('rpBar').style.width=(n*10)+'%';
+  const miss=[...$('rpChk').querySelectorAll('input')].filter(x=>!x.checked).map(x=>CHK[+x.dataset.ck]);
+  $('rpFx').innerHTML=`체크 ${n}/10 · ${n===10?'✅ 제출 준비 완료':'빠진 것: '+esc(miss.slice(0,3).join(' / '))+(miss.length>3?' …':'')}<br>좋은 예의 공통점: 숫자 옆에 <b>시험 세트 · 문장 수 · 기준선</b>이 있고, 믿으면 안 되는 부분을 스스로 말한다.`;}
+REDRAW.report=drawRp;
+
+/* ===== rubric ===== */
+const RB=[['문제 정의 · 목표',15,'사용 장면이 구체적, 목표가 숫자 · 방향으로'],['데이터 설계 · 누수 방지',20,'문장 틀 단위 분할 · 누수 검사 · 내 목소리'],['모델 · 실험',20,'기준선 대비, 개선 실험 1개 이상, 곡선 진단'],['평가 공정성 · 통계',20,'같은 채점, 부트스트랩을 정직하게'],['오류 분석 · 한계',15,'약한 용어 · 예시 · 한계를 스스로'],['전달력',10,'3분 안에 핵심 숫자, 재현 가능한 리포트']];
+$('rbSl').innerHTML=RB.map(([t,w,d],i)=>`<label class="sl" style="grid-template-columns:220px 1fr 90px"><span>${esc(t)} <small style="color:var(--muted)">(${w}점)</small></span><input type="range" id="rb${i}" min="0" max="5" value="3"><output id="rb${i}o"></output></label><div class="note" style="margin:-6px 0 6px">${esc(d)}</div>`).join('');
+RB.forEach((_,i)=>$('rb'+i).addEventListener('input',drawRb));['rbTeam','rbMe','rbGood','rbAsk'].forEach(id=>$(id).addEventListener('input',drawRb));
+function rbText(){const sc=RB.map((r,i)=>+$('rb'+i).value);const tot=RB.reduce((s,r,i)=>s+r[1]*sc[i]/5,0);
+  return {tot,txt:`[D15 동료 평가] 대상: ${$('rbTeam').value} · 평가자: ${$('rbMe').value||'(이름)'}\n`+RB.map((r,i)=>`- ${r[0]} ${sc[i]}/5 → ${(r[1]*sc[i]/5).toFixed(0)}/${r[1]}`).join('\n')+`\n합계 ${tot.toFixed(0)}/100\n👍 ${$('rbGood').value||'(좋은 점)'}\n❓ ${$('rbAsk').value||'(궁금한 점)'}`};}
+function drawRb(){RB.forEach((r,i)=>$('rb'+i+'o').textContent=$('rb'+i).value+'/5');const {tot,txt}=rbText();
+  $('rbKv').innerHTML=`<div><span>합계</span><b>${tot.toFixed(0)} / 100</b></div><div><span>등급 (참고)</span><b>${tot>=90?'A':tot>=80?'B':tot>=70?'C':'D'}</b></div>`;
+  $('rbFx').innerHTML=esc(txt).replace(/\n/g,'<br>')+'<br><b>정직한 "차이 불확실"은 감점이 아닙니다.</b> 과장(시험 세트 없는 숫자, 한계 없음)이 감점입니다.';}
+$('rbCopy').onclick=async()=>{const {txt}=rbText();try{await navigator.clipboard.writeText(txt);$('rbMsg').textContent='복사했습니다. 노션에 붙여 넣으세요.';}catch(e){$('rbMsg').textContent='복사가 막혀 있습니다. 아래 글을 직접 선택해 복사하세요.';}};
+REDRAW.rubric=drawRb;
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>

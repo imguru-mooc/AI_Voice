@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음성 AI Day 16 개념 워크시트 — TTS 원리</title>
+<style>
+  :root{--bg:#0b1220;--panel:#111a2e;--line:#1f2b45;--text:#dbe4f0;--dim:#8a9bb8;--amber:#f5b942;--teal:#2dd4bf;--blue:#60a5fa;--green:#4ade80;--red:#f87171;--purple:#c084fc;--mono:"Consolas","D2Coding","JetBrains Mono",monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;font-size:15px;line-height:1.55}
+  .app{max-width:900px;margin:0 auto;padding:22px 20px 40px}
+  h1{color:var(--amber);font-size:24px;margin:0 0 6px}
+  .sub{color:var(--dim);margin:0 0 14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .panel h2{font-size:14px;color:var(--dim);margin:0 0 10px;font-weight:600}
+  button{background:#172239;border:1px solid #2a3a5c;color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--amber)}button.active{background:#3a2e12;border-color:var(--amber);color:var(--amber)}
+  button.primary{background:#123d33;border-color:var(--teal);color:var(--teal);font-weight:700;padding:9px 18px;font-size:14px}
+  button.submit{background:#3a2e12;border-color:var(--amber);color:var(--amber);font-weight:700;padding:9px 18px;font-size:14px}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  input[type=text]{background:#0a0f1c;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:14px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .tabs button .s{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+  .tabs button.graded .s{color:var(--green)}
+  .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .head .t{color:var(--amber);font-size:17px}
+  .head .a{font-size:13px;color:var(--teal);font-family:var(--mono)}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1628}
+  .q.unans{border-color:#5a3a1a}
+  .q .n{font-family:var(--mono);color:var(--dim);font-size:12px}
+  .q .p{margin:4px 0 10px;font-size:15px}
+  .q .p code,.opt code,.fb code,td code{font-family:var(--mono);color:var(--blue);background:#0a0f1c;padding:1px 5px;border-radius:4px}
+  .q pre.qc{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:10px 12px;margin:4px 0 12px;font-size:13.5px;line-height:1.5;white-space:pre;overflow-x:auto;color:#dbe4f3}
+  .q pre{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0 10px;font-size:14px;white-space:pre;overflow-x:auto}
+  .opts{display:grid;gap:6px}
+  .opt{text-align:left;padding:8px 12px;font-size:14px;font-family:inherit}
+  .opt.sel{border-color:var(--amber);background:#1f1a0c}
+  .opt.ok{border-color:var(--green);color:var(--green);background:#0d2216}
+  .opt.bad{border-color:var(--red);color:var(--red);background:#2a1212}
+  .opt:disabled{cursor:default;opacity:.9}
+  .fb{margin-top:8px;font-size:13px;color:var(--dim);border-left:3px solid var(--line);padding-left:10px}
+  .fb.ok{border-left-color:var(--green)}.fb.bad{border-left-color:var(--red)}
+  .fb .anim{color:var(--teal);font-family:var(--mono);font-size:12px;display:block;margin-top:3px}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .code{font-family:var(--mono);font-size:20px;color:var(--amber);letter-spacing:1px}
+  .score{font-family:var(--mono);color:var(--green);font-size:16px}
+  .hint{color:var(--dim);font-size:13px}
+  details{color:var(--dim);font-size:13px}
+  details summary{cursor:pointer;color:var(--dim)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* dialog */
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0;max-width:820px;width:92vw;max-height:88vh}
+  dialog::backdrop{background:#000a}
+  .dg{padding:18px 20px}
+  .dg h3{color:var(--amber);margin:0 0 4px;font-size:20px}
+  .dg .meta{color:var(--dim);font-size:13px;margin-bottom:12px;font-family:var(--mono)}
+  .dg .sec{margin:14px 0 6px;color:var(--teal);font-weight:700;font-size:14px}
+  .dg table{width:100%;border-collapse:collapse;font-size:13px}
+  .dg th{text-align:left;color:var(--dim);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12px}
+  .dg td{padding:5px 8px;border-bottom:1px solid #16203a;vertical-align:top}
+  .dg td.r{font-family:var(--mono)}
+  .dg .ok{color:var(--green)}.dg .bad{color:var(--red)}.dg .none{color:var(--dim)}
+  .dg .sum{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-family:var(--mono)}
+  .dgbar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .toast{color:var(--green);font-size:13px;margin-right:auto}
+  .body{overflow:auto;max-height:calc(88vh - 60px)}
+
+.q .n .ty{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;font-family:inherit}
+.ty-mc{background:#1b2a4a;color:var(--blue)} .ty-ox{background:#2a2410;color:var(--amber)} .ty-match{background:#13302c;color:var(--teal)}
+.ty-order{background:#2a1a3a;color:var(--purple)} .ty-multi{background:#2a1616;color:#fca5a5}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:360px}
+.oxrow .opt{text-align:center;font-size:22px;font-weight:700;padding:10px}
+.reflist{display:grid;gap:4px;margin:2px 0 10px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;font-size:14px;color:var(--text)}
+.reflist b{color:var(--teal);font-family:var(--mono);margin-right:6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow .l{font-size:14px} .mrow .l b{font-family:var(--mono);color:var(--dim);margin-right:6px}
+.mrow select{width:100%;background:#0a0f1c;color:var(--text);border:1px solid #2a3a5c;border-radius:6px;padding:6px 8px;font:inherit;font-size:13.5px}
+.mrow select.ok{border-color:var(--green);color:var(--green)} .mrow select.bad{border-color:var(--red);color:var(--red)}
+.steps{display:grid;gap:6px}
+.step{display:flex;gap:10px;align-items:center;text-align:left;padding:8px 12px;font-size:14px}
+.step .badge{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid #2a3a5c;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.step.on{border-color:var(--purple)} .step.on .badge{background:var(--purple);border-color:var(--purple);color:#0b1220;font-weight:700}
+.step.ok{border-color:var(--green)} .step.ok .badge{background:var(--green);color:#0b1220;border-color:var(--green)}
+.step.bad{border-color:var(--red)} .step.bad .badge{background:var(--red);color:#0b1220;border-color:var(--red)}
+.seqbar{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.seqbar button{padding:4px 10px;font-size:12px}
+.multi .opt::before{content:"☐ ";color:var(--dim)} .multi .opt.sel::before{content:"☑ ";color:var(--amber)}
+.multi .opt.ok::before{content:"☑ ";color:var(--green)} .multi .opt.miss::before{content:"☐ ";color:var(--green)}
+.multi .opt.miss{border-color:var(--green);border-style:dashed}
+.typeinfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>음성 AI Day 16 개념 워크시트</h1>
+  <p class="sub">TTS 원리 — TTS 파이프라인 · 텍스트 정규화 · 한자어 · 고유어 수 · 한글 자모 · G2P 발음 규칙 · g2pk2 · mel · duration · length regulator · Vocoder · HiFi-GAN · VITS · uroman · ASR 역검증 · 4교시 × 10문항 (객관식 5 · OX 2 · 선잇기 1 · 순서 맞추기 1 · 모두 고르기 1). 🎬 표시는 같은 폴더 <a href="animation.html" style="color:var(--teal)">animation.html</a>의 애니메이션 번호입니다. 선잇기는 드롭다운으로, 순서 맞추기는 단계를 일어나는 순서대로 눌러서, 모두 고르기는 여러 개를 눌러서 답합니다. 답을 고른 뒤 아래 <b style="color:var(--teal)">채점하기</b>를 누르면 정오·해설과 결과 코드가 나타납니다. 채점 전에는 답을 바꿀 수 있고, 채점 후에는 잠깁니다. 모든 교시를 마치면 <b style="color:var(--amber)">제출</b>로 오답 정리를 열고, <b>캡처</b>로 복사해 노션에 붙여 넣으세요.</p>
+
+  <div class="panel">
+    <div class="row"><label style="color:var(--dim);font-size:13px">이름 <input type="text" id="name" placeholder="홍길동"></label><span class="hint">이름은 결과 코드 계산에만 쓰이며 저장되지 않습니다.</span></div>
+  </div>
+  <div class="panel"><h2>교시</h2><div class="tabs" id="tabs"></div></div>
+  <div class="panel" id="sheet"></div>
+  <div class="panel">
+    <div class="actions">
+      <button class="primary" id="gradeBtn">채점하기</button>
+      <span class="code" id="rcode">—</span><span class="score" id="rscore"></span><span class="hint" id="rhint"></span>
+      <button class="submit" id="submitBtn" style="margin-left:auto">제출</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="body"><div class="dg" id="dgBody"></div></div>
+  <div class="dgbar"><span class="toast" id="toast"></span><button id="captureBtn" class="primary">📋 캡처 (노션용 복사)</button><button id="closeBtn">닫기</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const Q=[{"t": "1교시 · TTS 큰 그림 · 텍스트 정규화", "anim": "D16-1 오늘의 흐름 · D16-2 정규화 실험실", "qs": [{"ty": "order", "p": "TTS 파이프라인 순서대로 놓으세요.", "steps": ["Vocoder (mel → 파형)", "텍스트 정규화", "Acoustic Model (발음 열 → mel)", "G2P (글자 → 발음)"], "a": [1, 3, 2, 0], "w": "정규화 → G2P → Acoustic Model → Vocoder.", "an": "노트북 Part 1 그림"}, {"ty": "mc", "p": "VITS 같은 End-to-end 모델이 한 모델로 합친 두 단계는?", "o": ["ASR + TTS", "정규화 + G2P", "Acoustic Model + Vocoder", "G2P + Acoustic Model"], "a": 2, "w": "mel을 중간에 꺼내지 않고 함께 학습합니다.", "an": "노트북 Part 1 표"}, {"ty": "mc", "p": "TTS가 ASR보다 평가하기 어려운 가장 큰 이유는?", "o": ["같은 문장에도 맞는 소리가 여러 개(일대다)라서", "GPU가 필요해서", "한국어만 지원해서", "모델이 더 커서"], "a": 0, "w": "빠르기 · 억양 · 목소리에 따라 정답이 여러 개입니다.", "an": "Part 1 ❓"}, {"ty": "ox", "p": "오늘 쓰는 한국어 VITS에 '3시'를 그대로 넣으면 숫자를 알아서 '세 시'로 읽어 줍니다.", "a": false, "w": "기호 목록에 없는 숫자는 지워지거나 엉뚱하게 읽힙니다. 그래서 정규화가 필요합니다.", "an": "Part 2 💬"}, {"ty": "mc", "p": "sino(12500)의 결과는?", "o": ["일만이천오백", "만이천오백", "만이천오십", "십이천오백"], "a": 1, "w": "네 자리씩 끊고, 1만은 '만'으로 읽습니다.", "an": "빈칸 실습 1"}, {"ty": "match", "p": "표현과 바른 읽기를 이으세요.", "left": ["3시", "15분", "20명", "6월"], "right": ["유월", "십오 분", "세 시", "스무 명"], "a": [2, 1, 3, 0], "w": "시 · 명은 고유어, 분은 한자어, 6월은 예외.", "an": "Part 2 표"}, {"ty": "multi", "p": "고유어 수(한 · 두 · 세 …)로 읽는 단위를 모두 고르세요.", "o": ["개", "명", "층", "살"], "a": [0, 1, 3], "w": "층 · 분 · 원 · 년은 한자어로 읽습니다.", "an": "NATIVE_COUNTERS"}, {"ty": "mc", "p": "전화번호 '010'을 TTS용으로 읽는 가장 자연스러운 방법은?", "o": ["공일공", "일십", "십", "영일영"], "a": 0, "w": "전화번호는 한 자리씩, 0은 '공'.", "an": "normalize_ko ①"}, {"ty": "ox", "p": "정규화 규칙에서 '남은 숫자 읽기'를 '고유어 단위'보다 먼저 하면 '3시'가 '삼 시'가 되어 버립니다.", "a": true, "w": "처리 순서가 중요합니다.", "an": "D16-2 순서 바꾸기"}, {"ty": "mc", "p": "'3~5개', '1/2', 'iPhone 17'처럼 규칙에 없는 표현을 다루는 실무 방법으로 가장 알맞은 것은?", "o": ["무시한다", "분야별 규칙 · 사전을 늘리거나 LLM에 맡기고 결과를 검사한다", "숫자를 모두 지운다", "Vocoder를 바꾼다"], "a": 1, "w": "정규화 전후를 표로 남겨 검토하는 습관도 중요합니다.", "an": "Part 2 ❓"}]}, {"t": "2교시 · 한글 자모 · G2P", "anim": "D16-3 한글 분해 · D16-4 발음 규칙", "qs": [{"ty": "mc", "p": "한글 음절의 초성 · 중성 · 종성 개수(종성은 '없음' 포함)는?", "o": ["14 · 10 · 27", "19 · 21 · 27", "21 · 19 · 28", "19 · 21 · 28"], "a": 3, "w": "19 × 21 × 28 = 11,172자.", "an": "노트북 Part 3 그림"}, {"ty": "mc", "p": "음절 번호에서 초성 번호를 구하는 식은?", "o": ["번호 % 28", "번호 // 588", "번호 // 28", "(번호 % 588) // 21"], "a": 1, "w": "초성 하나 = 21 × 28 = 588칸.", "an": "빈칸 실습 3"}, {"ty": "mc", "p": "'밥을' → [바블]에 적용된 규칙은?", "o": ["구개음화", "경음화", "비음화", "연음"], "a": 3, "w": "받침이 소리 없는 초성 ㅇ 자리로 넘어갑니다.", "an": "빈칸 실습 4"}, {"ty": "match", "p": "단어와 규칙을 이으세요.", "left": ["학교 → [학꾜]", "국물 → [궁물]", "신라 → [실라]", "같이 → [가치]"], "right": ["유음화", "구개음화", "경음화", "비음화"], "a": [2, 3, 0, 1], "w": "", "an": "노트북 3-1 표"}, {"ty": "ox", "p": "'닭이'는 연음할 때 겹받침 ㄺ의 뒤 자음 ㄱ이 넘어가 [달기]가 됩니다.", "a": true, "w": "겹받침은 뒤 자음만 넘어갑니다.", "an": "linking()의 SPLIT"}, {"ty": "mc", "p": "직접 만든 연음 함수로 '같이'를 바꾸면 [가티]가 나옵니다. 무엇이 부족한가요?", "o": ["mel 설정", "Vocoder", "구개음화 규칙", "정규화"], "a": 2, "w": "ㅌ + 이 → [치]. 규칙 하나로는 부족해서 g2pk2를 씁니다.", "an": "빈칸 4 해설"}, {"ty": "mc", "p": "g2pk2가 형태소 분석기(mecab)를 쓰는 이유는?", "o": ["속도를 높이려고", "단어 경계 · 품사에 따라 같은 글자도 발음이 달라져서", "영어를 번역하려고", "소리를 녹음하려고"], "a": 1, "w": "예: '읽고'의 ㄺ은 [ㄹ], '닭고기'의 ㄺ은 [ㄱ].", "an": "D16-4"}, {"ty": "ox", "p": "g2pk2의 descriptive=True는 표준 발음 대신 실제 많이 쓰는 발음(의사의 → [의사에])을 냅니다.", "a": true, "w": "", "an": "노트북 3-1 표"}, {"ty": "order", "p": "'국물이'의 발음이 만들어지는 순서대로 놓으세요.", "steps": ["[궁무리]", "국물이", "[궁물이] (비음화)"], "a": [1, 2, 0], "w": "비음화 → 연음.", "an": "D16-4"}, {"ty": "multi", "p": "G2P 결과로 실제 관찰된 g2pk2의 숫자 처리 문제를 모두 고르세요.", "o": ["'우유 2병' → [이병]", "'010-1234' → [영이령-이리삼사]", "'2.5km' → [이.오km]", "'3시' → [세시]"], "a": [0, 1, 2], "w": "'3시' → [세시]는 바르게 읽었습니다. 나머지는 정규화기를 먼저 거쳐야 합니다.", "an": "노트북 3-1 결과 읽기"}]}, {"t": "3교시 · Acoustic Model · Vocoder", "anim": "D16-5 mel · D16-6 길이 조절기 · D16-7 Vocoder", "qs": [{"ty": "mc", "p": "16 kHz, hop 256이면 1초에 mel 프레임이 몇 개인가요?", "o": ["1,024", "16", "62.5", "256"], "a": 2, "w": "16000 ÷ 256 = 62.5. 한 프레임 = 16 ms.", "an": "빈칸 실습 5"}, {"ty": "mc", "p": "Tacotron 2가 글자와 프레임을 맞추는 방법은?", "o": ["어텐션", "Griffin-Lim", "uroman", "duration predictor"], "a": 0, "w": "어텐션이 프레임마다 읽을 글자를 찾습니다(가끔 건너뛰기 · 반복).", "an": "노트북 Part 4 표"}, {"ty": "mc", "p": "FastSpeech 2의 length regulator가 하는 일은?", "o": ["잡음 제거", "mel을 파형으로", "발음 기호 특징을 duration만큼 복사해 늘이기", "숫자를 읽기"], "a": 2, "w": "np.repeat(enc, durations, axis=0).", "an": "빈칸 실습 6"}, {"ty": "ox", "p": "duration을 speaking_rate로 나누면 음높이는 그대로 두고 말 빠르기만 바꿀 수 있습니다.", "a": true, "w": "프레임 수만 바뀌고 각 프레임의 내용은 같습니다.", "an": "Part 5 프레임 2배 실험"}, {"ty": "order", "p": "copy synthesis로 Vocoder 품질을 확인하는 순서대로 놓으세요.", "steps": ["HiFi-GAN으로 파형 만들기", "진짜 사람 녹음 준비", "Vocoder와 같은 설정으로 mel 계산", "원본과 들어 보고 mel 차이 비교"], "a": [1, 2, 0, 3], "w": "녹음 → 같은 설정 mel → Vocoder → 비교.", "an": "노트북 Part 5"}, {"ty": "mc", "p": "mel-spectrogram만으로 파형을 바로 만들 수 없는 이유는?", "o": ["샘플링 레이트가 없어서", "위상(phase) 정보가 없어서", "너무 작아서", "글자가 없어서"], "a": 1, "w": "Vocoder가 그럴듯한 위상을 채웁니다.", "an": "Part 5 💬"}, {"ty": "match", "p": "Vocoder와 특징을 이으세요.", "left": ["Griffin-Lim", "WaveNet", "HiFi-GAN"], "right": ["샘플을 하나씩 자기회귀 · 매우 느림", "업샘플 합성곱 + GAN · 빠르고 깨끗", "반복 위상 추정 · 학습 불필요 · 금속성"], "a": [2, 0, 1], "w": "", "an": "노트북 Part 5 표"}, {"ty": "mc", "p": "HiFi-GAN의 업샘플 배수가 (4, 4, 4, 4)일 때 hop은?", "o": ["16", "64", "256", "1,024"], "a": 2, "w": "업샘플 곱 = hop.", "an": "빈칸 실습 7"}, {"ty": "ox", "p": "HiFi-GAN에는 어떤 설정으로 만든 mel을 넣어도 똑같이 좋은 소리가 납니다.", "a": false, "w": "자기가 학습한 mel 설정(주파수 범위 · log 방식 · hop)과 같아야 합니다.", "an": "빈칸 7 해설"}, {"ty": "multi", "p": "copy synthesis(진짜 녹음의 mel → Vocoder)로 알 수 있는 것을 모두 고르세요.", "o": ["그 Vocoder로 낼 수 있는 최고 품질(상한)", "Acoustic Model의 문제인지 Vocoder의 문제인지 가르기", "정규화 규칙의 정확도", "Vocoder 속도"], "a": [0, 1, 3], "w": "정규화는 텍스트 쪽 문제라 알 수 없습니다.", "an": "Part 5 ❓"}]}, {"t": "4교시 · VITS · ASR 역검증", "anim": "D16-8 VITS 해부 · D16-9 ASR 역검증", "qs": [{"ty": "order", "p": "VITS 추론 경로 순서대로 놓으세요.", "steps": ["HiFi-GAN Decoder", "Text Encoder", "Flow (역방향)", "Duration Predictor + 길이 늘이기"], "a": [1, 3, 2, 0], "w": "인코더 → 길이 → flow → 디코더.", "an": "노트북 Part 6 표"}, {"ty": "mc", "p": "mms-tts-kor에 한글을 넣기 전에 uroman이 필요한 이유는?", "o": ["숫자를 읽으려고", "GPU를 쓰려고", "음질을 높이려고", "모델 입력 기호가 로마자라서"], "a": 3, "w": "1,100여 언어를 같은 방식으로 다루려고 로마자를 씁니다.", "an": "빈칸 실습 8"}, {"ty": "mc", "p": "uroman('같이')와 uroman(g2p('같이'))의 결과는?", "o": ["같이 · 가치", "gati · gaci", "gaci · gati", "gachi · gati"], "a": 1, "w": "uroman은 글자를 옮길 뿐 발음 규칙은 모릅니다.", "an": "빈칸 8 해설"}, {"ty": "ox", "p": "VITS 토크나이저는 기호 사이마다 blank 토큰을 넣어 입력 길이가 약 2배가 됩니다.", "a": true, "w": "add_blank. 막대그래프의 회색 막대.", "an": "빈칸 실습 9"}, {"ty": "mc", "p": "VITS에서 프레임 수를 구하는 식은?", "o": ["duration ÷ 256", "exp(로그 duration) × noise_scale", "ceil(exp(로그 duration) ÷ speaking_rate)", "로그 duration × hop"], "a": 2, "w": "", "an": "빈칸 실습 9"}, {"ty": "match", "p": "손잡이와 효과를 이으세요.", "left": ["speaking_rate ↑", "noise_scale = 0", "seed 고정", "noise_scale ↑"], "right": ["같은 결과 재현", "단조롭고 평평한 소리", "변화가 크고 불안정", "빠르고 짧은 소리"], "a": [3, 1, 0, 2], "w": "", "an": "Part 6 🎧"}, {"ty": "mc", "p": "ASR 역검증에서 원문과 받아쓴 결과에 같은 normalize_ko()를 적용하는 이유는?", "o": ["속도를 높이려고", "Whisper를 학습하려고", "CER을 낮추려고 속이는 것", "'3시'와 '세 시'처럼 표기만 다른 것을 오류로 세지 않으려고"], "a": 3, "w": "같은 채점 기준(D10 · D14).", "an": "D16-9"}, {"ty": "multi", "p": "ASR 역검증만으로 재기 어려운 것을 모두 고르세요.", "o": ["억양의 자연스러움", "감정 표현", "알아듣기 쉬움", "목소리의 듣기 좋음"], "a": [0, 1, 3], "w": "알아듣기 쉬움은 잴 수 있습니다. 나머지는 MOS · UTMOS(D20).", "an": "Part 7 ⚠️"}, {"ty": "ox", "p": "facebook/mms-tts-kor는 CC BY-NC 4.0이라 상업 서비스에 자유롭게 쓸 수 있습니다.", "a": false, "w": "NC = 비상업. 수업 · 연구는 가능.", "an": "노트북 표지 📜"}, {"ty": "mc", "p": "Part 7에서 숫자 · 기호가 든 문장의 CER이 보통 가장 낮은 입력 방식은?", "o": ["A 원문", "B G2P", "C 정규화 + G2P", "모두 같다"], "a": 2, "w": "정규화가 숫자 · 단위 · 약어를 읽는 말로 바꿔 줍니다.", "an": "Part 7 결과 읽기"}]}];
+
+const TYNAME={mc:'객관식',ox:'OX',match:'선잇기',order:'순서 맞추기',multi:'모두 고르기'};
+let tab=0;
+const ans=Q.map(s=>s.qs.map(q=>q.ty==='multi'?[]:(q.ty==='match'?q.left.map(()=>null):(q.ty==='order'?[]:null))));
+const graded=Q.map(()=>false);
+function hash(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16).padStart(8,'0').slice(-4);}
+function codeFor(name,t,score){return `${t}${'ABCDEFGHIJK'[10-score]||'K'}-${hash(`${name.trim()}|${t}|${score}|voice-day16`)}`;}
+function strip(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent;}
+const eqArr=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+function answered(q,a){if(q.ty==='mc'||q.ty==='ox')return a!==null;if(q.ty==='multi')return a.length>0;if(q.ty==='match')return a.every(x=>x!==null);return a.length===q.steps.length;}
+function correct(q,a){if(!answered(q,a))return false;if(q.ty==='multi')return eqArr([...a].sort((x,y)=>x-y),q.a);if(q.ty==='match'||q.ty==='order')return eqArr(a,q.a);return a===q.a;}
+function scoreOf(i){return ans[i].filter((a,k)=>correct(Q[i].qs[k],a)).length;}
+function nAns(i){return ans[i].filter((a,k)=>answered(Q[i].qs[k],a)).length;}
+function txt(q,a){ /* 답을 문자열로 (오답 정리 · 해설용) */
+  if(!answered(q,a))return '미응답';
+  if(q.ty==='mc')return '①②③④'[a]+' '+strip(q.o[a]);
+  if(q.ty==='ox')return a?'O':'X';
+  if(q.ty==='multi')return [...a].sort((x,y)=>x-y).map(j=>'ABCDEFGH'[j]).join(', ');
+  if(q.ty==='match')return a.map((r,i)=>(i+1)+'-'+'ABCDEFGH'[r]).join(' · ');
+  return a.map(j=>'ABCDEFGH'[j]).join(' → ');}
+function renderTabs(){$('#tabs').innerHTML=Q.map((s,i)=>`<button class="${i===tab?'active':''} ${graded[i]?'graded':''}" data-i="${i}">${s.k||(i+1)+'교시'}<span class="s">${graded[i]?scoreOf(i)+'/10':nAns(i)+'/10'}</span></button>`).join('');$('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=+b.dataset.i;render();window.scrollTo({top:0});});}
+function body(q,k,a,g){
+  if(q.ty==='mc'){return `<div class="opts">${q.o.map((o,j)=>{let c='';if(g){if(j===q.a)c='ok';else if(j===a)c='bad';}else if(j===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-j="${j}" ${g?'disabled':''}>${'①②③④'[j]} ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='ox'){return `<div class="oxrow">${[true,false].map(v=>{let c='';if(g){if(v===q.a)c='ok';else if(v===a)c='bad';}else if(v===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-v="${v?1:0}" ${g?'disabled':''}>${v?'O':'X'}</button>`;}).join('')}</div>`;}
+  if(q.ty==='multi'){return `<div class="opts multi">${q.o.map((o,j)=>{const on=a.includes(j),ri=q.a.includes(j);let c='';if(g){if(on&&ri)c='ok';else if(on&&!ri)c='bad';else if(!on&&ri)c='miss';}else if(on)c='sel';return `<button class="opt ${c}" data-k="${k}" data-m="${j}" ${g?'disabled':''}>${'ABCDEFGH'[j]}. ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='match'){return `<div class="reflist">${q.right.map((r,j)=>`<div><b>${'ABCDEFGH'[j]}</b>${r}</div>`).join('')}</div>`+q.left.map((l,i)=>{let c='';if(g)c=a[i]===q.a[i]?'ok':'bad';return `<div class="mrow"><div class="l"><b>${i+1}.</b>${l}</div><select class="${c}" data-k="${k}" data-i="${i}" ${g?'disabled':''}><option value="">— 고르기 —</option>${q.right.map((r,j)=>`<option value="${j}" ${a[i]===j?'selected':''}>${'ABCDEFGH'[j]}. ${strip(r)}</option>`).join('')}</select></div>`;}).join('');}
+  /* order */
+  return `<div class="steps">${q.steps.map((s,j)=>{const pos=a.indexOf(j);let c=pos>=0?'on':'';if(g){c=(pos>=0&&a[pos]===q.a[pos])?'ok':'bad';}return `<button class="opt step ${c}" data-k="${k}" data-s="${j}" ${g?'disabled':''}><span class="badge">${pos>=0?pos+1:'ABCDEFGH'[j]}</span><span>${'ABCDEFGH'[j]}. ${s}</span></button>`;}).join('')}</div><div class="seqbar">순서: ${a.length?a.map(j=>'ABCDEFGH'[j]).join(' → '):'단계를 일어나는 순서대로 누르세요'}${g?'':` <button data-k="${k}" data-reset="1">다시</button>`}</div>`;
+}
+function render(){renderTabs();const s=Q[tab];const g=graded[tab];
+  $('#sheet').innerHTML=`<div class="head"><span class="t">${s.t}</span><span class="a">🎬 ${s.anim}</span></div>`+s.qs.map((q,k)=>{const a=ans[tab][k];const ok=correct(q,a);
+    return `<div class="q ${g&&!answered(q,a)?'unans':''}"><div class="n">문항 ${k+1}<span class="ty ty-${q.ty}">${TYNAME[q.ty]}</span></div><div class="p">${q.p}</div>${q.c?`<pre class="qc">${q.c}</pre>`:``}${body(q,k,a,g)}${g?`<div class="fb ${ok?'ok':'bad'}">${!answered(q,a)?'미응답. ':(ok?'정답. ':'오답. ')}${q.ty!=='mc'&&!ok?`<b>정답: ${txt(q,q.a)}</b> · `:''}${q.w}<span class="anim">확인: ${q.an}</span></div>`:''}</div>`;}).join('');
+  if(!g){
+    $('#sheet').querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.j;ans[tab][k]=(ans[tab][k]===j?null:j);render();});
+    $('#sheet').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,v=b.dataset.v==='1';ans[tab][k]=(ans[tab][k]===v?null:v);render();});
+    $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.m;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p,1);else a.push(j);render();});
+    $('#sheet').querySelectorAll('select[data-i]').forEach(sl=>sl.onchange=()=>{const k=+sl.dataset.k,i=+sl.dataset.i;ans[tab][k][i]=sl.value===''?null:+sl.value;renderTabs();updHint();});
+    $('#sheet').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.s;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p);else a.push(j);render();});
+    $('#sheet').querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{ans[tab][+b.dataset.k]=[];render();});
+  }
+  $('#gradeBtn').disabled=g;$('#gradeBtn').textContent=g?'채점 완료':'채점하기';updHint();
+}
+function updHint(){const g=graded[tab];const nm=$('#name').value;
+  if(g){const sc=scoreOf(tab);$('#rscore').textContent=`${sc}/10`;if(nm.trim()){$('#rcode').textContent=codeFor(nm,tab+1,sc);$('#rhint').textContent='결과 코드';}else{$('#rcode').textContent='—';$('#rhint').textContent='이름을 입력하면 결과 코드가 나옵니다.';}}
+  else{$('#rcode').textContent='—';$('#rscore').textContent='';$('#rhint').textContent=`${Q[tab].k||(tab+1)+'교시'}: ${nAns(tab)}/10 답했습니다. 채점하기를 누르면 잠깁니다.`;}}
+$('#gradeBtn').onclick=()=>{const n=nAns(tab);if(n<10&&!confirm(`아직 ${10-n}문항을 끝까지 답하지 않았습니다. 그래도 채점할까요? (미응답은 오답 처리)`))return;graded[tab]=true;render();};
+$('#name').addEventListener('input',updHint);
+
+/* ── 제출 대화상자 ── */
+let lastHtml='',lastText='';
+function buildReport(){
+  const nm=$('#name').value.trim()||'(이름 없음)';const ds=new Date().toLocaleString('ko-KR');
+  let h=`<h3>음성 AI Day 16 개념 워크시트 — 오답 정리</h3><div class="meta">${nm} · ${ds}</div>`;
+  let t=`음성 AI Day 16 개념 워크시트 — 오답 정리\n이름: ${nm}\n일시: ${ds}\n\n`;
+  Q.forEach((s,i)=>{if(!graded[i])return;
+    const wrong=s.qs.map((q,k)=>({q,k,a:ans[i][k]})).filter(x=>!correct(x.q,x.a));
+    h+=`<div class="sec">${s.t} — ${scoreOf(i)}/10</div>`;t+=`### ${s.t} — ${scoreOf(i)}/10\n`;
+    if(!wrong.length){h+=`<div class="ok" style="margin:4px 0 8px">오답 없음</div>`;t+=`오답 없음\n\n`;return;}
+    h+=`<table><tr><th>#</th><th>유형</th><th>문항</th><th>내 답</th><th>정답</th></tr>`;t+=`| # | 유형 | 문항 | 내 답 | 정답 |\n|---|---|---|---|---|\n`;
+    wrong.forEach(({q,k,a})=>{const my=txt(q,a),co=txt(q,q.a);const qt=strip(q.p).replace(/\s+/g,' ').slice(0,60);
+      h+=`<tr><td class="r">${k+1}</td><td>${TYNAME[q.ty]}</td><td>${qt}</td><td class="bad">${my}</td><td class="ok">${co}</td></tr>`;
+      t+=`| ${k+1} | ${TYNAME[q.ty]} | ${qt.replace(/\|/g,'/')} | ${my.replace(/\|/g,'/')} | ${co.replace(/\|/g,'/')} |\n`;});
+    h+=`</table>`;t+=`\n`;});
+  const ng=Q.map((s,i)=>graded[i]?null:(s.k||(i+1)+'교시')).filter(x=>x);
+  if(ng.length){h+=`<div class="meta" style="margin-top:10px">미채점: ${ng.join(', ')}</div>`;t+=`미채점: ${ng.join(', ')}\n`;}
+  lastHtml=h;lastText=t;return h;
+}
+$('#submitBtn').onclick=()=>{if(!graded.some(x=>x)){alert('먼저 채점하기를 눌러 주세요.');return;}$('#dgBody').innerHTML=buildReport();$('#toast').textContent='';$('#dlg').showModal();};
+$('#closeBtn').onclick=()=>$('#dlg').close();
+function copyRich(html,text){
+  // 1) copy 이벤트에 두 형식을 직접 실어 보내기 (사용자 클릭 안에서 동기 실행 — file:// 에서도 동작)
+  let done=false;
+  const onCopy=e=>{e.clipboardData.setData('text/html',html);e.clipboardData.setData('text/plain',text);e.preventDefault();done=true;};
+  document.addEventListener('copy',onCopy);
+  try{
+    const body=$('#dgBody');const sel=window.getSelection();const range=document.createRange();range.selectNodeContents(body);sel.removeAllRanges();sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }catch(e){}
+  document.removeEventListener('copy',onCopy);
+  return done;
+}
+$('#captureBtn').onclick=async()=>{
+  const htmlDoc=`<meta charset="utf-8">`+lastHtml.replace(/ class="[^"]*"/g,'').replace(/<table>/g,'<table border="1" style="border-collapse:collapse">');
+  if(copyRich(htmlDoc,lastText)){$('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;}
+  // 2) 비동기 Clipboard API
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([htmlDoc],{type:'text/html'}),'text/plain':new Blob([lastText],{type:'text/plain'})})]);
+    }else{await navigator.clipboard.writeText(lastText);}
+    $('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;
+  }catch(e){}
+  // 3) 최종: 텍스트 영역 선택 복사
+  try{
+    const ta=document.createElement('textarea');ta.value=lastText;ta.style.position='fixed';ta.style.opacity='0';$('#dlg').appendChild(ta);ta.focus();ta.select();
+    const ok=document.execCommand('copy');ta.remove();
+    $('#toast').textContent=ok?'텍스트(마크다운 표)로 복사됨 — 노션에서 Ctrl+V.':'복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';
+  }catch(e){$('#toast').textContent='복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';}
+};
+render();
+</script>
+</body>
+</html>

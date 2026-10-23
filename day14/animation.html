@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D14 성능 비교 · 상용 API · Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.toggles{display:flex;flex-wrap:wrap;gap:6px 18px;margin:6px 0 12px}
+.toggles label{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;cursor:pointer}
+.toggles label small{display:block;color:var(--muted)}
+.outbox{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:.95rem;line-height:1.7;min-height:44px}
+.mtable{width:100%;border-collapse:collapse;font-size:.88rem}
+.mtable td,.mtable th{border-bottom:1px solid var(--line);padding:6px;text-align:left}
+.mtable th{color:var(--muted);font-weight:600}
+.mtable tr.top td{background:color-mix(in srgb,var(--ok) 14%,var(--panel))}
+.tblwrap{overflow-x:auto}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:10px}
+.cmp>div{background:var(--soft);border-radius:12px;padding:10px 12px;border-top:4px solid var(--c)}
+.cmp h4{margin:0 0 6px;font-size:.95rem}
+pre.req{margin:0;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.55}
+.hl{background:color-mix(in srgb,var(--warn) 35%,transparent);border-radius:3px}
+.formgrid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 14px;margin-bottom:10px}
+.formgrid2 label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:3px}
+.formgrid2 input,.formgrid2 select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+.hit{background:color-mix(in srgb,var(--ok) 25%,var(--panel));border-radius:4px;padding:0 3px}
+.miss{background:color-mix(in srgb,var(--bad) 25%,var(--panel));border-radius:4px;padding:0 3px}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D14 성능 비교 · 상용 API · Hub</h1>
+  <p>공정한 비교 규칙, RTF와 지연, 상용 API 요청 구조, 과금 단위와 손익분기, 가중치 리더보드, 부트스트랩 신뢰구간, 오류 종류, 모델 카드를 직접 움직여 보는 수업 자료입니다. 탭 번호 D14-1 ~ D14-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D14-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="fair"><span class="tc">D14-2</span>공정한 비교</button>
+  <button role="tab" aria-selected="false" data-t="latency"><span class="tc">D14-3</span>RTF와 지연</button>
+  <button role="tab" aria-selected="false" data-t="api"><span class="tc">D14-4</span>API 요청 해부</button>
+  <button role="tab" aria-selected="false" data-t="billing"><span class="tc">D14-5</span>비용 계산기</button>
+  <button role="tab" aria-selected="false" data-t="leaderboard"><span class="tc">D14-6</span>나만의 리더보드</button>
+  <button role="tab" aria-selected="false" data-t="bootstrap"><span class="tc">D14-7</span>부트스트랩</button>
+  <button role="tab" aria-selected="false" data-t="errors"><span class="tc">D14-8</span>오류 종류</button>
+  <button role="tab" aria-selected="false" data-t="hub"><span class="tc">D14-9</span>모델 카드</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D14-1</span>오늘 할 것: 같은 시험지로 채점하고, 고르고, 공개하기</h2>
+  <p class="lead">단계를 눌러 무엇을 하는지 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="fair">
+  <h2><span class="hc">D14-2</span>불공정한 비교 찾기</h2>
+  <p class="lead">규칙을 하나씩 어겨 보세요. 체크를 끄면 그 규칙을 어긴 비교가 되고, 보이는 순위가 진짜 순위와 어떻게 달라지는지 나옵니다. (설명용 예시)</p>
+  <div class="stage">
+    <div class="toggles" id="frRules"></div>
+    <div class="tblwrap"><table class="mtable" id="frTab"></table></div>
+    <div class="fx" id="frFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="latency">
+  <h2><span class="hc">D14-3</span>RTF와 지연</h2>
+  <p class="lead">발화 길이 · 묶음 크기 · 네트워크 왕복 시간을 바꿔 보세요. 로컬은 묶어서 처리하면 RTF가 작아지지만, 한 문장의 지연은 묶음을 기다리느라 길어질 수 있습니다. (설명용 모형)</p>
+  <div class="stage">
+    <label class="sl"><span>발화 길이 (초)</span><input type="range" id="ltD" min="1" max="30" step="1" value="6"><output id="ltDO"></output></label>
+    <label class="sl"><span>로컬 묶음 크기</span><input type="range" id="ltB" min="1" max="32" step="1" value="16"><output id="ltBO"></output></label>
+    <label class="sl"><span>API 네트워크 왕복 (ms)</span><input type="range" id="ltN" min="20" max="1500" step="20" value="300"><output id="ltNO"></output></label>
+    <canvas id="ltCv" height="220"></canvas>
+    <div class="kv" id="ltKv"></div>
+    <div class="fx" id="ltFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="api">
+  <h2><span class="hc">D14-4</span>API 요청 해부</h2>
+  <p class="lead">요소를 고르면 세 회사 요청에서 그 부분이 강조됩니다. 모양은 달라도 같은 다섯 가지를 보냅니다. (2026년 10월 문서 기준)</p>
+  <div class="stage">
+    <div class="row" id="apPart"></div>
+    <div class="cmp" id="apOut"></div>
+    <div class="fx" id="apFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="billing">
+  <h2><span class="hc">D14-5</span>비용 계산기: API vs 로컬 GPU</h2>
+  <p class="lead">하루 처리량과 평균 발화 길이를 바꿔 월 비용을 비교하세요. API는 쓴 만큼, 로컬 GPU는 켜 둔 시간만큼 냅니다. 가격은 노트북 표의 참고값 · 가정입니다.</p>
+  <div class="stage">
+    <label class="sl"><span>하루 처리량 (소리 시간)</span><input type="range" id="blH" min="0" max="4" step="0.05" value="1"><output id="blHO"></output></label>
+    <label class="sl"><span>평균 발화 길이 (초)</span><input type="range" id="blD" min="1" max="60" step="1" value="5"><output id="blDO"></output></label>
+    <label class="sl"><span>GPU 시간당 (USD, 가정)</span><input type="range" id="blG" min="0.2" max="3" step="0.1" value="0.5"><output id="blGO"></output></label>
+    <canvas id="blCv" height="260"></canvas>
+    <div class="kv" id="blKv"></div>
+    <div class="fx" id="blFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="leaderboard">
+  <h2><span class="hc">D14-6</span>나만의 리더보드</h2>
+  <p class="lead">무엇이 중요한지 가중치를 바꾸면 1등이 바뀝니다. "소리 외부 전송 금지"를 켜면 API는 탈락합니다. (설명용 예시 숫자)</p>
+  <div class="stage">
+    <label class="sl"><span>정확도 (일반 CER)</span><input type="range" id="lbA" min="0" max="10" step="1" value="5"><output id="lbAO"></output></label>
+    <label class="sl"><span>용어 정확도</span><input type="range" id="lbT" min="0" max="10" step="1" value="3"><output id="lbTO"></output></label>
+    <label class="sl"><span>비용</span><input type="range" id="lbC" min="0" max="10" step="1" value="3"><output id="lbCO"></output></label>
+    <label class="sl"><span>지연</span><input type="range" id="lbL" min="0" max="10" step="1" value="2"><output id="lbLO"></output></label>
+    <div class="toggles"><label><input type="checkbox" id="lbP"><span>소리 외부 전송 금지<small>병원 · 금융 · 사내 회의 녹음</small></span></label></div>
+    <div class="tblwrap"><table class="mtable" id="lbTab"></table></div>
+    <div class="fx" id="lbFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="bootstrap">
+  <h2><span class="hc">D14-7</span>부트스트랩 실험</h2>
+  <p class="lead">문장 수와 진짜 차이를 정하고 "다시 뽑기"를 눌러 보세요. 히스토그램이 쌓이면 95% 구간이 나옵니다. 구간이 0을 포함하면 '차이를 단정할 수 없음'입니다.</p>
+  <div class="stage">
+    <label class="sl"><span>시험 문장 수 n</span><input type="range" id="bsN" min="20" max="1000" step="10" value="100"><output id="bsNO"></output></label>
+    <label class="sl"><span>진짜 차이 (%p)</span><input type="range" id="bsD" min="0" max="5" step="0.1" value="1"><output id="bsDO"></output></label>
+    <div class="row"><button class="btn" id="bs1">한 번 다시 뽑기</button><button class="btn primary" id="bs1k">1,000번</button><button class="btn" id="bsR">새 시험 세트</button></div>
+    <canvas id="bsCv" height="240"></canvas>
+    <div class="kv" id="bsKv"></div>
+    <div class="fx" id="bsFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="errors">
+  <h2><span class="hc">D14-8</span>오류 종류 탐색기</h2>
+  <p class="lead">시스템을 고르면 오류 종류별 개수와 실제 예가 나옵니다. 종류마다 고치는 방법이 다릅니다. (설명용 예)</p>
+  <div class="stage">
+    <div class="row" id="erSys"></div>
+    <canvas id="erCv" height="200"></canvas>
+    <div class="row" id="erType"></div>
+    <div class="outbox" id="erEx"></div>
+    <div class="fx" id="erFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="hub">
+  <h2><span class="hc">D14-9</span>모델 카드 만들기</h2>
+  <p class="lead">항목을 채우면 README.md 미리보기가 만들어집니다. 빠진 항목 · 주의할 점을 알려 줍니다.</p>
+  <div class="stage">
+    <div class="formgrid2">
+      <label>저장소 이름<input id="hbRepo" value="student/whisper-small-ko-medical-lora"></label>
+      <label>기반 모델<select id="hbBase"><option>openai/whisper-small</option><option>openai/whisper-medium</option><option>openai/whisper-large-v3</option></select></label>
+      <label>종류<select id="hbKind"><option value="lora">LoRA 어댑터 (peft)</option><option value="full">Full 모델 (transformers)</option></select></label>
+      <label>학습 데이터<select id="hbData"><option value="zeroth">Zeroth-Korean (CC BY 4.0)</option><option value="aihub">AIHub 데이터</option><option value="own">직접 녹음 (동의 받음)</option></select></label>
+      <label>공개 범위<select id="hbPriv"><option value="private">private (나만)</option><option value="public">public (모두)</option></select></label>
+      <label>일반 CER (%)<input id="hbCer" value="7.1"></label>
+      <label>용어 정확도 (%)<input id="hbTerm" value="91.7"></label>
+      <label>한계 (한 줄)<input id="hbLim" value="합성음으로 시험해 실제보다 점수가 좋을 수 있음"></label>
+    </div>
+    <pre class="outbox req" id="hbOut"></pre>
+    <div class="fx" id="hbFx"></div>
+  </div>
+</section>
+
+<footer class="note" style="margin:30px 0 10px">음성 AI 전문가 과정 · Day 14 · 그림의 숫자는 설명용 예시입니다. 실제 값은 노트북에서 직접 잽니다. API 가격 · 이름은 2026년 10월 확인 기준이며 바뀔 수 있습니다.</footer>
+</div>
+
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(2*Math.PI*r());}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function rr(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function axes(c,x0,y0,x1,y1){c.strokeStyle=css('--line');c.lineWidth=1;c.beginPath();c.moveTo(x0,y0);c.lineTo(x0,y1);c.lineTo(x1,y1);c.stroke();}
+
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.01;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);const cols=['--asr','--llm','--s2s','--tts','--net'];
+  cols.forEach((col,k)=>{const v=0.3+0.6*Math.abs(Math.sin(heroT*1.3+k*1.1));const bw=(w-40)/cols.length;c.fillStyle=css(col);c.globalAlpha=0.8;c.fillRect(20+k*bw,h-4-v*(h-8),bw-8,v*(h-8));});c.globalAlpha=1;
+  if(!RM)requestAnimationFrame(heroLoop);})();
+
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'공정한 비교',c:'--net',go:'fair',items:['같은 시험지 · 같은 채점 · 누수 없음','정확도 + 속도 + 비용 + 개인정보','작은 차이는 신뢰구간으로'],q:'(빈칸 없음)'},
+ {p:'Part 2',t:'시험 세트',c:'--asr',go:'fair',items:['일반: Zeroth 공식 test 100','도메인: D13 용어 × 시험용 틀 3 = 60','API로 보낼 16 kHz WAV 바이트'],q:'⚠️ API는 공개 데이터를 봤을 수도'},
+ {p:'Part 3',t:'내 모델들',c:'--llm',go:'latency',items:['① 원래 · ② D12 Full · ③ D13 LoRA(병합)','같은 transcribe 함수','RTF = 처리 시간 ÷ 소리 길이'],q:'🧩 빈칸 1: AUDIO_SEC'},
+ {p:'Part 4',t:'상용 API',c:'--s2s',go:'api',items:['OpenAI gpt-transcribe · Google v1 · CLOVA CSR','requests로 REST 직접 호출','과금 단위 올림 → 비용'],q:'🧩 빈칸 2, 3, 4: "ko", "ko-KR", ceil',more:[['billing','비용 계산기']]},
+ {p:'Part 5',t:'리더보드',c:'--tts',go:'leaderboard',items:['일반 · 도메인 CER, 용어 정확도','RTF · 지연 · 소리 1시간당 비용','소리 외부 전송 여부'],q:'(빈칸 없음) 파레토 경계'},
+ {p:'Part 6',t:'부트스트랩',c:'--bad',go:'bootstrap',items:['문장별 CER을 짝지어','같은 크기 n으로 복원 추출 2,000번','2.5 ~ 97.5% 구간이 0을 포함하나?'],q:'🧩 빈칸 5, 6: n, 97.5'},
+ {p:'Part 7',t:'오류 분석',c:'--warn',go:'errors',items:['용어 · 숫자 표기 · 크게 틀림 · 일부 글자','종류별 해결책','결과가 가장 다른 문장 읽기'],q:'(빈칸 없음)'},
+ {p:'Part 8',t:'Hub 업로드',c:'--ok',go:'hub',items:['HF_TOKEN(write) → create_repo(private)','모델 카드 README.md','upload_folder → from_pretrained(repo_id)'],q:'🧩 빈칸 7, 8, 9: True, upload_folder, repo_id'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== fair ===== */
+const RULES=[['same','같은 시험지','시스템마다 다른 문장으로 시험하면?'],['norm','같은 채점 기준','어떤 시스템만 normalize하면?'],['leak','누수 없음','시험 문장이 학습에 들어간 모델이 있으면?'],['size','충분한 시험 크기','문장 10개로만 재면?']];
+const SYS0=[{n:'원래 Whisper',cer:13.8},{n:'D12 Full',cer:9.1},{n:'API A',cer:8.4},{n:'API B',cer:10.6}];
+const frOn={same:true,norm:true,leak:true,size:true};
+$('frRules').innerHTML=RULES.map(([k,t,d])=>`<label><input type="checkbox" data-fr="${k}" checked><span>${t}<small>${d}</small></span></label>`).join('');
+$('frRules').querySelectorAll('[data-fr]').forEach(b=>b.onchange=()=>{frOn[b.dataset.fr]=b.checked;drawFr();});
+function drawFr(){const r=mulberry(11);const seen=SYS0.map(s=>{let v=s.cer,why=[];
+    if(!frOn.same&&s.n==='API B'){v-=4.5;why.push('쉬운 문장으로 시험');}
+    if(!frOn.norm&&s.n.startsWith('API')){v+=3.2;why.push('문장 부호 · 띄어쓰기까지 오류로 셈');}
+    if(!frOn.leak&&s.n==='D12 Full'){v-=5.0;why.push('시험 문장을 학습함(누수)');}
+    if(!frOn.size){v+=(r()-0.5)*6;why.push('10문장 → 운에 따라 흔들림');}
+    return {...s,v:Math.max(0.5,v),why};});
+  const trueRank=[...SYS0].sort((a,b)=>a.cer-b.cer).map(s=>s.n);const seenRank=[...seen].sort((a,b)=>a.v-b.v).map(s=>s.n);
+  $('frTab').innerHTML='<tr><th>시스템</th><th>진짜 CER</th><th>보이는 CER</th><th>보이는 순위</th><th>진짜 순위</th><th>왜 달라졌나</th></tr>'+seen.map(s=>`<tr class="${seenRank[0]===s.n?'top':''}"><td>${s.n}</td><td>${s.cer.toFixed(1)}%</td><td>${s.v.toFixed(1)}%</td><td>${seenRank.indexOf(s.n)+1}</td><td>${trueRank.indexOf(s.n)+1}</td><td>${s.why.join(' · ')||'—'}</td></tr>`).join('');
+  const same=seenRank.join()===trueRank.join();
+  $('frFx').innerHTML=same?'✅ 모든 규칙을 지키면 보이는 순위 = 진짜 순위':`⚠️ 보이는 1등: ${seenRank[0]} · 진짜 1등: ${trueRank[0]}${seenRank[0]!==trueRank[0]?' → 잘못된 선택으로 이어집니다':''}<br>꺼 둔 규칙: ${RULES.filter(([k])=>!frOn[k]).map(([,t])=>t).join(', ')}`;}
+REDRAW.fair=drawFr;
+
+/* ===== latency ===== */
+['ltD','ltB','ltN'].forEach(id=>$(id).oninput=drawLt);
+function drawLt(){const d=+$('ltD').value,B=+$('ltB').value,net=+$('ltN').value/1000;$('ltDO').textContent=d+'초';$('ltBO').textContent=B;$('ltNO').textContent=(net*1000)+' ms';
+  // 로컬: 묶음 하나 처리 = 0.25 + 0.03*B*d/6 초 (설명용), 문장당 지연 = 묶음이 찰 때까지 기다림(평균 절반) + 처리
+  const batchT=0.25+0.035*B*(d/6)*0.9+0.02*d;const localRTF=batchT/(B*d);const wait=(B-1)*d*0.5/ B*0+ (B>1?d*0.5:0);const localLat=batchT+(B>1?0.5*(B-1)*0.3:0);
+  const apiProc=0.15+0.06*d;const apiLat=net+apiProc+0.1;const apiRTF=apiLat/d;
+  const {c,w,h}=fit($('ltCv'),220);c.clearRect(0,0,w,h);const mx=Math.max(localLat,apiLat,d)*1.1;const X=v=>130+(w-160)*v/mx;
+  const rows=[['소리 길이',d,'--line'],['로컬 문장 지연',localLat,'--asr'],['API 문장 지연',apiLat,'--s2s']];
+  rows.forEach(([n,v,col],i)=>{const y=30+i*55;c.fillStyle=css('--ink');c.font='600 13px '+FONT;c.fillText(n,10,y+22);c.fillStyle=css(col);rr(c,130,y,Math.max(4,X(v)-130),34,6);c.fill();c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText(v.toFixed(2)+'초',X(v)+6,y+22);});
+  if(true){const y=85+55;c.fillStyle=css('--warn');c.globalAlpha=0.6;c.fillRect(X(apiLat-net-apiProc-0.1)+0,y+28,X(net)-130,6);c.globalAlpha=1;}
+  $('ltKv').innerHTML=`<div><span>로컬 RTF (묶음 ${B})</span><b>${localRTF.toFixed(3)}</b></div><div><span>API RTF (요청 1개)</span><b>${apiRTF.toFixed(3)}</b></div><div><span>API 지연 중 네트워크</span><b>${(100*net/apiLat).toFixed(0)}%</b></div>`;
+  $('ltFx').innerHTML=`RTF = 처리 시간 ÷ 소리 길이. 로컬은 ${B}개를 한 번에 처리해 소리 1초당 처리 시간이 매우 작습니다(처리량 ↑).<br>${B>8?'⚠️ 대신 실시간 서비스에서는 묶음이 찰 때까지 기다려야 해 한 문장의 지연이 늘 수 있습니다 → 실시간은 묶음 작게(5 · 6주차).':'묶음이 작으면 지연은 짧지만 GPU를 덜 효율적으로 씁니다.'}<br>${d<4?'짧은 발화일수록 API 지연에서 네트워크 · 대기 비중이 커집니다.':'긴 발화는 처리 시간이 지연의 대부분입니다.'}`;}
+REDRAW.latency=drawLt;
+
+/* ===== api ===== */
+const AP={
+ openai:{n:'OpenAI gpt-transcribe',c:'--s2s',lines:[['url','POST https://api.openai.com/v1/audio/transcriptions'],['auth','Authorization: Bearer $OPENAI_API_KEY'],['audio','-F file=@audio.wav   (multipart · 25 MB까지)'],['opt','-F model=gpt-transcribe\n-F languages[]=ko'],['res','→ {"text": "…", "languages": [{"code": "ko"}]}']]},
+ google:{n:'Google Speech-to-Text v1',c:'--asr',lines:[['url','POST https://speech.googleapis.com/v1/speech:recognize'],['auth','?key=$GOOGLE_API_KEY'],['audio','"audio": {"content": "<base64>"}   (동기 1분까지)'],['opt','"config": {"encoding": "LINEAR16",\n  "sampleRateHertz": 16000, "languageCode": "ko-KR"}'],['res','→ {"results": [{"alternatives": [{"transcript": "…"}]}]}']]},
+ clova:{n:'NAVER CLOVA CSR',c:'--tts',lines:[['url','POST https://naveropenapi.apigw.ntruss.com/recog/v1/stt'],['auth','X-NCP-APIGW-API-KEY-ID: $ID\nX-NCP-APIGW-API-KEY: $SECRET'],['audio','Content-Type: application/octet-stream\n본문 = 소리 파일 그대로   (60초까지)'],['opt','?lang=Kor'],['res','→ {"text": "…"}']]}};
+let apP='opt';chipRow($('apPart'),'data-ap',[['url','① 주소'],['auth','② 인증'],['audio','③ 소리'],['opt','④ 언어 옵션'],['res','⑤ 결과']],'opt','--llm',v=>{apP=v;drawAp();});
+function drawAp(){$('apOut').innerHTML=Object.values(AP).map(a=>`<div style="--c:var(${a.c})"><h4>${a.n}</h4><pre class="req">${a.lines.map(([k,t])=>k===apP?`<span class="hl">${esc(t)}</span>`:esc(t)).join('\n')}</pre></div>`).join('');
+  const msg={url:'주소: 회사 · 버전 · 기능이 들어 있습니다. 버전(v1 · v2)마다 형식이 다를 수 있습니다.',auth:'인증: 헤더(Bearer · 회사 고유 헤더) 또는 URL 키. 키는 Colab 보안 비밀에 두고 코드에 쓰지 않습니다. 유출되면 바로 폐기 · 재발급.',
+    audio:'소리: multipart 파일 · JSON 안 base64 · 본문 그대로. base64는 크기가 약 1.33배가 됩니다. 길이 · 크기 한도를 넘으면 오류 → 나눠 보내거나 장문(비동기) API.',
+    opt:'언어 코드 형식이 다릅니다: ko (ISO 639-1) · ko-KR (BCP-47) · Kor (자체). 노트북 빈칸 2 · 3. OpenAI는 keywords[] · prompt로 용어 힌트도 줄 수 있습니다.',res:'결과: JSON 구조가 달라 회사마다 "글자 꺼내기" 함수가 필요합니다. 노트북 APIS 표의 세 번째 칸.'}[apP];
+  $('apFx').innerHTML=msg+'<br>⚠️ 모델 이름 · 한도 · 가격은 자주 바뀝니다. OpenAI는 whisper-1 · gpt-4o-transcribe 계열 종료(2027-02-26 예정)를 안내하고 있습니다 → 쓰기 전 공식 문서 확인.';}
+REDRAW.api=drawAp;
+
+/* ===== billing ===== */
+['blH','blD','blG'].forEach(id=>$(id).oninput=drawBl);
+const PR=[['OpenAI gpt-transcribe',0.0045,0,'--s2s'],['Google STT v1',0.016,0,'--asr'],['CLOVA CSR (가정)',5/1400*4,15,'--tts']];
+function drawBl(){const H=Math.pow(10,+$('blH').value)/10*1;const hours=Math.round(H*10)/10;const d=+$('blD').value,G=+$('blG').value;
+  $('blHO').textContent=hours>=1?hours.toFixed(0)+'시간/일':hours.toFixed(1)+'시간/일';$('blDO').textContent=d+'초';$('blGO').textContent='$'+G.toFixed(1);
+  const monthMin=hours*60*30;const local=G*24*30;const localOnDemand=G*hours*0.05*30+0; // RTF 0.05로 필요한 시간만 켤 때
+  const items=PR.map(([n,pm,unit,col])=>{const factor=unit?Math.ceil(d/unit)*unit/d:1;return [n,monthMin*pm*factor,col,factor];});
+  items.push(['로컬 GPU 24시간 상시',local,'--net',1]);items.push(['로컬 GPU 필요할 때만 (RTF 0.05)',Math.max(localOnDemand,G*0.5*30),'--ok',1]);
+  const {c,w,h}=fit($('blCv'),260);c.clearRect(0,0,w,h);const mx=Math.max(...items.map(i=>i[1]))*1.15;const X=v=>200+(w-260)*v/mx;
+  items.forEach(([n,v,col],i)=>{const y=14+i*48;c.fillStyle=css('--ink');c.font='600 12px '+FONT;c.fillText(n,8,y+22);c.fillStyle=css(col);rr(c,200,y,Math.max(3,X(v)-200),30,6);c.fill();c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText('$'+v.toFixed(v<10?2:0)+' /월',X(v)+6,y+20);});
+  const cheapest=[...items].sort((a,b)=>a[1]-b[1])[0];
+  // 손익분기: OpenAI vs 상시 GPU
+  const be=local/(0.0045*60*30);
+  $('blKv').innerHTML=`<div><span>월 처리량</span><b>${(monthMin/60).toFixed(0)}시간</b></div><div><span>가장 저렴</span><b>${esc(cheapest[0])}</b></div><div><span>CLOVA 과금배율 (${d}초 발화)</span><b>${items[2][3].toFixed(2)}배</b></div><div><span>상시 GPU 손익분기 (OpenAI 대비)</span><b>하루 약 ${be.toFixed(0)}시간</b></div>`;
+  $('blFx').innerHTML=`API 월 비용 = 월 처리 분 × 분당 가격 × 과금배율 · 로컬 = GPU 시간당 × 켜 둔 시간<br>${hours<be?`하루 ${hours}시간은 손익분기(약 ${be.toFixed(0)}시간)보다 적어 <b>API가 유리</b>합니다 (상시 GPU 기준).`:`하루 ${hours}시간이면 손익분기를 넘어 <b>상시 로컬 GPU가 유리</b>해집니다.`}<br>${d<15?`⚠️ ${d}초 발화를 15초 단위로 과금하면 실제보다 ${items[2][3].toFixed(1)}배 내게 됩니다 → 발화를 묶어 보내거나 초 단위 과금 API.`:'발화가 15초 이상이면 단위 올림 손해가 작아집니다.'}<br>가격은 2026-10 참고값 · CLOVA 단가와 GPU 요금은 가정입니다.`;}
+REDRAW.billing=drawBl;
+
+/* ===== leaderboard ===== */
+const LB=[{n:'① 원래 Whisper',cer:13.8,term:35,usd:0.03,lat:0.4,ext:false},{n:'② D12 Full',cer:9.1,term:40,usd:0.03,lat:0.4,ext:false},{n:'③ D13 LoRA',cer:12.9,term:92,usd:0.03,lat:0.4,ext:false},
+ {n:'API A',cer:8.4,term:70,usd:0.27,lat:1.1,ext:true},{n:'API B',cer:10.6,term:55,usd:0.96,lat:0.8,ext:true},{n:'API C',cer:11.5,term:60,usd:1.2,lat:0.6,ext:true}];
+['lbA','lbT','lbC','lbL'].forEach(id=>$(id).oninput=drawLb);$('lbP').onchange=drawLb;
+function drawLb(){const wa=+$('lbA').value,wt=+$('lbT').value,wc=+$('lbC').value,wl=+$('lbL').value;['lbA','lbT','lbC','lbL'].forEach(id=>$(id+'O').textContent=$(id).value);
+  const norm=(v,arr,low)=>{const mn=Math.min(...arr),mx=Math.max(...arr);const t=(v-mn)/(mx-mn||1);return low?1-t:t;};
+  const tot=wa+wt+wc+wl||1;const rows=LB.map(s=>{const sc=(wa*norm(s.cer,LB.map(x=>x.cer),true)+wt*norm(s.term,LB.map(x=>x.term),false)+wc*norm(Math.log(s.usd),LB.map(x=>Math.log(x.usd)),true)+wl*norm(s.lat,LB.map(x=>x.lat),true))/tot*100;
+    const out=$('lbP').checked&&s.ext;return {...s,sc:out?-1:sc,out};}).sort((a,b)=>b.sc-a.sc);
+  $('lbTab').innerHTML='<tr><th>순위</th><th>시스템</th><th>점수</th><th>일반 CER</th><th>용어</th><th>1시간당 USD</th><th>지연(초)</th><th>외부 전송</th></tr>'+rows.map((s,i)=>`<tr class="${i===0&&!s.out?'top':''}" style="${s.out?'opacity:.4':''}"><td>${s.out?'탈락':i+1}</td><td>${s.n}</td><td>${s.out?'—':s.sc.toFixed(0)}</td><td>${s.cer}%</td><td>${s.term}%</td><td>$${s.usd}</td><td>${s.lat}</td><td>${s.ext?'예':'아니요'}</td></tr>`).join('');
+  $('lbFx').innerHTML=`1등: <b>${rows[0].n}</b><br>점수 = 각 지표를 0~1로 바꾼 뒤 가중 평균 (비용은 로그). 가중치는 서비스 요구 사항에서 나옵니다: 콜센터 실시간이면 지연 ↑, 의료 기록이면 용어 · 외부 전송 금지.<br>${$('lbP').checked?'외부 전송 금지 → API 탈락. 이때는 로컬 모델 안에서 고릅니다.':'정답은 하나가 아닙니다. 가중치를 바꿔 1등이 바뀌는지 보세요.'}`;}
+REDRAW.leaderboard=drawLb;
+
+/* ===== bootstrap ===== */
+let bsA=[],bsB=[],bsDiffs=[],bsSeed=1;
+function bsNew(){const n=+$('bsN').value,dd=+$('bsD').value;const r=mulberry(bsSeed++*97);bsA=[];bsB=[];for(let i=0;i<n;i++){const base=Math.max(0,8+7*gauss(r));bsA.push(base);bsB.push(Math.max(0,base-dd+4*gauss(r)));}bsDiffs=[];drawBs();}
+function bsOnce(k){const n=bsA.length;const r=mulberry(bsSeed++*131+bsDiffs.length);for(let t=0;t<k;t++){let s=0;for(let i=0;i<n;i++){const j=Math.floor(r()*n);s+=bsA[j]-bsB[j];}bsDiffs.push(s/n);}drawBs();}
+$('bsN').oninput=()=>{$('bsNO').textContent=$('bsN').value;bsNew();};$('bsD').oninput=()=>{$('bsDO').textContent=(+$('bsD').value).toFixed(1)+'%p';bsNew();};
+$('bs1').onclick=()=>bsOnce(1);$('bs1k').onclick=()=>bsOnce(1000);$('bsR').onclick=bsNew;
+function drawBs(){$('bsNO').textContent=$('bsN').value;$('bsDO').textContent=(+$('bsD').value).toFixed(1)+'%p';if(!bsA.length){bsNew();return;}
+  const {c,w,h}=fit($('bsCv'),240);c.clearRect(0,0,w,h);const obs=bsA.reduce((s,v,i)=>s+v-bsB[i],0)/bsA.length;
+  const lo0=Math.min(-1,obs-3),hi0=Math.max(4,obs+3);const X=v=>40+(w-60)*(v-lo0)/(hi0-lo0);axes(c,40,10,w-20,h-30);
+  const bins=60,cnt=Array(bins).fill(0);bsDiffs.forEach(v=>{const b=Math.floor((v-lo0)/(hi0-lo0)*bins);if(b>=0&&b<bins)cnt[b]++;});const mx=Math.max(1,...cnt);
+  cnt.forEach((k,i)=>{const bh=(h-50)*k/mx;c.fillStyle=css('--s2s');c.fillRect(40+(w-60)*i/bins+1,h-30-bh,(w-60)/bins-2,bh);});
+  c.strokeStyle=css('--bad');c.lineWidth=2;c.beginPath();c.moveTo(X(0),10);c.lineTo(X(0),h-30);c.stroke();c.fillStyle=css('--bad');c.font='11px '+FONT;c.fillText('0',X(0)-3,h-14);
+  c.strokeStyle=css('--ink');c.setLineDash([3,3]);c.beginPath();c.moveTo(X(obs),10);c.lineTo(X(obs),h-30);c.stroke();c.setLineDash([]);c.fillStyle=css('--ink');c.fillText('관측 차이 '+obs.toFixed(2),X(obs)+4,22);
+  let lo=null,hi=null;if(bsDiffs.length>=40){const s=[...bsDiffs].sort((a,b)=>a-b);lo=s[Math.floor(0.025*s.length)];hi=s[Math.floor(0.975*s.length)];c.strokeStyle=css('--warn');[lo,hi].forEach(v=>{c.beginPath();c.moveTo(X(v),10);c.lineTo(X(v),h-30);c.stroke();});}
+  c.fillStyle=css('--muted');c.fillText('평균 CER 차이 (A − B, %p) →',w-200,h-14);
+  $('bsKv').innerHTML=`<div><span>다시 뽑은 횟수</span><b>${bsDiffs.length}</b></div><div><span>관측 차이</span><b>${obs.toFixed(2)}%p</b></div><div><span>95% 구간</span><b>${lo===null?'—':`[${lo.toFixed(2)}, ${hi.toFixed(2)}]`}</b></div><div><span>판정</span><b style="color:${lo===null?css('--ink'):lo>0?css('--ok'):css('--warn')}">${lo===null?'더 뽑기':lo>0?'B가 더 좋음':hi<0?'A가 더 좋음':'차이 불확실'}</b></div>`;
+  $('bsFx').innerHTML=`idx = rng.integers(0, n, n) → 같은 문장이 여러 번 뽑힐 수 있는 '복원 추출'. 문장 A · B 짝을 그대로 유지(paired).<br>${lo!==null&&lo<=0&&hi>=0?`구간이 0을 포함 → n = ${bsA.length}으로는 차이를 단정할 수 없습니다. 문장을 늘리거나(n ↑) 차이가 더 커야 합니다.`:'n을 키우면 구간이 좁아집니다 (대략 1/√n).'}`;}
+REDRAW.bootstrap=drawBs;
+
+/* ===== errors ===== */
+const ER={'① 원래 Whisper':{용어:38,'숫자 표기':6,'크게 틀림':3,'일부 글자':21},'② D12 Full':{용어:34,'숫자 표기':3,'크게 틀림':2,'일부 글자':12},'③ D13 LoRA':{용어:5,'숫자 표기':4,'크게 틀림':2,'일부 글자':18},'API A':{용어:16,'숫자 표기':9,'크게 틀림':1,'일부 글자':9}};
+const EX={용어:['정답: 고객에게 트로포닌 설명을 드렸습니다','결과: 고객에게 트로포 닌 설명을 드렸습니다 → 띄어쓰기는 괜찮지만 "트로 포인" 처럼 글자가 바뀌면 틀림','해결: LoRA(D13) · API 키워드 · 후처리 용어 사전(D10)'],
+ '숫자 표기':['정답: 삼 년 전에 이사를 했습니다','결과: 3년 전에 이사를 했습니다','해결: 정답과 결과 표기 통일(D10 숫자 정규화) · 학습 데이터 표기 맞추기'],
+ '크게 틀림':['정답: 그 사람은 아무 말도 하지 않았다','결과: (빈 결과) 또는 시청해 주셔서 감사합니다','해결: 무음 · 잡음 구간 제거(VAD, D4) · 환각 대응(D7) · 더 큰 모델'],
+ '일부 글자':['정답: 경제 성장률이 예상보다 높았다','결과: 경제 성장율이 예상보다 높았다','해결: 데이터 추가 · Fine-tuning · 맞춤법 후처리']};
+let erS='① 원래 Whisper',erT='용어';chipRow($('erSys'),'data-es',Object.keys(ER).map(k=>[k,k]),erS,'--asr',v=>{erS=v;drawEr();});
+chipRow($('erType'),'data-et',Object.keys(EX).map(k=>[k,k]),erT,'--llm',v=>{erT=v;drawEr();});
+function drawEr(){const d=ER[erS];const {c,w,h}=fit($('erCv'),200);c.clearRect(0,0,w,h);const ks=Object.keys(d);const mx=Math.max(...Object.values(ER).flatMap(o=>Object.values(o)));const cols=['--tts','--warn','--bad','--net'];
+  ks.forEach((k,i)=>{const y=12+i*44;c.fillStyle=css('--ink');c.font='600 12px '+FONT;c.fillText(k,8,y+20);c.fillStyle=css(cols[i]);c.globalAlpha=k===erT?1:0.55;rr(c,100,y,Math.max(3,(w-160)*d[k]/mx),28,6);c.fill();c.globalAlpha=1;c.fillStyle=css('--ink');c.fillText(d[k]+'문장',100+(w-160)*d[k]/mx+6,y+19);});
+  $('erEx').innerHTML=EX[erT].map(esc).join('<br>');
+  const top=ks.reduce((a,b)=>d[a]>d[b]?a:b);
+  $('erFx').innerHTML=`${erS}의 가장 많은 오류: <b>${top}</b> → ${EX[top][2].replace('해결: ','')}<br>시스템마다 약점이 다릅니다: D13 LoRA는 용어 오류가 크게 줄고, API는 숫자 표기 차이가 많은 식. 같은 CER이라도 고칠 곳이 다릅니다.`;}
+REDRAW.errors=drawEr;
+
+/* ===== hub ===== */
+['hbRepo','hbBase','hbKind','hbData','hbPriv','hbCer','hbTerm','hbLim'].forEach(id=>{$(id).oninput=drawHb;$(id).onchange=drawHb;});
+function drawHb(){const repo=$('hbRepo').value.trim(),base=$('hbBase').value,kind=$('hbKind').value,data=$('hbData').value,priv=$('hbPriv').value,cer=$('hbCer').value,term=$('hbTerm').value,lim=$('hbLim').value.trim();
+  const dsName={zeroth:'kresnik/zeroth_korean',aihub:'(AIHub 데이터셋 이름)',own:'(직접 녹음)'}[data];const lic={zeroth:'apache-2.0',aihub:'other',own:'apache-2.0'}[data];
+  const usage=kind==='lora'?`from transformers import WhisperForConditionalGeneration\nfrom peft import PeftModel\nbase = WhisperForConditionalGeneration.from_pretrained("${base}")\nmodel = PeftModel.from_pretrained(base, "${repo}")`:`from transformers import pipeline\nasr = pipeline("automatic-speech-recognition", model="${repo}")`;
+  $('hbOut').textContent=`---\nlanguage: ko\nlicense: ${lic}\nbase_model: ${base}\nlibrary_name: ${kind==='lora'?'peft':'transformers'}\npipeline_tag: automatic-speech-recognition\ntags: [whisper, korean${kind==='lora'?', lora':''}]\ndatasets: [${dsName}]\nmetrics: [cer]\n---\n# ${repo.split('/').pop()||'(이름 없음)'}\n\n## 성능\n| 지표 | 값 |\n|---|---|\n| 일반 CER (%) | ${cer||'?'} |\n| 용어 정확도 (%) | ${term||'?'} |\n\n## 한계\n- ${lim||'(비어 있음)'}\n\n## 사용법\n\`\`\`python\n${usage}\n\`\`\``;
+  const warn=[];if(!/^[\w.-]+\/[\w.-]+$/.test(repo))warn.push('저장소 이름은 "사용자명/모델이름" 형식');if(!lim)warn.push('한계를 비워 두지 마세요 (어떤 데이터에서 약한지)');if(!cer)warn.push('성능 숫자와 시험 세트를 함께 적기');
+  if(data==='aihub'&&priv==='public')warn.push('⚠️ AIHub 데이터로 학습한 모델의 공개는 약관 확인이 먼저 (반출 · 재배포 제한)');if(data==='own')warn.push('녹음자 동의 범위에 모델 공개가 들어 있는지 확인');
+  $('hbFx').innerHTML=`api.create_repo("${esc(repo)}", private=${priv==='private'?'True':'False'}, exist_ok=True) → api.upload_folder(folder_path="hub_upload", repo_id="${esc(repo)}")<br>${warn.length?warn.map(esc).join('<br>'):'✅ 기본 항목을 모두 채웠습니다. 위쪽 --- 사이 메타데이터는 Hub 검색 · 위젯이 읽습니다.'}`;}
+REDRAW.hub=drawHb;
+
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active').id;(REDRAW[a]||(()=>{}))();});
+openTab(location.hash.slice(1)&&$(location.hash.slice(1))?location.hash.slice(1):'flow',true);
+})();
+</script>
+</body>
+</html>
