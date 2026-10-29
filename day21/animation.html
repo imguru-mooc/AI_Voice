@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D21 Voice Agent 아키텍처</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.outbox{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:1rem;line-height:1.8;min-height:44px}
+.mtable{width:100%;border-collapse:collapse;font-size:.9rem}
+.mtable td,.mtable th{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
+.mtable th{color:var(--muted);font-weight:600}
+.mono{font-family:ui-monospace,Menlo,Consolas,"DejaVu Sans Mono",monospace}
+.tblwrap{overflow-x:auto}
+.okc{color:var(--ok);font-weight:700}.badc{color:var(--bad);font-weight:700}.warnc{color:var(--warn);font-weight:700}
+.goalrow{display:grid;grid-template-columns:150px 1fr 70px;gap:10px;align-items:center;margin:6px 0;font-size:.92rem}
+.goalrow input{width:100%}
+@media (max-width:620px){.goalrow{grid-template-columns:1fr 60px}.goalrow span:first-child{grid-column:1/-1}}
+.toggles{display:flex;flex-wrap:wrap;gap:6px 18px;margin:6px 0 12px}
+.toggles label{display:flex;gap:8px;align-items:center;font-size:.92rem;cursor:pointer}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D21 Voice Agent 아키텍처</h1>
+  <p>음성 비서의 두 가지 구조(Cascade · Speech-to-Speech), 말 끝 감지(VAD Endpointing), 시간 예산(Latency Budget), Streaming, p50 · p95, 아키텍처 선택을 직접 움직여 보는 수업 자료입니다. 탭 번호 D21-1 ~ D21-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D21-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="arch"><span class="tc">D21-2</span>Cascade vs S2S</button>
+  <button role="tab" aria-selected="false" data-t="budget"><span class="tc">D21-3</span>예산 설계기</button>
+  <button role="tab" aria-selected="false" data-t="pipeline"><span class="tc">D21-4</span>v1 vs v2 타임라인</button>
+  <button role="tab" aria-selected="false" data-t="vad"><span class="tc">D21-5</span>VAD 말 끝 감지</button>
+  <button role="tab" aria-selected="false" data-t="turn"><span class="tc">D21-6</span>턴 테이킹</button>
+  <button role="tab" aria-selected="false" data-t="pct"><span class="tc">D21-7</span>p50 · p95</button>
+  <button role="tab" aria-selected="false" data-t="length"><span class="tc">D21-8</span>답 길이 = 지연</button>
+  <button role="tab" aria-selected="false" data-t="choose"><span class="tc">D21-9</span>아키텍처 선택기</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D21-1</span>오늘 할 것: 잇고 · 재고 · 줄이고 · 고른다</h2>
+  <p class="lead">단계를 눌러 할 일과 빈칸을 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="arch">
+  <h2><span class="hc">D21-2</span>한 턴이 두 구조를 지나가는 모습</h2>
+  <p class="lead">'재생'을 누르면 같은 질문이 Cascade와 S2S를 지나갑니다. Cascade는 단계마다 글(쪽지)이 남고, S2S는 한 모델이 소리를 바로 소리로 바꿉니다. 숫자는 설명용 예입니다.</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="arPlay">▶ 재생</button><span id="arPre" class="row" style="margin:0"></span></div>
+    <canvas id="arCv" height="300"></canvas>
+    <div class="fx" id="arFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="budget">
+  <h2><span class="hc">D21-3</span>Latency Budget 설계기</h2>
+  <p class="lead">단계별 시간을 바꿔 합계가 '자연스러움 0.8초' · '고장 난 듯 1.2초' 선을 넘는지 보세요. Streaming을 켜면 LLM 칸이 '답 전체'에서 '첫 문장'으로 바뀝니다.</p>
+  <div class="stage">
+    <div class="row" id="bdPre"></div>
+    <div class="toggles"><label><input type="checkbox" id="bdStream" checked> Streaming (LLM = 첫 문장까지)</label></div>
+    <div id="bdRows"></div>
+    <canvas id="bdCv" height="150"></canvas>
+    <div class="kv" id="bdKv"></div>
+    <div class="fx" id="bdFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="pipeline">
+  <h2><span class="hc">D21-4</span>v1 순서대로 vs v2 Streaming 타임라인</h2>
+  <p class="lead">LLM 속도(초당 토큰), 답의 문장 수와 길이, TTS 속도를 바꿔 '첫 소리'가 언제 나오는지 비교하세요. 빨간 선 = 첫 소리.</p>
+  <div class="stage">
+    <label class="sl">LLM 초당 토큰<input type="range" id="plR" min="10" max="120" step="5" value="30"><output id="plRo"></output></label>
+    <label class="sl">첫 토큰까지 (초)<input type="range" id="plF" min="0.05" max="1.0" step="0.05" value="0.2"><output id="plFo"></output></label>
+    <label class="sl">첫 문장 토큰 수<input type="range" id="plA" min="4" max="40" step="1" value="12"><output id="plAo"></output></label>
+    <label class="sl">나머지 문장 수<input type="range" id="plN" min="0" max="4" step="1" value="2"><output id="plNo"></output></label>
+    <label class="sl">TTS RTF<input type="range" id="plT" min="0.02" max="0.6" step="0.02" value="0.1"><output id="plTo"></output></label>
+    <canvas id="plCv" height="230"></canvas>
+    <div class="kv" id="plKv"></div>
+    <div class="fx" id="plFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="vad">
+  <h2><span class="hc">D21-5</span>VAD 말 끝 감지: 기다림 vs 잘림</h2>
+  <p class="lead">말소리(파란 막대) 사이에 쉼이 있습니다. 침묵 기준을 바꾸면 VAD가 '말 끝'이라고 판단하는 위치(빨간 선)가 바뀝니다. 기준이 쉼보다 짧으면 문장 중간에서 잘립니다. 32 ms 단위로 판단하는 실제 방식을 따랐습니다.</p>
+  <div class="stage">
+    <div class="row" id="vdPre"></div>
+    <label class="sl">침묵 기준 (ms)<input type="range" id="vdM" min="100" max="1500" step="50" value="500"><output id="vdMo"></output></label>
+    <canvas id="vdCv" height="190"></canvas>
+    <div class="kv" id="vdKv"></div>
+    <div class="fx" id="vdFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="turn">
+  <h2><span class="hc">D21-6</span>턴 테이킹: 대화의 틈은 얼마나 짧은가</h2>
+  <p class="lead">사람끼리 대화와 음성 비서의 대화를 나란히 재생합니다. 비서의 지연을 바꿔 보며 어느 정도부터 어색한지 귀 대신 눈으로 느껴 보세요.</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="tnPlay">▶ 대화 재생</button><span id="tnPre" class="row" style="margin:0"></span></div>
+    <label class="sl">비서의 지연 (초)<input type="range" id="tnD" min="0.2" max="4" step="0.1" value="1.6"><output id="tnDo"></output></label>
+    <canvas id="tnCv" height="200"></canvas>
+    <div class="fx" id="tnFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="pct">
+  <h2><span class="hc">D21-7</span>p50 · p95: 평균이 숨기는 것</h2>
+  <p class="lead">200번의 턴 지연을 만들었습니다. '가끔 느린 응답' 비율과 그때의 지연을 바꾸면 평균 · p50 · p95가 어떻게 움직이는지 보세요. (점 하나 = 턴 하나)</p>
+  <div class="stage">
+    <label class="sl">보통 지연 (초)<input type="range" id="pcB" min="0.5" max="2" step="0.05" value="0.9"><output id="pcBo"></output></label>
+    <label class="sl">가끔 느림 비율 (%)<input type="range" id="pcS" min="0" max="20" step="1" value="6"><output id="pcSo"></output></label>
+    <label class="sl">느릴 때 지연 (초)<input type="range" id="pcL" min="1.5" max="8" step="0.5" value="4"><output id="pcLo"></output></label>
+    <canvas id="pcCv" height="230"></canvas>
+    <div class="kv" id="pcKv"></div>
+    <div class="fx" id="pcFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="length">
+  <h2><span class="hc">D21-8</span>답 길이 = 지연</h2>
+  <p class="lead">LLM은 토큰을 하나씩 만듭니다. 답의 길이(토큰)와 모델 속도를 바꿔 'LLM 시간 = 첫 토큰 + 토큰 수 ÷ 초당 토큰'을 확인하세요. 글자 수는 한국어 기준 대략적인 예입니다.</p>
+  <div class="stage">
+    <div class="row" id="lnPre"></div>
+    <label class="sl">답 토큰 수<input type="range" id="lnN" min="5" max="400" step="5" value="40"><output id="lnNo"></output></label>
+    <label class="sl">초당 토큰<input type="range" id="lnR" min="10" max="150" step="5" value="30"><output id="lnRo"></output></label>
+    <canvas id="lnCv" height="190"></canvas>
+    <div class="kv" id="lnKv"></div>
+    <div class="fx" id="lnFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="choose">
+  <h2><span class="hc">D21-9</span>아키텍처 선택기</h2>
+  <p class="lead">상황을 고르거나 기준별 가중치(0 ~ 3)를 직접 바꾸세요. 구조별 점수(1 ~ 5, 수업 토론용 상대 점수) × 가중치의 합으로 고릅니다. 노트북 빈칸 9의 <code>max(scores, key=scores.get)</code>와 같은 계산입니다.</p>
+  <div class="stage">
+    <div class="row" id="chPre"></div>
+    <div id="chRows"></div>
+    <canvas id="chCv" height="170"></canvas>
+    <div class="fx" id="chFx"></div>
+  </div>
+</section>
+<footer>음성 AI 전문가 과정 · Day 21 · 5주차 M5 LLM 연동 Voice Agent · VAD 침묵 기준 실측(Silero VAD 6.2, JFK 연설: 기다림 ≈ 기준 + 약 30 ms)은 강사 측정 · 지연 기준(0.2 ~ 0.3초 · 0.8초 · 1.2초)은 업계 보고 예 · 그 밖의 수치는 설명용입니다.</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(ids,fmt,cb){ids.forEach(id=>{const el=$(id);const o=$(id+'o');const up=()=>{if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;cb();};el.addEventListener('input',up);if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;});}
+function setSl(vals){Object.entries(vals).forEach(([id,v])=>{$(id).value=v;$(id).dispatchEvent(new Event('input'));});}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);c.lineWidth=2;
+  [['--asr',0],['--llm',0.35],['--tts',0.7]].forEach(([col,ph])=>{c.strokeStyle=css(col);c.beginPath();for(let x=0;x<=w;x+=4){const y=h/2+(h/2-5)*Math.sin(x/w*Math.PI*10+heroT*3+ph)*Math.sin(x/w*Math.PI)*0.9;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();});
+  if(!RM)requestAnimationFrame(heroLoop);})();
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active');if(a)(REDRAW[a.id]||(()=>{}))();});
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'지형도',c:'--net',go:'arch',items:['VAD · STT · LLM · TTS','Cascade vs Speech-to-Speech','사람 대화의 틈 0.2 ~ 0.3초'],q:'(빈칸 없음)',more:[['turn','턴 테이킹']]},
+ {p:'Part 2',t:'Cascade v1',c:'--asr',go:'vad',items:['첫 호출(cold) vs 데운 뒤(warm)','stage()로 단계별 시간 · VADIterator 말 끝','음성용 시스템 지시 · 생각 모드 끔'],q:'🧩 빈칸 1 ~ 3: t_begin, min_silence_ms, "system"'},
+ {p:'Part 3',t:'Latency Budget',c:'--llm',go:'budget',items:['단계별 한도 · 합계','p50 · p95로 판정','답 길이 = 지연'],q:'🧩 빈칸 4, 5: values, 95',more:[['pct','p50 · p95'],['length','답 길이']]},
+ {p:'Part 4',t:'Cascade v2 Streaming',c:'--s2s',go:'pipeline',items:['다른 스레드에서 generate','TextIteratorStreamer · TTFT','문장마다 TTS'],q:'🧩 빈칸 6 ~ 8: start, t_llm, min_chars'},
+ {p:'Part 5',t:'VAD Endpointing',c:'--tts',go:'vad',items:['침묵 기준 200 ~ 1000 ms 실험','짧으면 잘림 · 길면 늦음','Semantic Turn Detection · Barge-in 예고'],q:'(빈칸 없음)'},
+ {p:'Part 6',t:'아키텍처 선택',c:'--bad',go:'choose',items:['Cascade (로컬 · API) vs S2S','가중치 × 점수','민감도 · 최종 프로젝트 초안'],q:'🧩 빈칸 9: get'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== arch ===== */
+const AR={local:['Cascade 로컬 (오늘 T4 v1)',[0.5,0.35,1.4,0.1],0.7],stream:['Cascade + Streaming',[0.5,0.3,0.45,0.1],0.7],s2s_fast:['S2S 빠른 경우',[0,0,0,0],0.45],s2s_tool:['S2S + 도구 호출',[0,0,0,0],1.3]};
+let arK='local',arT=99,arAnim=null;
+chipRow($('arPre'),'data-ar',Object.entries(AR).map(([k,v])=>[k,v[0]]),'local','--net',v=>{arK=v;arT=99;drawAr();});
+$('arPlay').onclick=()=>{if(arAnim)cancelAnimationFrame(arAnim);if(RM){arT=99;drawAr();return;}const t0=performance.now();const loop=n=>{arT=(n-t0)/1000;drawAr();if(arT<4.5)arAnim=requestAnimationFrame(loop);};arAnim=requestAnimationFrame(loop);};
+function drawAr(){const {c,w,h}=fit($('arCv'),300);c.clearRect(0,0,w,h);const k=AR[arK];const st=k[1];const s2sT=k[2];
+  const cas=[['VAD 말 끝',st[0],'--net'],['STT',st[1],'--asr'],['LLM',st[2],'--llm'],['TTS',st[3],'--tts']];const tot=st.reduce((a,b)=>a+b,0);
+  const X0=60,X1=w-20,scale=(X1-X0)/4.2;const X=t=>X0+t*scale;
+  c.font='700 13px '+FONT;c.fillStyle=css('--asr');c.fillText('Cascade',8,46);c.fillStyle=css('--s2s');c.fillText('S2S',8,206);
+  let t=0;cas.forEach(([lab,d,col],i)=>{const x=X(t),ww=Math.max(2,d*scale);const prog=Math.max(0,Math.min(1,(arT-t)/(d||0.01)));
+    c.fillStyle=css(col);c.globalAlpha=0.18;rr(c,x,30,ww,40,6);c.fill();c.globalAlpha=1;c.fillRect(x,30,ww*prog,40);c.fillStyle=css('--ink');c.font='12px '+FONT;if(ww>40)c.fillText(lab,x+4,86);
+    if(arT>t+d&&(lab==='STT'||lab==='LLM')){c.fillStyle=css('--muted');c.font='italic 11px '+FONT;c.fillText(lab==='STT'?'📝 "내일 날씨 어때?"':'📝 "내일은 맑아요."',x,110);}
+    t+=d;});
+  if(arT>tot){c.fillStyle=css('--ok');c.font='700 13px '+FONT;c.fillText('🔊 '+tot.toFixed(2)+'초',X(tot)+6,56);}
+  const prog2=Math.max(0,Math.min(1,arT/s2sT));c.fillStyle=css('--s2s');c.globalAlpha=0.18;rr(c,X(0),190,s2sT*scale,40,6);c.fill();c.globalAlpha=1;c.fillRect(X(0),190,s2sT*scale*prog2,40);
+  c.fillStyle=css('--ink');c.font='12px '+FONT;c.fillText('음성 언어 모델 (소리 → 소리)',X(0)+4,246);if(arT>s2sT){c.fillStyle=css('--ok');c.font='700 13px '+FONT;c.fillText('🔊 '+s2sT.toFixed(2)+'초',X(s2sT)+6,216);}
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=4;s++){c.fillText(s+'s',X(s)-6,h-8);}
+  $('arFx').innerHTML=`Cascade 합계 ${tot.toFixed(2)}초 = VAD ${st[0]} + STT ${st[1]} + LLM ${st[2]} + TTS ${st[3]} · 단계마다 글(📝)이 남아 확인 · 기록이 쉬움<br>S2S ${s2sT}초: ${arK==='s2s_tool'?'도구 호출(예약 조회 등)을 하면 결과를 기다리느라 S2S도 늘어남':'쪽지를 넘기는 시간이 없어 빠름 · 억양 · 감정을 그대로 듣고 말함'} · 대신 속이 보이지 않아 따로 받아쓰기를 남겨야 함<br>${arK==='s2s_fast'||arK==='s2s_tool'?'S2S도 말 끝 판단(턴 감지)은 필요하지만 모델 안에서 처리하는 경우가 많음':'v1의 LLM 칸이 가장 큼 → Streaming으로 줄이기(D21-4)'}`;}
+REDRAW.arch=drawAr;
+
+/* ===== budget ===== */
+const BD=[['bdV','말 끝 감지 (VAD)',0,1.5,0.05,0.5,'--net'],['bdS','STT',0,1,0.05,0.3,'--asr'],['bdL','LLM',0,3,0.05,0.4,'--llm'],['bdT','TTS 첫 소리',0,1,0.05,0.2,'--tts'],['bdN','네트워크 · 재생',0,0.5,0.05,0.1,'--muted']];
+$('bdRows').innerHTML=BD.map(b=>`<div class="goalrow"><span style="color:var(${b[6]});font-weight:700">${b[1]}</span><input type="range" id="${b[0]}" min="${b[2]}" max="${b[3]}" step="${b[4]}" value="${b[5]}"><output id="${b[0]}o"></output></div>`).join('');
+bindSl(BD.map(b=>b[0]),Object.fromEntries(BD.map(b=>[b[0],v=>v.toFixed(2)+'초'])),()=>drawBd());
+$('bdStream').addEventListener('change',()=>{setSl({bdL:$('bdStream').checked?0.4:1.4});});
+chipRow($('bdPre'),'data-bd',[['t4v1','오늘 T4 v1'],['t4v2','오늘 T4 v2'],['api','API 부품 + Streaming'],['tight','빡빡한 목표']],'t4v2','--llm',v=>{
+  const P={t4v1:[0.5,0.35,1.4,0.1,0,false],t4v2:[0.5,0.35,0.5,0.1,0,true],api:[0.4,0.2,0.4,0.1,0.1,true],tight:[0.3,0.15,0.25,0.08,0.05,true]}[v];
+  $('bdStream').checked=P[5];setSl({bdV:P[0],bdS:P[1],bdL:P[2],bdT:P[3],bdN:P[4]});});
+function drawBd(){const vals=BD.map(b=>+$(b[0]).value);const tot=vals.reduce((a,b)=>a+b,0);const {c,w,h}=fit($('bdCv'),150);c.clearRect(0,0,w,h);
+  const mx=Math.max(2.5,tot+0.2);const X=v=>20+(w-40)*v/mx;let x=0;
+  BD.forEach((b,i)=>{const v=vals[i];c.fillStyle=css(b[6]);c.fillRect(X(x),40,X(x+v)-X(x),44);if(X(x+v)-X(x)>40){c.fillStyle='#fff';c.font='600 11px '+FONT;c.fillText(b[1].split(' ')[0],X(x)+4,58);c.fillText(v.toFixed(2),X(x)+4,74);}x+=v;});
+  [[0.25,'사람 틈','--ok'],[0.8,'0.8초','--warn'],[1.2,'1.2초','--bad']].forEach(([v,l,col])=>{c.strokeStyle=css(col);c.setLineDash([5,4]);c.beginPath();c.moveTo(X(v),24);c.lineTo(X(v),100);c.stroke();c.setLineDash([]);c.fillStyle=css(col);c.font='11px '+FONT;c.fillText(l,X(v)+3,20);});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=mx;s+=0.5)c.fillText(s.toFixed(1),X(s)-8,h-8);
+  const big=BD.map((b,i)=>[b[1],vals[i]]).sort((a,b)=>b[1]-a[1])[0];
+  $('bdKv').innerHTML=`<div><span>합계 (voice-to-voice)</span><b class="${tot<=0.8?'okc':tot<=1.2?'warnc':'badc'}">${tot.toFixed(2)}초</b></div><div><span>가장 큰 칸</span><b>${esc(big[0])} ${big[1].toFixed(2)}초</b></div><div><span>LLM 기준</span><b>${$('bdStream').checked?'첫 문장까지':'답 전체'}</b></div>`;
+  $('bdFx').innerHTML=`${tot<=0.8?'자연스러운 범위':tot<=1.2?'쓸 만하지만 기다림이 느껴짐':'1.2초 초과 → 사용자가 "여보세요?" 하거나 다시 말하기 시작'}<br>가장 큰 칸부터 줄이기: ${big[0].startsWith('말')?'침묵 기준 줄이기(잘림 위험) · Semantic Turn Detection':big[0]==='LLM'?'Streaming · 더 작은/빠른 모델 · 짧은 답 · 짧은 시스템 지시':big[0]==='STT'?'스트리밍 STT · 작은 모델 · GPU':'스트리밍 TTS · 빠른 TTS'}<br>예산은 '목표'이고 실제는 p95로 판정 (D21-7)`;}
+REDRAW.budget=drawBd;
+
+/* ===== pipeline ===== */
+bindSl(['plR','plF','plA','plN','plT'],{plR:v=>v+'/초',plF:v=>v.toFixed(2)+'초',plA:v=>v+'토큰',plN:v=>v+'개',plT:v=>v.toFixed(2)},()=>drawPl());
+function drawPl(){const R=+$('plR').value,F=+$('plF').value,A=+$('plA').value,N=+$('plN').value,RT=+$('plT').value;const stt=0.3,TOK2SEC=0.12;
+  const sentT=[A].concat(Array(N).fill(14));const llmEnd=F+sentT.reduce((a,b)=>a+b,0)/R;
+  const v1tts=sentT.reduce((a,b)=>a+b,0)*TOK2SEC*RT;const v1first=stt+llmEnd+v1tts;
+  let cum=F,ready=[],tt=stt;const segs=[];let play=null;sentT.forEach((n,i)=>{cum+=n/R;const done=stt+cum;const tstart=Math.max(done,tt);const tdur=n*TOK2SEC*RT;tt=tstart+tdur;ready.push(tt);segs.push([tstart,tdur,n*TOK2SEC]);});
+  const v2first=ready[0];
+  const {c,w,h}=fit($('plCv'),230);c.clearRect(0,0,w,h);const mx=Math.max(v1first+sentT.reduce((a,b)=>a+b,0)*TOK2SEC,6);const X=t=>90+(w-110)*t/mx;
+  const bar=(y,a,d,col,lab)=>{c.fillStyle=css(col);c.fillRect(X(a),y,Math.max(2,X(a+d)-X(a)),20);if(X(a+d)-X(a)>34&&lab){c.fillStyle='#fff';c.font='600 10px '+FONT;c.fillText(lab,X(a)+3,y+14);}};
+  c.font='700 12px '+FONT;c.fillStyle=css('--ink');c.fillText('v1 순서대로',6,44);c.fillText('v2 Streaming',6,144);
+  bar(30,0,stt,'--asr','STT');bar(30,stt,llmEnd,'--llm','LLM 전체');bar(30,stt+llmEnd,v1tts,'--tts','TTS');bar(56,v1first,sentT.reduce((a,b)=>a+b,0)*TOK2SEC,'--ok','재생');
+  bar(110,0,stt,'--asr','STT');bar(110,stt,llmEnd,'--llm','LLM 토큰 흘려보내기');
+  let p=v2first;segs.forEach(([a,d,len],i)=>{bar(136,a,d,'--tts','TTS'+(i+1));const s=Math.max(p,ready[i]);bar(162,s,len,'--ok','재생'+(i+1));p=s+len;});
+  [[v1first,30],[v2first,110]].forEach(([t,y])=>{c.strokeStyle=css('--bad');c.lineWidth=2;c.beginPath();c.moveTo(X(t),y-8);c.lineTo(X(t),y+80);c.stroke();});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=mx;s+=1)c.fillText(s+'s',X(s)-6,h-6);
+  $('plKv').innerHTML=`<div><span>v1 첫 소리</span><b class="badc">${v1first.toFixed(2)}초</b></div><div><span>v2 첫 소리</span><b class="okc">${v2first.toFixed(2)}초</b></div><div><span>줄어든 시간</span><b>${(v1first-v2first).toFixed(2)}초</b></div><div><span>TTFT</span><b>${F.toFixed(2)}초</b></div>`;
+  $('plFx').innerHTML=`v1 = STT + LLM 전체(${llmEnd.toFixed(2)}) + TTS 전체 · v2 = STT + 첫 토큰 + 첫 문장 ${A}토큰 ÷ ${R} + TTS(첫 문장)<br>${N===0?'답이 한 문장뿐이면 v1과 v2가 거의 같음':'나머지 문장이 많을수록 이득이 커짐'} · 첫 문장을 짧게(쉼표 단위) 자르면 더 빨라지지만 너무 짧은 조각은 어색함 (MIN_CHARS)<br>${RT>=0.5?'TTS가 느리면 재생 사이에 끊김이 생길 수 있음 (D20 스트리밍 타임라인)':'TTS가 빠르면 첫 문장 재생 동안 다음 문장이 준비됨'}`;}
+REDRAW.pipeline=drawPl;
+
+/* ===== vad ===== */
+const VD={one:['쉼 있는 한 문장 (0.6초 쉼)',[[0.8,1.6],[2.2,3.6]],3.6],jfk:['JFK 연설 한 문장 (쉼 4번)',[[0.3,2.27],[2.52,3.6],[4.25,5.6],[6.5,8.0],[9.2,10.6]],10.6],card:['카드 번호 4자리씩',[[0.5,1.6],[2.5,3.6],[4.6,5.7],[6.6,7.7]],7.7],short:['짧은 대답 "네"',[[0.5,0.85]],0.85]};
+let vdK='one';chipRow($('vdPre'),'data-vd',Object.entries(VD).map(([k,v])=>[k,v[0]]),'one','--net',v=>{vdK=v;drawVd();});
+bindSl(['vdM'],{vdM:v=>v+' ms'},()=>drawVd());
+function vadEnds(segs,ms){const step=0.032,ends=[];let t=0,inS=false,silStart=null;const total=segs[segs.length-1][1]+2;
+  while(t<total){const sp=segs.some(([a,b])=>t>=a&&t<b);if(sp){inS=true;silStart=null;}else if(inS){if(silStart===null)silStart=t;if(t+step-silStart>=ms/1000){ends.push([silStart,t+step]);inS=false;silStart=null;}}t+=step;}return ends;}
+function drawVd(){const k=VD[vdK],ms=+$('vdM').value;const ends=vadEnds(k[1],ms);const {c,w,h}=fit($('vdCv'),190);c.clearRect(0,0,w,h);
+  const mx=k[2]+2.2;const X=t=>20+(w-40)*t/mx;
+  k[1].forEach(([a,b])=>{c.fillStyle=css('--asr');c.fillRect(X(a),50,X(b)-X(a),50);});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('말소리',X(k[1][0][0]),44);
+  ends.forEach(([s,d],i)=>{const cut=s<k[2]-0.05;c.strokeStyle=css(cut?'--bad':'--ok');c.lineWidth=3;c.beginPath();c.moveTo(X(d),30);c.lineTo(X(d),120);c.stroke();
+    c.globalAlpha=0.2;c.fillStyle=css('--warn');c.fillRect(X(s),104,X(d)-X(s),12);c.globalAlpha=1;c.fillStyle=css(cut?'--bad':'--ok');c.font='600 11px '+FONT;c.fillText(cut?'✂ 잘림':'말 끝',X(d)-20,134+(i%2)*14);});
+  c.fillStyle=css('--muted');for(let s=0;s<=mx;s+=1)c.fillText(s+'s',X(s)-6,h-6);
+  const cuts=ends.filter(([s])=>s<k[2]-0.05).length;const last=ends.find(([s])=>s>=k[2]-0.05);
+  $('vdKv').innerHTML=`<div><span>'말 끝' 판정</span><b>${ends.length}번</b></div><div><span>중간 잘림</span><b class="${cuts?'badc':'okc'}">${cuts}번</b></div><div><span>진짜 끝 뒤 기다림</span><b>${last?((last[1]-k[2])*1000).toFixed(0)+' ms':'—'}</b></div>`;
+  $('vdFx').innerHTML=`감지 시각 ≈ 말이 멈춘 시각 + 침묵 기준 (32 ms 단위) · 노란 띠 = 침묵을 확인하며 기다린 시간<br>${cuts?`쉼(최대 ${(Math.max(...k[1].slice(1).map((s,i)=>s[0]-k[1][i][1]),0)*1000).toFixed(0)} ms)이 침묵 기준보다 길어 문장 중간에서 '끝'으로 판단 → 비서가 끼어듦`:'중간 잘림 없음 · 대신 모든 턴에서 기준만큼 늦게 대답'}<br>${vdK==='card'?'번호를 부르는 상태에서는 기준을 1.5 ~ 2초로 늘리거나 16자리가 모일 때까지 기다리기':vdK==='short'?'짧은 대답은 기다림이 상대적으로 크게 느껴짐 → 대화 상태별 기준':'강사 실측(JFK): 100 ms → 5번, 300 · 500 → 4번, 800 → 3번, 1000 → 2번 판정'}`;}
+REDRAW.vad=drawVd;
+
+/* ===== turn ===== */
+let tnT=99,tnAnim=null;
+chipRow($('tnPre'),'data-tn',[['human','사람처럼 0.3초'],['good','좋은 비서 0.8초'],['v1','오늘 v1 1.6초'],['slow','느린 비서 3초']],'v1','--s2s',v=>{setSl({tnD:{human:0.3,good:0.8,v1:1.6,slow:3}[v]});});
+bindSl(['tnD'],{tnD:v=>v.toFixed(1)+'초'},()=>{tnT=99;drawTn();});
+$('tnPlay').onclick=()=>{if(tnAnim)cancelAnimationFrame(tnAnim);if(RM){tnT=99;drawTn();return;}const t0=performance.now();const loop=n=>{tnT=(n-t0)/1000;drawTn();if(tnT<9)tnAnim=requestAnimationFrame(loop);};tnAnim=requestAnimationFrame(loop);};
+function drawTn(){const D=+$('tnD').value;const {c,w,h}=fit($('tnCv'),200);c.clearRect(0,0,w,h);const mx=9;const X=t=>110+(w-130)*t/mx;
+  const lanes=[['사람 A',40,[[0,1.6,'오늘 점심 뭐 먹지?'],[1.6+0.25+1.8+0.25,1.4,'좋아, 가자.']],'--asr'],['사람 B',70,[[1.6+0.25,1.8,'김치찌개 어때?']],'--net'],
+    ['사용자',130,[[0,1.6,'오늘 점심 뭐 먹지?'],[1.6+D+1.8+0.3,1.4,'좋아, 가자.']],'--asr'],['비서',160,[[1.6+D,1.8,'김치찌개 어때요?']],'--tts']];
+  lanes.forEach(([lab,y,segs,col])=>{c.fillStyle=css('--ink');c.font='600 12px '+FONT;c.fillText(lab,8,y+14);segs.forEach(([a,d,txt])=>{const p=Math.max(0,Math.min(1,(tnT-a)/d));c.fillStyle=css(col);c.globalAlpha=0.2;rr(c,X(a),y,X(a+d)-X(a),22,5);c.fill();c.globalAlpha=1;c.fillRect(X(a),y,(X(a+d)-X(a))*p,22);if(X(a+d)-X(a)>60){c.fillStyle=p>0.5?'#fff':css('--ink');c.font='11px '+FONT;c.fillText(txt,X(a)+4,y+15);}});});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;c.fillText('사람끼리 대화',8,26);c.fillText('사용자 ↔ 음성 비서',8,118);
+  const gx=X(1.6),gx2=X(1.6+D);c.strokeStyle=css(D>1.2?'--bad':D>0.8?'--warn':'--ok');c.lineWidth=2;c.beginPath();c.moveTo(gx,190);c.lineTo(gx2,190);c.stroke();c.fillStyle=c.strokeStyle;c.fillText('틈 '+D.toFixed(1)+'초',gx,184);
+  $('tnFx').innerHTML=`사람끼리 대화의 틈은 보통 0.2 ~ 0.3초 · 사람은 상대가 말을 끝내기 전에 이미 대답을 준비함(예측)<br>비서 ${D.toFixed(1)}초: ${D<=0.5?'거의 사람 같음':D<=0.8?'자연스러운 편':D<=1.2?'기다림이 느껴짐':'"여보세요?" · 다시 말하기 · 겹쳐 말하기가 늘어나는 구간'}<br>오늘 v1(T4)은 1.5 ~ 3초 → Streaming · 침묵 기준 · 빠른 부품으로 줄이기`;}
+REDRAW.turn=drawTn;
+
+/* ===== pct ===== */
+bindSl(['pcB','pcS','pcL'],{pcB:v=>v.toFixed(2)+'초',pcS:v=>v+'%',pcL:v=>v.toFixed(1)+'초'},()=>drawPc());
+function q(a,p){const s=[...a].sort((x,y)=>x-y);const i=(s.length-1)*p/100;const lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo);}
+function drawPc(){const B=+$('pcB').value,S=+$('pcS').value,L=+$('pcL').value;const r=mulberry(7);const xs=[];
+  for(let i=0;i<200;i++){const slow=r()<S/100;const base=slow?L:B;xs.push(Math.max(0.2,base*(1+0.18*(r()+r()+r()-1.5))));}
+  const mean=xs.reduce((a,b)=>a+b,0)/xs.length,p50=q(xs,50),p95=q(xs,95),mx=Math.max(...xs);
+  const {c,w,h}=fit($('pcCv'),230);c.clearRect(0,0,w,h);const top=Math.max(L*1.4,3);const X=t=>30+(w-50)*t/top;const r2=mulberry(3);
+  xs.forEach(x=>{c.fillStyle=css(x>p95?'--bad':'--asr');c.globalAlpha=0.6;c.beginPath();c.arc(X(x),70+r2()*80,3.5,0,7);c.fill();});c.globalAlpha=1;
+  [[mean,'평균','--warn',30],[p50,'p50','--ok',44],[p95,'p95','--bad',30]].forEach(([v,l,col,y])=>{c.strokeStyle=css(col);c.lineWidth=2;c.setLineDash([5,4]);c.beginPath();c.moveTo(X(v),y+4);c.lineTo(X(v),170);c.stroke();c.setLineDash([]);c.fillStyle=css(col);c.font='700 12px '+FONT;c.fillText(l+' '+v.toFixed(2),X(v)+3,y);});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=top;s+=1)c.fillText(s+'s',X(s)-6,h-8);
+  $('pcKv').innerHTML=`<div><span>평균</span><b>${mean.toFixed(2)}초</b></div><div><span>p50 (중앙값)</span><b class="okc">${p50.toFixed(2)}초</b></div><div><span>p95</span><b class="badc">${p95.toFixed(2)}초</b></div><div><span>최대</span><b>${mx.toFixed(2)}초</b></div>`;
+  $('pcFx').innerHTML=`가끔 느림 ${S}%: ${S>=5?'p95가 느린 쪽 무리 안으로 들어가 크게 튐 · p50은 거의 그대로':'p95는 보통 지연 근처 · 느린 응답이 5% 미만이면 p95에 잘 안 보임 → p99도 함께'}<br>p95 = 200번 중 190번은 이보다 빠름 · 사용자는 가장 느렸던 몇 번을 기억함<br>느린 원인 예: 첫 호출(cold start) · 긴 답 · 도구 호출 · 네트워크 · GPU를 여러 요청이 나눠 씀`;}
+REDRAW.pct=drawPc;
+
+/* ===== length ===== */
+chipRow($('lnPre'),'data-ln',[['voice','음성용 짧은 답 (40토큰)'],['chat','글 채팅용 긴 답 (250토큰)'],['api','빠른 API 모델 (100/초)'],['think','생각 모드 켬 (+300토큰)']],'voice','--llm',v=>{
+  const P={voice:{lnN:40,lnR:30},chat:{lnN:250,lnR:30},api:{lnN:40,lnR:100},think:{lnN:340,lnR:30}}[v];setSl(P);});
+bindSl(['lnN','lnR'],{lnN:v=>v+'토큰',lnR:v=>v+'/초'},()=>drawLn());
+function drawLn(){const N=+$('lnN').value,R=+$('lnR').value,F=0.2;const tot=F+N/R;const {c,w,h}=fit($('lnCv'),190);c.clearRect(0,0,w,h);
+  const mx=Math.max(tot*1.1,3);const X=t=>20+(w-40)*t/mx;c.fillStyle=css('--muted');c.fillRect(X(0),60,X(F)-X(0),36);c.fillStyle=css('--llm');c.fillRect(X(F),60,X(tot)-X(F),36);
+  const n=Math.min(N,80);for(let i=0;i<n;i++){const t=F+(i+1)*(N/n)/R;c.fillStyle='#fff';c.fillRect(X(t)-1,66,2,24);}
+  c.fillStyle=css('--ink');c.font='600 12px '+FONT;c.fillText('첫 토큰 '+F+'초',X(0),52);c.fillText('토큰 '+N+'개 ÷ '+R+'/초 = '+(N/R).toFixed(2)+'초',X(F)+4,118);
+  [[0.8,'0.8초','--warn'],[1.2,'1.2초','--bad']].forEach(([v,l,col])=>{if(v<mx){c.strokeStyle=css(col);c.setLineDash([5,4]);c.beginPath();c.moveTo(X(v),40);c.lineTo(X(v),140);c.stroke();c.setLineDash([]);c.fillStyle=css(col);c.fillText(l,X(v)+3,150);}});
+  c.fillStyle=css('--muted');c.font='11px '+FONT;for(let s=0;s<=mx;s+=Math.ceil(mx/10))c.fillText(s+'s',X(s)-6,h-6);
+  $('lnKv').innerHTML=`<div><span>LLM 전체</span><b class="${tot<=1.2?'okc':'badc'}">${tot.toFixed(2)}초</b></div><div><span>한국어 대략</span><b>${Math.round(N*1.2)}글자</b></div><div><span>읽는 시간 (대략)</span><b>${(N*1.2/6).toFixed(1)}초</b></div>`;
+  $('lnFx').innerHTML=`LLM 시간 ≈ 첫 토큰 + 토큰 수 ÷ 초당 토큰 → 답이 2배 길면 거의 2배 늦음<br>${N>200?'긴 답은 v1에서 몇 초 침묵 · 듣는 사람도 지루함 → 음성용 지시: 한두 문장 · 구어체':'짧은 답은 빠르고 듣기에도 편함'}<br>${N>=300?'생각 모드(thinking)는 답하기 전 수백 토큰을 생각 → 음성 비서에서는 끄거나 짧게':'Streaming(D21-4)이면 기준이 "첫 문장 토큰 수"로 바뀜'}`;}
+REDRAW.length=drawLn;
+
+/* ===== choose ===== */
+const CRIT=['지연','감정','디버깅','도구','한국어','비용','개인정보'];
+const ARCH={'Cascade (로컬)':[2,1,5,5,4,4,5],'Cascade (API)':[3,2,5,5,5,3,2],'S2S (API)':[5,5,2,3,3,2,2]};
+const ACOL={'Cascade (로컬)':'--asr','Cascade (API)':'--net','S2S (API)':'--s2s'};
+const SCN={call:['병원 예약 콜센터',[2,1,3,3,3,2,3]],tutor:['외국어 회화 튜터',[3,3,1,0,1,2,1]],elder:['어르신 말벗',[2,3,2,1,3,1,3]],factory:['공장 현장 음성 보고',[1,0,3,3,3,2,3]],kiosk:['키오스크 음성 주문',[3,0,2,3,3,2,1]]};
+$('chRows').innerHTML=CRIT.map((k,i)=>`<div class="goalrow"><span>${k}</span><input type="range" id="ch${i}" min="0" max="3" step="1" value="${SCN.call[1][i]}"><output id="ch${i}o"></output></div>`).join('');
+bindSl(CRIT.map((k,i)=>'ch'+i),{},()=>drawCh());
+chipRow($('chPre'),'data-ch',Object.entries(SCN).map(([k,v])=>[k,v[0]]),'call','--bad',v=>{setSl(Object.fromEntries(SCN[v][1].map((x,i)=>['ch'+i,x])));});
+function drawCh(){const W=CRIT.map((k,i)=>+$('ch'+i).value);const sc=Object.fromEntries(Object.entries(ARCH).map(([a,p])=>[a,p.reduce((s,v,i)=>s+v*W[i],0)]));
+  const best=Object.keys(sc).reduce((a,b)=>sc[b]>sc[a]?b:a);const {c,w,h}=fit($('chCv'),170);c.clearRect(0,0,w,h);const mx=Math.max(...Object.values(sc),1);
+  Object.entries(sc).forEach(([a,v],i)=>{const y=20+i*48;c.fillStyle=css('--ink');c.font=(a===best?'700 ':'')+'13px '+FONT;c.fillText(a,8,y+20);c.fillStyle=css(ACOL[a]);c.fillRect(150,y+4,(w-210)*v/mx,26);c.fillStyle=css('--ink');c.fillText(v+(a===best?' ✅':''),150+(w-210)*v/mx+6,y+22);});
+  const flips=[];CRIT.forEach((k,i)=>{const W2=[...W];W2[i]+=1;const s2=Object.fromEntries(Object.entries(ARCH).map(([a,p])=>[a,p.reduce((s,v,j)=>s+v*W2[j],0)]));const b2=Object.keys(s2).reduce((a,b)=>s2[b]>s2[a]?b:a);if(b2!==best)flips.push(`${k} +1 → ${b2}`);});
+  $('chFx').innerHTML=`선택: <b>${best}</b> = max(scores, key=scores.get)<br>${flips.length?'⚠️ 민감: '+flips.join(' · ')+' (결론이 쉽게 바뀌는 경계 → 팀 토론 필요)':'가중치를 하나씩 1 올려도 선택이 그대로 → 비교적 분명한 선택'}<br>점수표는 수업 토론용 상대 점수 · 실제로는 중간형(소리를 듣는 음성 LLM + 글 기반 도구 + 좋은 TTS)도 후보`;}
+REDRAW.choose=drawCh;
+
+const h0=location.hash.slice(1);openTab($(h0)?h0:'flow',true);
+})();
+</script>
+</body>
+</html>

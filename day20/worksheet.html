@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음성 AI Day 20 개념 워크시트 — TTS 평가 + 미니 프로젝트</title>
+<style>
+  :root{--bg:#0b1220;--panel:#111a2e;--line:#1f2b45;--text:#dbe4f0;--dim:#8a9bb8;--amber:#f5b942;--teal:#2dd4bf;--blue:#60a5fa;--green:#4ade80;--red:#f87171;--purple:#c084fc;--mono:"Consolas","D2Coding","JetBrains Mono",monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;font-size:15px;line-height:1.55}
+  .app{max-width:900px;margin:0 auto;padding:22px 20px 40px}
+  h1{color:var(--amber);font-size:24px;margin:0 0 6px}
+  .sub{color:var(--dim);margin:0 0 14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .panel h2{font-size:14px;color:var(--dim);margin:0 0 10px;font-weight:600}
+  button{background:#172239;border:1px solid #2a3a5c;color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--amber)}button.active{background:#3a2e12;border-color:var(--amber);color:var(--amber)}
+  button.primary{background:#123d33;border-color:var(--teal);color:var(--teal);font-weight:700;padding:9px 18px;font-size:14px}
+  button.submit{background:#3a2e12;border-color:var(--amber);color:var(--amber);font-weight:700;padding:9px 18px;font-size:14px}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  input[type=text]{background:#0a0f1c;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:14px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .tabs button .s{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+  .tabs button.graded .s{color:var(--green)}
+  .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .head .t{color:var(--amber);font-size:17px}
+  .head .a{font-size:13px;color:var(--teal);font-family:var(--mono)}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1628}
+  .q.unans{border-color:#5a3a1a}
+  .q .n{font-family:var(--mono);color:var(--dim);font-size:12px}
+  .q .p{margin:4px 0 10px;font-size:15px}
+  .q .p code,.opt code,.fb code,td code{font-family:var(--mono);color:var(--blue);background:#0a0f1c;padding:1px 5px;border-radius:4px}
+  .q pre.qc{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:10px 12px;margin:4px 0 12px;font-size:13.5px;line-height:1.5;white-space:pre;overflow-x:auto;color:#dbe4f3}
+  .q pre{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0 10px;font-size:14px;white-space:pre;overflow-x:auto}
+  .opts{display:grid;gap:6px}
+  .opt{text-align:left;padding:8px 12px;font-size:14px;font-family:inherit}
+  .opt.sel{border-color:var(--amber);background:#1f1a0c}
+  .opt.ok{border-color:var(--green);color:var(--green);background:#0d2216}
+  .opt.bad{border-color:var(--red);color:var(--red);background:#2a1212}
+  .opt:disabled{cursor:default;opacity:.9}
+  .fb{margin-top:8px;font-size:13px;color:var(--dim);border-left:3px solid var(--line);padding-left:10px}
+  .fb.ok{border-left-color:var(--green)}.fb.bad{border-left-color:var(--red)}
+  .fb .anim{color:var(--teal);font-family:var(--mono);font-size:12px;display:block;margin-top:3px}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .code{font-family:var(--mono);font-size:20px;color:var(--amber);letter-spacing:1px}
+  .score{font-family:var(--mono);color:var(--green);font-size:16px}
+  .hint{color:var(--dim);font-size:13px}
+  details{color:var(--dim);font-size:13px}
+  details summary{cursor:pointer;color:var(--dim)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* dialog */
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0;max-width:820px;width:92vw;max-height:88vh}
+  dialog::backdrop{background:#000a}
+  .dg{padding:18px 20px}
+  .dg h3{color:var(--amber);margin:0 0 4px;font-size:20px}
+  .dg .meta{color:var(--dim);font-size:13px;margin-bottom:12px;font-family:var(--mono)}
+  .dg .sec{margin:14px 0 6px;color:var(--teal);font-weight:700;font-size:14px}
+  .dg table{width:100%;border-collapse:collapse;font-size:13px}
+  .dg th{text-align:left;color:var(--dim);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12px}
+  .dg td{padding:5px 8px;border-bottom:1px solid #16203a;vertical-align:top}
+  .dg td.r{font-family:var(--mono)}
+  .dg .ok{color:var(--green)}.dg .bad{color:var(--red)}.dg .none{color:var(--dim)}
+  .dg .sum{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-family:var(--mono)}
+  .dgbar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .toast{color:var(--green);font-size:13px;margin-right:auto}
+  .body{overflow:auto;max-height:calc(88vh - 60px)}
+
+.q .n .ty{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;font-family:inherit}
+.ty-mc{background:#1b2a4a;color:var(--blue)} .ty-ox{background:#2a2410;color:var(--amber)} .ty-match{background:#13302c;color:var(--teal)}
+.ty-order{background:#2a1a3a;color:var(--purple)} .ty-multi{background:#2a1616;color:#fca5a5}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:360px}
+.oxrow .opt{text-align:center;font-size:22px;font-weight:700;padding:10px}
+.reflist{display:grid;gap:4px;margin:2px 0 10px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;font-size:14px;color:var(--text)}
+.reflist b{color:var(--teal);font-family:var(--mono);margin-right:6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow .l{font-size:14px} .mrow .l b{font-family:var(--mono);color:var(--dim);margin-right:6px}
+.mrow select{width:100%;background:#0a0f1c;color:var(--text);border:1px solid #2a3a5c;border-radius:6px;padding:6px 8px;font:inherit;font-size:13.5px}
+.mrow select.ok{border-color:var(--green);color:var(--green)} .mrow select.bad{border-color:var(--red);color:var(--red)}
+.steps{display:grid;gap:6px}
+.step{display:flex;gap:10px;align-items:center;text-align:left;padding:8px 12px;font-size:14px}
+.step .badge{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid #2a3a5c;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.step.on{border-color:var(--purple)} .step.on .badge{background:var(--purple);border-color:var(--purple);color:#0b1220;font-weight:700}
+.step.ok{border-color:var(--green)} .step.ok .badge{background:var(--green);color:#0b1220;border-color:var(--green)}
+.step.bad{border-color:var(--red)} .step.bad .badge{background:var(--red);color:#0b1220;border-color:var(--red)}
+.seqbar{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.seqbar button{padding:4px 10px;font-size:12px}
+.multi .opt::before{content:"☐ ";color:var(--dim)} .multi .opt.sel::before{content:"☑ ";color:var(--amber)}
+.multi .opt.ok::before{content:"☑ ";color:var(--green)} .multi .opt.miss::before{content:"☐ ";color:var(--green)}
+.multi .opt.miss{border-color:var(--green);border-style:dashed}
+.typeinfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>음성 AI Day 20 개념 워크시트</h1>
+  <p class="sub">TTS 평가 + 미니 프로젝트 — MOS · 블라인드 · 신뢰구간 · UTMOS · ASR 역검증 CER · TTFA · 끊김 · 품질 게이트 · LUFS · dBFS 피크 · SRT · 워터마크 · 리포트 · 발표 · 4교시 × 10문항 (객관식 5 · OX 2 · 선잇기 1 · 순서 맞추기 1 · 모두 고르기 1). 🎬 표시는 같은 폴더 <a href="animation.html" style="color:var(--teal)">animation.html</a>의 애니메이션 번호입니다. 선잇기는 드롭다운으로, 순서 맞추기는 단계를 일어나는 순서대로 눌러서, 모두 고르기는 여러 개를 눌러서 답합니다. 답을 고른 뒤 아래 <b style="color:var(--teal)">채점하기</b>를 누르면 정오·해설과 결과 코드가 나타납니다. 채점 전에는 답을 바꿀 수 있고, 채점 후에는 잠깁니다. 모든 교시를 마치면 <b style="color:var(--amber)">제출</b>로 오답 정리를 열고, <b>캡처</b>로 복사해 노션에 붙여 넣으세요.</p>
+
+  <div class="panel">
+    <div class="row"><label style="color:var(--dim);font-size:13px">이름 <input type="text" id="name" placeholder="홍길동"></label><span class="hint">이름은 결과 코드 계산에만 쓰이며 저장되지 않습니다.</span></div>
+  </div>
+  <div class="panel"><h2>교시</h2><div class="tabs" id="tabs"></div></div>
+  <div class="panel" id="sheet"></div>
+  <div class="panel">
+    <div class="actions">
+      <button class="primary" id="gradeBtn">채점하기</button>
+      <span class="code" id="rcode">—</span><span class="score" id="rscore"></span><span class="hint" id="rhint"></span>
+      <button class="submit" id="submitBtn" style="margin-left:auto">제출</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="body"><div class="dg" id="dgBody"></div></div>
+  <div class="dgbar"><span class="toast" id="toast"></span><button id="captureBtn" class="primary">📋 캡처 (노션용 복사)</button><button id="closeBtn">닫기</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const Q=[{"t": "1교시 · 평가 지표 지도 · MOS · 신뢰구간", "anim": "D20-2 지표 지도 · D20-3 MOS 신뢰구간", "qs": [{"ty": "match", "p": "지표와 재는 것을 이으세요.", "left": ["MOS", "ASR 역검증 CER", "TTFA"], "right": ["원고대로 읽었나 (내용 정확도)", "요청부터 첫 소리까지 걸린 시간", "사람이 매긴 자연스러움 평균 점수"], "a": [2, 0, 1], "w": "", "an": "Part 1 지표 지도"}, {"ty": "mc", "p": "MOS(ACR) 평가에서 5점의 뜻은?", "o": ["보통 (Fair)", "좋음 (Good)", "매우 좋음 (Excellent)", "매우 나쁨 (Bad)"], "a": 2, "w": "ITU-T P.800 방식 5점 척도입니다.", "an": "Part 2 그림"}, {"ty": "mc", "p": "청취 평가에서 시스템 이름을 숨기는(블라인드) 이유는?", "o": ["어느 모델인지 알면 기대 · 선입견이 점수에 섞이기 때문", "시간을 아끼려고", "UTMOS가 요구해서", "파일 크기를 줄이려고"], "a": 0, "w": "", "an": "Part 2 👣"}, {"ty": "mc", "p": "샘플 순서를 무작위로 섞는 주된 이유는?", "o": ["재미를 위해", "샘플을 줄이려고", "신뢰구간을 없애려고", "앞에서 들은 소리가 뒤 점수에 주는 순서 효과를 고르게 하려고"], "a": 3, "w": "", "an": "Part 2-1"}, {"ty": "ox", "p": "평가자 수를 4배로 늘리면 신뢰구간의 반폭은 대략 절반이 됩니다.", "a": true, "w": "반폭 ∝ 1/√n 이므로 √4 = 2배로 줄어듭니다.", "an": "D20-3"}, {"ty": "mc", "p": "mos_ci에서 반폭 = t × 표준편차 ÷ √(____) 의 빈칸은?", "o": ["t", "평균", "5", "n (점수 개수)"], "a": 3, "w": "", "an": "빈칸 실습 1"}, {"ty": "ox", "p": "A의 MOS가 B보다 0.2 높고 두 95% 신뢰구간이 크게 겹치면, 'A가 확실히 더 좋다'고 말할 수 있습니다.", "a": false, "w": "구간이 겹치면 차이를 확신할 수 없습니다. 평가자를 늘리거나 짝 비교를 합니다.", "an": "Part 2 ❓"}, {"ty": "multi", "p": "좋은 MOS 평가 조건으로 맞는 것을 모두 고르세요.", "o": ["같은 문장으로 시스템 비교", "블라인드 · 무작위 순서", "평가자끼리 상의해서 점수 통일", "충분한 평가자 수와 신뢰구간 표시"], "a": [0, 1, 3], "w": "평가자는 독립이어야 평균 · 구간이 의미가 있습니다.", "an": "Part 2 👣"}, {"ty": "mc", "p": "CER이 0인데도 MOS가 낮게 나올 수 있는 경우는?", "o": ["음량이 너무 큰 파일", "UTMOS가 높은 소리", "원고를 정확히 읽었지만 로봇처럼 어색한 소리", "단어를 빠뜨린 소리"], "a": 2, "w": "", "an": "D20-2 함정 샘플"}, {"ty": "order", "p": "MOS 신뢰구간을 구하는 순서대로 놓으세요.", "steps": ["평균 ± 반폭으로 구간", "점수의 평균 · 표준편차 계산", "표준오차 = 표준편차 ÷ √n", "t 값(자유도 n − 1) × 표준오차 = 반폭"], "a": [1, 2, 3, 0], "w": "", "an": "빈칸 1 해설"}]}, {"t": "2교시 · UTMOS · ASR 역검증 · Streaming", "anim": "D20-4 자동 지표 vs 사람 · D20-5 스트리밍 타임라인", "qs": [{"ty": "mc", "p": "UTMOS를 가장 잘 설명한 것은?", "o": ["음성 인식 모델", "음량 측정 표준", "워터마크 검출기", "사람 점수를 흉내 내도록 학습한 자동 MOS 예측기"], "a": 3, "w": "", "an": "Part 3"}, {"ty": "mc", "p": "UTMOS를 한국어에 쓸 때 가장 주의할 점은?", "o": ["GPU가 없으면 실행 불가", "영어 위주 데이터로 학습해 절대 점수가 낮거나 불안정할 수 있다", "한국어는 입력할 수 없다", "항상 5점이 나온다"], "a": 1, "w": "강사 실측: 한국어 휴대폰 사람 녹음 1.48.", "an": "Part 3 ⚠️"}, {"ty": "mc", "p": "utmos(wave, ____)의 두 번째 인자로 알맞은 것은?", "o": ["항상 16000", "문장 길이", "MOS 평균", "그 소리의 샘플링 레이트 (샘플마다 다를 수 있음)"], "a": 3, "w": "", "an": "빈칸 실습 2"}, {"ty": "ox", "p": "24 kHz 소리를 넣으면서 샘플링 레이트를 16000으로 잘못 넘겨도 UTMOS 점수는 변하지 않습니다.", "a": false, "w": "늘어진 소리로 해석되어 점수가 틀립니다.", "an": "빈칸 2 해설"}, {"ty": "mc", "p": "시스템별 평균을 내는 pandas 코드로 알맞은 것은?", "o": ["EVAL.groupby(\"system\")[cols].mean()", "EVAL.sort_values(\"system\")", "EVAL.mean(\"system\")", "EVAL.count()"], "a": 0, "w": "", "an": "빈칸 실습 3"}, {"ty": "multi", "p": "자동 지표(UTMOS · CER)의 올바른 쓰임을 모두 고르세요.", "o": ["설정을 바꿀 때마다 후보를 빠르게 거르기", "같은 조건에서 시스템 순위 비교", "사람 평가 없이 서비스 품질을 최종 확정", "생성기의 품질 게이트"], "a": [0, 1, 3], "w": "마지막 확정은 사람 평가로 합니다.", "an": "Part 3 결과 읽기"}, {"ty": "match", "p": "방식과 TTFA를 이으세요.", "left": ["통째로 만들기", "문장마다 만들기", "쉼표 단위로 첫 조각을 짧게"], "right": ["첫 문장 생성 시간", "첫 짧은 조각 생성 시간 (가장 짧음)", "문단 전체 생성 시간"], "a": [2, 0, 1], "w": "", "an": "Part 4 · D20-5"}, {"ty": "mc", "p": "timeline()에서 TTFA = ready[____]의 빈칸은?", "o": ["1", "-1", "len(ready)", "0"], "a": 3, "w": "", "an": "빈칸 실습 4"}, {"ty": "ox", "p": "조각 i가 '재생 시작 시각(TTFA + 앞 조각 길이의 합)'보다 늦게 준비되면 끊김이 생깁니다.", "a": true, "w": "", "an": "Part 4 📐"}, {"ty": "order", "p": "문장 단위 스트리밍의 진행 순서대로 놓으세요.", "steps": ["첫 문장 재생하며 다음 문장 생성", "원고를 문장으로 나누기", "첫 문장 합성", "다음 문장이 준비되면 이어서 재생"], "a": [1, 2, 0, 3], "w": "", "an": "Part 4"}]}, {"t": "3교시 · 미니 프로젝트: 생성기 · 마스터링", "anim": "D20-6 생성기 파이프라인 · D20-7 LUFS · 피크", "qs": [{"ty": "order", "p": "생성기 처리 순서대로 놓으세요.", "steps": ["마스터링 (LUFS · 피크)", "문단 · 문장 나누기", "문장마다 합성 + 품질 게이트", "쉼 · 차임 · 고지 붙이기"], "a": [1, 2, 3, 0], "w": "", "an": "Part 5 그림"}, {"ty": "mc", "p": "synth_best에서 후보 중 하나를 고르는 코드 min(cands, key=lambda c: c[____])의 빈칸은?", "o": ["\"cer\"", "\"y\"", "\"tries\"", "\"sr\""], "a": 0, "w": "", "an": "빈칸 실습 9"}, {"ty": "ox", "p": "품질 게이트는 CER이 기준 이하인 후보가 나오면 남은 시도를 하지 않고 멈춥니다.", "a": true, "w": "", "an": "빈칸 9 해설"}, {"ty": "mc", "p": "0.5초 무음의 샘플 수 = 0.5 × ____ (빈칸)?", "o": ["N_TRY", "SR (샘플링 레이트)", "1000", "LUFS"], "a": 1, "w": "", "an": "빈칸 실습 5"}, {"ty": "mc", "p": "진폭을 dB로 바꾸는 식은?", "o": ["10 · log₁₀(진폭)", "log₂(진폭)", "진폭 × 20", "20 · log₁₀(진폭)"], "a": 3, "w": "전력은 10, 진폭은 20 (전력 = 진폭²).", "an": "빈칸 실습 7 · 📐"}, {"ty": "match", "p": "플랫폼과 대표 음량 목표를 이으세요.", "left": ["방송 (EBU R128)", "팟캐스트 (Apple 권장)", "오늘 오디오북 모드"], "right": ["−16 LUFS", "−18 LUFS", "−23 LUFS"], "a": [2, 0, 1], "w": "", "an": "Part 5 그림"}, {"ty": "multi", "p": "마스터링 단계에 대한 설명으로 맞는 것을 모두 고르세요.", "o": ["LUFS는 사람 귀 감도를 반영한 통합 음량이다", "음량을 올리면 피크가 0 dBFS를 넘어 클리핑될 수 있다", "피크 제한으로 전체를 줄이면 음량이 목표보다 약간 낮아질 수 있다", "−14 LUFS는 −23 LUFS보다 작은 소리다"], "a": [0, 1, 2], "w": "0에 가까울수록 큰 소리입니다.", "an": "D20-7"}, {"ty": "mc", "p": "SRT 자막의 시간 형식으로 맞는 것은?", "o": ["1:2:3", "62.345s", "00:01:02,345", "00:01:02.345"], "a": 2, "w": "SRT는 쉼표 뒤 밀리초 3자리입니다.", "an": "빈칸 실습 8"}, {"ty": "mc", "p": "make_program에서 워터마크를 넣은 '뒤에' 마스터링해도 확인값이 1로 나오는 이유는?", "o": ["Perth 워터마크가 볼륨 변화에 강하기 때문 (D19 실측)", "마스터링이 워터마크를 다시 넣기 때문", "LUFS가 워터마크를 만들기 때문", "MP3로 바꾸지 않았기 때문"], "a": 0, "w": "", "an": "빈칸 9 해설"}, {"ty": "ox", "p": "안내방송 모드에서 같은 문장을 두 번 반복할 때 cache 덕분에 그 문장은 한 번만 합성합니다.", "a": true, "w": "", "an": "빈칸 9 해설"}]}, {"t": "4교시 · 리포트 · 발표 · 4주차 회고", "anim": "D20-8 목표 판정판 · D20-9 발표 평가표", "qs": [{"ty": "mc", "p": "리포트에서 목표(예: 게이트 통과율 ≥ 0.8)를 먼저 정하는 이유는?", "o": ["파일 크기를 줄이려고", "측정 결과로 ✅ · ❌를 객관적으로 판정하려고", "숫자를 좋아 보이게 하려고", "MOS를 생략하려고"], "a": 1, "w": "", "an": "Part 6"}, {"ty": "ox", "p": "❌ 판정이 있는 리포트는 실패이므로 발표에서 빼는 것이 좋습니다.", "a": false, "w": "원인 · 대책을 함께 쓴 리포트가 더 믿을 만합니다.", "an": "D20-8"}, {"ty": "mc", "p": "음성 비서(5주차)에서 가장 중요한 목표 지표는?", "o": ["차임 길이", "TTFA (첫 소리까지 시간)", "오디오북 LUFS", "SRT 개수"], "a": 1, "w": "", "an": "D20-8 · Part 7"}, {"ty": "multi", "p": "동료 평가표의 '책임 있는 설계' 항목에 해당하는 것을 모두 고르세요.", "o": ["AI 고지 문구", "워터마크 확인", "원고 · 목소리 권리 확인", "MP3 비트레이트 최대화"], "a": [0, 1, 2], "w": "", "an": "Part 6-1"}, {"ty": "match", "p": "4주차 날과 오늘 생성기에서 쓰인 곳을 이으세요.", "left": ["D16 TTS 원리", "D18 표현형 TTS", "D19 복제 · 윤리"], "right": ["exaggeration 프리셋", "고지 문구 · 워터마크", "normalize_ko 숫자 읽기"], "a": [2, 0, 1], "w": "", "an": "Part 7 회고"}, {"ty": "mc", "p": "UTMOS 평균이 A 3.1, B 2.9, 반 MOS가 A 4.0 ± 0.3, B 3.9 ± 0.3일 때 가장 알맞은 결론은?", "o": ["두 시스템 차이는 불확실하다 (구간 겹침) · UTMOS 절대값은 한국어라 낮게 나왔을 수 있다", "A가 확실히 좋다", "UTMOS가 3점대라 둘 다 쓸 수 없다", "MOS가 틀렸다"], "a": 0, "w": "", "an": "Part 3 · Part 2"}, {"ty": "mc", "p": "10시간 오디오북 생성에서 '일관성' 문제를 줄이는 방법으로 알맞은 것은?", "o": ["문장마다 다른 프리셋", "재시도를 없애기", "음량 맞추기 생략", "같은 참고 음성 · 씨앗 고정 · 문단 단위 합성"], "a": 3, "w": "", "an": "Part 5-1 ❓"}, {"ty": "ox", "p": "3분 발표에서 결과물 15초를 들려줄 때는 자막(SRT)과 함께 보여 주면 원고와 비교하기 좋습니다.", "a": true, "w": "", "an": "Part 6-1"}, {"ty": "order", "p": "오늘 하루의 흐름대로 놓으세요.", "steps": ["생성기 만들기", "사람 청취 평가 (MOS)", "리포트 · 발표", "자동 지표 · 스트리밍 측정"], "a": [1, 3, 0, 2], "w": "", "an": "D20-1"}, {"ty": "mc", "p": "오늘의 한 줄 요약으로 가장 알맞은 것은?", "o": ["MOS만 높으면 된다", "빠르기만 하면 된다", "여러 지표를 같은 조건에서 함께 재고 불확실성까지 말하며, 그 측정으로 품질을 지킨다", "UTMOS 하나면 충분하다"], "a": 2, "w": "", "an": "Part 7"}]}];
+
+const TYNAME={mc:'객관식',ox:'OX',match:'선잇기',order:'순서 맞추기',multi:'모두 고르기'};
+let tab=0;
+const ans=Q.map(s=>s.qs.map(q=>q.ty==='multi'?[]:(q.ty==='match'?q.left.map(()=>null):(q.ty==='order'?[]:null))));
+const graded=Q.map(()=>false);
+function hash(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16).padStart(8,'0').slice(-4);}
+function codeFor(name,t,score){return `${t}${'ABCDEFGHIJK'[10-score]||'K'}-${hash(`${name.trim()}|${t}|${score}|voice-day20`)}`;}
+function strip(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent;}
+const eqArr=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+function answered(q,a){if(q.ty==='mc'||q.ty==='ox')return a!==null;if(q.ty==='multi')return a.length>0;if(q.ty==='match')return a.every(x=>x!==null);return a.length===q.steps.length;}
+function correct(q,a){if(!answered(q,a))return false;if(q.ty==='multi')return eqArr([...a].sort((x,y)=>x-y),q.a);if(q.ty==='match'||q.ty==='order')return eqArr(a,q.a);return a===q.a;}
+function scoreOf(i){return ans[i].filter((a,k)=>correct(Q[i].qs[k],a)).length;}
+function nAns(i){return ans[i].filter((a,k)=>answered(Q[i].qs[k],a)).length;}
+function txt(q,a){ /* 답을 문자열로 (오답 정리 · 해설용) */
+  if(!answered(q,a))return '미응답';
+  if(q.ty==='mc')return '①②③④'[a]+' '+strip(q.o[a]);
+  if(q.ty==='ox')return a?'O':'X';
+  if(q.ty==='multi')return [...a].sort((x,y)=>x-y).map(j=>'ABCDEFGH'[j]).join(', ');
+  if(q.ty==='match')return a.map((r,i)=>(i+1)+'-'+'ABCDEFGH'[r]).join(' · ');
+  return a.map(j=>'ABCDEFGH'[j]).join(' → ');}
+function renderTabs(){$('#tabs').innerHTML=Q.map((s,i)=>`<button class="${i===tab?'active':''} ${graded[i]?'graded':''}" data-i="${i}">${s.k||(i+1)+'교시'}<span class="s">${graded[i]?scoreOf(i)+'/10':nAns(i)+'/10'}</span></button>`).join('');$('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=+b.dataset.i;render();window.scrollTo({top:0});});}
+function body(q,k,a,g){
+  if(q.ty==='mc'){return `<div class="opts">${q.o.map((o,j)=>{let c='';if(g){if(j===q.a)c='ok';else if(j===a)c='bad';}else if(j===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-j="${j}" ${g?'disabled':''}>${'①②③④'[j]} ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='ox'){return `<div class="oxrow">${[true,false].map(v=>{let c='';if(g){if(v===q.a)c='ok';else if(v===a)c='bad';}else if(v===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-v="${v?1:0}" ${g?'disabled':''}>${v?'O':'X'}</button>`;}).join('')}</div>`;}
+  if(q.ty==='multi'){return `<div class="opts multi">${q.o.map((o,j)=>{const on=a.includes(j),ri=q.a.includes(j);let c='';if(g){if(on&&ri)c='ok';else if(on&&!ri)c='bad';else if(!on&&ri)c='miss';}else if(on)c='sel';return `<button class="opt ${c}" data-k="${k}" data-m="${j}" ${g?'disabled':''}>${'ABCDEFGH'[j]}. ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='match'){return `<div class="reflist">${q.right.map((r,j)=>`<div><b>${'ABCDEFGH'[j]}</b>${r}</div>`).join('')}</div>`+q.left.map((l,i)=>{let c='';if(g)c=a[i]===q.a[i]?'ok':'bad';return `<div class="mrow"><div class="l"><b>${i+1}.</b>${l}</div><select class="${c}" data-k="${k}" data-i="${i}" ${g?'disabled':''}><option value="">— 고르기 —</option>${q.right.map((r,j)=>`<option value="${j}" ${a[i]===j?'selected':''}>${'ABCDEFGH'[j]}. ${strip(r)}</option>`).join('')}</select></div>`;}).join('');}
+  /* order */
+  return `<div class="steps">${q.steps.map((s,j)=>{const pos=a.indexOf(j);let c=pos>=0?'on':'';if(g){c=(pos>=0&&a[pos]===q.a[pos])?'ok':'bad';}return `<button class="opt step ${c}" data-k="${k}" data-s="${j}" ${g?'disabled':''}><span class="badge">${pos>=0?pos+1:'ABCDEFGH'[j]}</span><span>${'ABCDEFGH'[j]}. ${s}</span></button>`;}).join('')}</div><div class="seqbar">순서: ${a.length?a.map(j=>'ABCDEFGH'[j]).join(' → '):'단계를 일어나는 순서대로 누르세요'}${g?'':` <button data-k="${k}" data-reset="1">다시</button>`}</div>`;
+}
+function render(){renderTabs();const s=Q[tab];const g=graded[tab];
+  $('#sheet').innerHTML=`<div class="head"><span class="t">${s.t}</span><span class="a">🎬 ${s.anim}</span></div>`+s.qs.map((q,k)=>{const a=ans[tab][k];const ok=correct(q,a);
+    return `<div class="q ${g&&!answered(q,a)?'unans':''}"><div class="n">문항 ${k+1}<span class="ty ty-${q.ty}">${TYNAME[q.ty]}</span></div><div class="p">${q.p}</div>${q.c?`<pre class="qc">${q.c}</pre>`:``}${body(q,k,a,g)}${g?`<div class="fb ${ok?'ok':'bad'}">${!answered(q,a)?'미응답. ':(ok?'정답. ':'오답. ')}${q.ty!=='mc'&&!ok?`<b>정답: ${txt(q,q.a)}</b> · `:''}${q.w}<span class="anim">확인: ${q.an}</span></div>`:''}</div>`;}).join('');
+  if(!g){
+    $('#sheet').querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.j;ans[tab][k]=(ans[tab][k]===j?null:j);render();});
+    $('#sheet').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,v=b.dataset.v==='1';ans[tab][k]=(ans[tab][k]===v?null:v);render();});
+    $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.m;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p,1);else a.push(j);render();});
+    $('#sheet').querySelectorAll('select[data-i]').forEach(sl=>sl.onchange=()=>{const k=+sl.dataset.k,i=+sl.dataset.i;ans[tab][k][i]=sl.value===''?null:+sl.value;renderTabs();updHint();});
+    $('#sheet').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.s;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p);else a.push(j);render();});
+    $('#sheet').querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{ans[tab][+b.dataset.k]=[];render();});
+  }
+  $('#gradeBtn').disabled=g;$('#gradeBtn').textContent=g?'채점 완료':'채점하기';updHint();
+}
+function updHint(){const g=graded[tab];const nm=$('#name').value;
+  if(g){const sc=scoreOf(tab);$('#rscore').textContent=`${sc}/10`;if(nm.trim()){$('#rcode').textContent=codeFor(nm,tab+1,sc);$('#rhint').textContent='결과 코드';}else{$('#rcode').textContent='—';$('#rhint').textContent='이름을 입력하면 결과 코드가 나옵니다.';}}
+  else{$('#rcode').textContent='—';$('#rscore').textContent='';$('#rhint').textContent=`${Q[tab].k||(tab+1)+'교시'}: ${nAns(tab)}/10 답했습니다. 채점하기를 누르면 잠깁니다.`;}}
+$('#gradeBtn').onclick=()=>{const n=nAns(tab);if(n<10&&!confirm(`아직 ${10-n}문항을 끝까지 답하지 않았습니다. 그래도 채점할까요? (미응답은 오답 처리)`))return;graded[tab]=true;render();};
+$('#name').addEventListener('input',updHint);
+
+/* ── 제출 대화상자 ── */
+let lastHtml='',lastText='';
+function buildReport(){
+  const nm=$('#name').value.trim()||'(이름 없음)';const ds=new Date().toLocaleString('ko-KR');
+  let h=`<h3>음성 AI Day 20 개념 워크시트 — 오답 정리</h3><div class="meta">${nm} · ${ds}</div>`;
+  let t=`음성 AI Day 20 개념 워크시트 — 오답 정리\n이름: ${nm}\n일시: ${ds}\n\n`;
+  Q.forEach((s,i)=>{if(!graded[i])return;
+    const wrong=s.qs.map((q,k)=>({q,k,a:ans[i][k]})).filter(x=>!correct(x.q,x.a));
+    h+=`<div class="sec">${s.t} — ${scoreOf(i)}/10</div>`;t+=`### ${s.t} — ${scoreOf(i)}/10\n`;
+    if(!wrong.length){h+=`<div class="ok" style="margin:4px 0 8px">오답 없음</div>`;t+=`오답 없음\n\n`;return;}
+    h+=`<table><tr><th>#</th><th>유형</th><th>문항</th><th>내 답</th><th>정답</th></tr>`;t+=`| # | 유형 | 문항 | 내 답 | 정답 |\n|---|---|---|---|---|\n`;
+    wrong.forEach(({q,k,a})=>{const my=txt(q,a),co=txt(q,q.a);const qt=strip(q.p).replace(/\s+/g,' ').slice(0,60);
+      h+=`<tr><td class="r">${k+1}</td><td>${TYNAME[q.ty]}</td><td>${qt}</td><td class="bad">${my}</td><td class="ok">${co}</td></tr>`;
+      t+=`| ${k+1} | ${TYNAME[q.ty]} | ${qt.replace(/\|/g,'/')} | ${my.replace(/\|/g,'/')} | ${co.replace(/\|/g,'/')} |\n`;});
+    h+=`</table>`;t+=`\n`;});
+  const ng=Q.map((s,i)=>graded[i]?null:(s.k||(i+1)+'교시')).filter(x=>x);
+  if(ng.length){h+=`<div class="meta" style="margin-top:10px">미채점: ${ng.join(', ')}</div>`;t+=`미채점: ${ng.join(', ')}\n`;}
+  lastHtml=h;lastText=t;return h;
+}
+$('#submitBtn').onclick=()=>{if(!graded.some(x=>x)){alert('먼저 채점하기를 눌러 주세요.');return;}$('#dgBody').innerHTML=buildReport();$('#toast').textContent='';$('#dlg').showModal();};
+$('#closeBtn').onclick=()=>$('#dlg').close();
+function copyRich(html,text){
+  // 1) copy 이벤트에 두 형식을 직접 실어 보내기 (사용자 클릭 안에서 동기 실행 — file:// 에서도 동작)
+  let done=false;
+  const onCopy=e=>{e.clipboardData.setData('text/html',html);e.clipboardData.setData('text/plain',text);e.preventDefault();done=true;};
+  document.addEventListener('copy',onCopy);
+  try{
+    const body=$('#dgBody');const sel=window.getSelection();const range=document.createRange();range.selectNodeContents(body);sel.removeAllRanges();sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }catch(e){}
+  document.removeEventListener('copy',onCopy);
+  return done;
+}
+$('#captureBtn').onclick=async()=>{
+  const htmlDoc=`<meta charset="utf-8">`+lastHtml.replace(/ class="[^"]*"/g,'').replace(/<table>/g,'<table border="1" style="border-collapse:collapse">');
+  if(copyRich(htmlDoc,lastText)){$('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;}
+  // 2) 비동기 Clipboard API
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([htmlDoc],{type:'text/html'}),'text/plain':new Blob([lastText],{type:'text/plain'})})]);
+    }else{await navigator.clipboard.writeText(lastText);}
+    $('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;
+  }catch(e){}
+  // 3) 최종: 텍스트 영역 선택 복사
+  try{
+    const ta=document.createElement('textarea');ta.value=lastText;ta.style.position='fixed';ta.style.opacity='0';$('#dlg').appendChild(ta);ta.focus();ta.select();
+    const ok=document.execCommand('copy');ta.remove();
+    $('#toast').textContent=ok?'텍스트(마크다운 표)로 복사됨 — 노션에서 Ctrl+V.':'복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';
+  }catch(e){$('#toast').textContent='복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';}
+};
+render();
+</script>
+</body>
+</html>
