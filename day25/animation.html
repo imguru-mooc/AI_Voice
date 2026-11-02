@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D25 미니 프로젝트 음성 비서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.code{background:var(--soft);border-radius:10px;padding:10px 12px;font-family:ui-monospace,Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:.84rem;white-space:pre-wrap;line-height:1.55;overflow-x:auto}
+.mtable{width:100%;border-collapse:collapse;font-size:.9rem}
+.mtable td,.mtable th{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
+.mtable th{color:var(--muted);font-weight:600}
+.okc{color:var(--ok);font-weight:700}.badc{color:var(--bad);font-weight:700}.warnc{color:var(--warn);font-weight:700}
+.sw{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 12px}
+.sw label{display:flex;gap:6px;align-items:center;font-size:.92rem;cursor:pointer}
+.sw input{width:18px;height:18px;accent-color:var(--ink)}
+.tline{position:relative;height:30px;background:var(--soft);border-radius:8px;margin:6px 0 2px;overflow:hidden}
+.tline i{position:absolute;top:4px;bottom:4px;border-radius:5px;color:#fff;font-style:normal;font-size:.72rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+.tlab{font-size:.85rem;color:var(--muted);margin-top:10px}
+.stg{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
+.stg div{border:2px solid var(--line);border-radius:10px;padding:8px;font-size:.82rem;min-height:92px;opacity:.35;transition:all .25s}
+.stg div.on{opacity:1;border-color:var(--c)}.stg div.cur{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.stg div b{display:block;color:var(--c);margin-bottom:4px}
+@media (max-width:760px){.stg{grid-template-columns:1fr 1fr}}
+.formgrid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.formgrid2 label{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.formgrid2 textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
+@media (max-width:600px){.formgrid2{grid-template-columns:1fr}}
+.gate{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.gate div{flex:1 1 110px;border:2px solid var(--line);border-radius:10px;padding:8px;text-align:center;font-size:.86rem}
+.gate div.pass{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.gate div.stop{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.gate div.wait{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D25 미니 프로젝트: 로컬 음성 비서</h1>
+  <p>프로젝트 카드와 목표 판정, 마이크 소리 점검, 한 턴의 단계, 이력 창, 시나리오 판정, 지연 예산과 개선, 리포트 점검, 발표 평가표를 직접 움직여 보는 수업 자료입니다. 탭 번호 D25-1 ~ D25-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다. 숫자는 설명용 예시이며, 실제 결과는 각 팀 노트북의 값을 쓰세요.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D25-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="card"><span class="tc">D25-2</span>프로젝트 카드 · 목표</button>
+  <button role="tab" aria-selected="false" data-t="mic"><span class="tc">D25-3</span>마이크 소리 점검</button>
+  <button role="tab" aria-selected="false" data-t="turn"><span class="tc">D25-4</span>한 턴 단계</button>
+  <button role="tab" aria-selected="false" data-t="history"><span class="tc">D25-5</span>이력 창</button>
+  <button role="tab" aria-selected="false" data-t="scenario"><span class="tc">D25-6</span>시나리오 판정</button>
+  <button role="tab" aria-selected="false" data-t="latency"><span class="tc">D25-7</span>지연 예산 · 개선</button>
+  <button role="tab" aria-selected="false" data-t="report"><span class="tc">D25-8</span>리포트 점검</button>
+  <button role="tab" aria-selected="false" data-t="rubric"><span class="tc">D25-9</span>발표 평가표</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D25-1</span>오늘 할 것: 조립하고 · 재고 · 발표하기</h2>
+  <p class="lead">단계를 눌러 할 일과 빈칸을 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="card">
+  <h2><span class="hc">D25-2</span>목표는 시험 전에, 숫자로</h2>
+  <p class="lead">아래 결과(예시 팀)는 그대로입니다. 목표 숫자만 바꿔 보세요. 같은 결과가 달성 · 미달로 바뀝니다. 그래서 목표는 결과를 보기 <b>전에</b> 정해야 합니다.</p>
+  <div class="stage">
+    <label class="sl">성공률 목표 (%)<input type="range" id="cdS" min="50" max="100" step="5" value="80"><output id="cdSo"></output></label>
+    <label class="sl">p50 목표 (초)<input type="range" id="cdP" min="0.6" max="2.5" step="0.1" value="1.2"><output id="cdPo"></output></label>
+    <label class="sl">p90 목표 (초)<input type="range" id="cdQ" min="1" max="4" step="0.1" value="2.5"><output id="cdQo"></output></label>
+    <div class="sw"><label><input type="checkbox" id="cdCheat"> 결과를 본 뒤 목표를 결과에 맞춰 고치기</label></div>
+    <table class="mtable" id="cdTab"></table>
+    <div class="fx" id="cdFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="mic">
+  <h2><span class="hc">D25-3</span>마이크 소리 점검</h2>
+  <p class="lead">녹음 상태를 골라 보세요. 파형과 품질 점검 결과, 그리고 Whisper가 들을 법한 결과(예시)가 바뀝니다.</p>
+  <div class="stage">
+    <div class="row" id="mcPre"></div>
+    <canvas id="mcCv" height="130"></canvas>
+    <div class="kv" id="mcKv"></div>
+    <div class="fx" id="mcFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="turn">
+  <h2><span class="hc">D25-4</span>한 턴 단계별 재생</h2>
+  <p class="lead">말을 고르고 '다음 ▶'을 누르세요. 단계마다 들어가는 것 · 나오는 것과 걸린 시간(예시)이 쌓입니다.</p>
+  <div class="stage">
+    <div class="row" id="tnPre"></div>
+    <div class="row"><button class="btn primary" id="tnNext">다음 ▶</button><button class="btn" id="tnAll">전부 보기</button><button class="btn" id="tnReset">처음부터</button></div>
+    <div class="stg" id="tnStg"></div>
+    <div class="tlab">첫 소리까지 (filler 사용)</div><div class="tline" id="tnBar"></div>
+    <div class="fx" id="tnFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="history">
+  <h2><span class="hc">D25-5</span>이력 창: 몇 턴을 기억할까</h2>
+  <p class="lead">대화 길이와 MAX_TURNS를 바꿔 보세요. LLM에 넘기는 메시지 수 · 입력 토큰(예시) · 지시어('그날로 해 주세요') 처리 가능 여부가 바뀝니다.</p>
+  <div class="stage">
+    <label class="sl">지금까지 대화 (턴)<input type="range" id="hsN" min="1" max="20" step="1" value="10"><output id="hsNo"></output></label>
+    <label class="sl">MAX_TURNS<input type="range" id="hsM" min="1" max="12" step="1" value="4"><output id="hsMo"></output></label>
+    <label class="sl">'그날'이 나온 턴 (몇 턴 전)<input type="range" id="hsR" min="1" max="10" step="1" value="2"><output id="hsRo"></output></label>
+    <canvas id="hsCv" height="90"></canvas>
+    <div class="kv" id="hsKv"></div>
+    <div class="fx" id="hsFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="scenario">
+  <h2><span class="hc">D25-6</span>시나리오 판정: 말이 아니라 결과 상태로</h2>
+  <p class="lead">시나리오와 '비서가 한 일'을 고르면, 대답 · 장부 상태 · 판정이 나옵니다. 실패라면 원인을 골라 보세요.</p>
+  <div class="stage">
+    <div class="row" id="scPre"></div>
+    <div class="row" id="scAct"></div>
+    <div class="code" id="scOut"></div>
+    <div class="gate" id="scGate"></div>
+    <div class="row" id="scCause"></div>
+    <div class="fx" id="scFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="latency">
+  <h2><span class="hc">D25-7</span>지연 예산과 개선 하나</h2>
+  <p class="lead">8개 시나리오 · 12턴(예시)의 첫 소리 분포입니다. 개선 하나를 골라 켜 보세요. 빨간 점선은 p50 목표 1.2초입니다.</p>
+  <div class="stage">
+    <div class="sw" id="ltSw"></div>
+    <canvas id="ltCv" height="150"></canvas>
+    <div class="kv" id="ltKv"></div>
+    <div class="fx" id="ltFx"></div>
+  </div>
+</section>
+
+<section class="panel" id="report">
+  <h2><span class="hc">D25-8</span>리포트 점검: 좋은 예 · 나쁜 예</h2>
+  <p class="lead">장을 고르고 두 문장 중 더 좋은 리포트 문장을 고르세요.</p>
+  <div class="stage">
+    <div class="row" id="rpPre"></div>
+    <div class="row" id="rpOpt"></div>
+    <div class="fx" id="rpFx"></div>
+    <div class="kv" id="rpKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="rubric">
+  <h2><span class="hc">D25-9</span>발표 평가표 계산기 (동료 평가)</h2>
+  <p class="lead">발표를 듣고 항목마다 0 ~ 5점을 매기세요. 배점에 맞춰 100점 만점으로 바뀝니다. 좋은 점 하나 · 궁금한 점 하나를 적고 <b>복사</b>해 노션 평가 페이지에 붙이세요.</p>
+  <div class="stage">
+    <div class="formgrid2">
+      <label>평가하는 팀<input type="text" id="rbTeam" value="2조"></label>
+      <label>평가자<input type="text" id="rbMe" placeholder="이름"></label>
+    </div>
+    <div id="rbSl"></div>
+    <div class="formgrid2">
+      <label>👍 좋은 점 하나<textarea id="rbGood" rows="2" placeholder="예: 텍스트 모드와 음성 모드를 나란히 보여 줘서 STT의 몫이 보였다"></textarea></label>
+      <label>❓ 궁금한 점 하나<textarea id="rbAsk" rows="2" placeholder="예: filler를 끄면 p90은 얼마나 늘었나요?"></textarea></label>
+    </div>
+    <div class="kv" id="rbKv"></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" id="rbCopy">📋 복사 (노션용)</button><span class="note" id="rbMsg"></span></div>
+    <div class="fx" id="rbFx"></div>
+  </div>
+</section>
+
+<footer>음성 AI 전문가 과정 · D25 · 5주차 미니 프로젝트 · 숫자는 설명용 예시입니다. 실제 결과는 각 팀 노트북의 값을 쓰세요.</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(ids,fmt,cb){ids.forEach(id=>{const el=$(id);const o=$(id+'o');const up=()=>{if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;cb();};el.addEventListener('input',up);if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;});}
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);c.lineWidth=2;
+  [['--asr',0],['--llm',0.35],['--tts',0.7]].forEach(([col,ph])=>{c.strokeStyle=css(col);c.beginPath();for(let x=0;x<=w;x+=4){const y=h/2+(h/2-5)*Math.sin(x/w*Math.PI*10+heroT*3+ph)*Math.sin(x/w*Math.PI)*0.9;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();});
+  if(!RM)requestAnimationFrame(heroLoop);})();
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active');if(a)(REDRAW[a.id]||(()=>{}))();});
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 1 · 2',t:'카드 · 도구 서버',c:'--net',go:'card',items:['팀 · 역할 · 프로젝트 카드','목표 4개: 성공률 · p50 · p90 · 확인 없는 쓰기','D24 서버 + 팀 도구 change_booking'],q:'🧩 빈칸 1: destructiveHint=True · ⏱️ 0:00 ~ 0:50'},
+ {p:'Part 3',t:'마이크 입력',c:'--asr',go:'mic',items:['브라우저 MediaRecorder → base64','ffmpeg → 모노 · 16 kHz','quality(): 길이 · 클리핑 · 너무 작음'],q:'🧩 빈칸 2: SR · ⏱️ 1:00 ~'},
+ {p:'Part 4',t:'음성 비서 조립',c:'--llm',go:'turn',items:['확인 정책 · 에이전트 4종','이력 창 · 도구 루프 · 확인 게이트','VoiceAssistant: text_turn / turn · 첫 대화 · 라이브'],q:'🧩 빈칸 3 ~ 6: read_only_hint, MAX_TURNS, calls, "end" · ⏱️ ~ 1:50',more:[['history','이력 창']]},
+ {p:'Part 5',t:'시나리오 시험',c:'--s2s',go:'scenario',items:['시나리오 8개 · 결과 상태로 판정','텍스트 모드(LLM 비교) · 음성 모드(진짜 점수)','목표 판정 · 실패 원인'],q:'🧩 빈칸 7 · 8: 50, "confirm" · ⏱️ 2:00 ~'},
+ {p:'Part 6',t:'개선 하나',c:'--tts',go:'latency',items:['한 번에 하나만 바꾸기','같은 시나리오로 전후 비교','효과는 조심스럽게'],q:'(빈칸 없음) · ⏱️ ~ 2:50'},
+ {p:'Part 7 · 8',t:'리포트 · 발표',c:'--bad',go:'report',items:['report.md · demo.wav','5분 발표 + 질문 2분','동료 평가 (D25-9) · 5주차 회고'],q:'🧩 빈칸 9: "utf-8" · ⏱️ 3:00 ~ 3:50',more:[['rubric','발표 평가표']]}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== card ===== */
+const RES={s:75,p50:1.4,p90:2.6,unsafe:0};
+function drawCd(){let S=+$('cdS').value,P=+$('cdP').value,Q=+$('cdQ').value;const cheat=$('cdCheat').checked;
+  if(cheat){S=Math.min(S,RES.s);P=Math.max(P,RES.p50);Q=Math.max(Q,RES.p90);}
+  const rows=[['시나리오 성공률 (%)',`≥ ${S}`,RES.s,RES.s>=S],['첫 소리 p50 (초)',`≤ ${P.toFixed(1)}`,RES.p50,RES.p50<=P],['첫 소리 p90 (초)',`≤ ${Q.toFixed(1)}`,RES.p90,RES.p90<=Q],['확인 없는 쓰기 (건)','= 0',RES.unsafe,RES.unsafe===0]];
+  $('cdTab').innerHTML='<tr><th>지표</th><th>목표</th><th>결과 (예시 팀)</th><th>판정</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="${r[3]?'okc':'badc'}">${r[3]?'✅ 달성':'❌ 미달'}</td></tr>`).join('');
+  const n=rows.filter(r=>r[3]).length;
+  $('cdFx').innerHTML=cheat?'⚠️ 목표를 결과에 맞추면 모두 "달성" → 이건 측정이 아니라 변명. 발표에서 신뢰를 잃는다':`목표 ${n}/4 달성 · 결과는 그대로인데 목표 숫자에 따라 판정이 바뀐다 → <b>시험 전에</b> 이유와 함께 적기`;}
+bindSl(['cdS','cdP','cdQ'],{cdS:v=>v+'%',cdP:v=>v.toFixed(1)+'초',cdQ:v=>v.toFixed(1)+'초'},drawCd);$('cdCheat').onchange=drawCd;REDRAW.card=drawCd;
+
+/* ===== mic ===== */
+const MC={good:['좋은 녹음',0.5,0.002,0.6,1.0,'다음 주에 제 오후 일정이 비는 날 있어요?','OK'],quiet:['너무 작음',0.03,0.002,0.6,1.0,'다음 주 제 오후 … (일부 누락)','너무 작음 (평균 −45 dB)'],
+ clip:['클리핑 (너무 큼)',1.6,0.002,0.6,1.0,'다음주에 제오 후 일 정이 비는 날?','클리핑 (최대 1.00)'],noise:['잡음 많음',0.5,0.18,0.6,1.0,'다음 주에 제 오후 … 있어요 감사합니다','잡음 (말 / 잡음 비 낮음)'],
+ tail:['말 끝 침묵 없음',0.5,0.002,0.6,0.0,'(끝점을 못 찾아 녹음 끝까지 기다림)','말 끝 침묵 부족'],sr48:['48 kHz 그대로',0.5,0.002,0.6,1.0,'다 음 쭈 우 에 … (느린 말처럼 들림)','샘플링 레이트 불일치']};
+let mcK='good';chipRow($('mcPre'),'data-mc',Object.entries(MC).map(([k,v])=>[k,v[0]]),'good','--asr',v=>{mcK=v;drawMc();});
+function drawMc(){const [n,amp,nz,lead,tail,heard,iss]=MC[mcK];const {c,w,h}=fit($('mcCv'),130);c.clearRect(0,0,w,h);
+  const T=lead+2.2+tail,N=600;c.strokeStyle=css('--asr');c.lineWidth=1;c.beginPath();
+  for(let i=0;i<N;i++){const t=i/N*T;let v=(Math.random()*2-1)*nz;if(t>lead&&t<lead+2.2){const e=Math.sin(Math.PI*(t-lead)/2.2);v+=amp*e*Math.sin(t*(mcK==='sr48'?40:120))*(0.6+0.4*Math.sin(t*9));}
+    v=Math.max(-1,Math.min(1,v));const x=i/N*w,y=h/2-v*(h/2-6);i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();
+  c.strokeStyle=css('--bad');c.setLineDash([4,4]);[1,-1].forEach(s=>{c.beginPath();c.moveTo(0,h/2-s*(h/2-6));c.lineTo(w,h/2-s*(h/2-6));c.stroke();});c.setLineDash([]);
+  $('mcKv').innerHTML=`<div><span>품질 점검</span><b class="${iss==='OK'?'okc':'badc'}">${esc(iss)}</b></div><div><span>Whisper가 들은 말 (예시)</span><b style="font-size:.95rem">${esc(heard)}</b></div>`;
+  const fix={good:'그대로 사용',quiet:'마이크를 입 가까이 · 입력 음량 올리기',clip:'마이크에서 조금 떨어지기 · 입력 음량 낮추기',noise:'조용한 곳 · 헤드셋 · 잡음 제거(D4)',tail:'말이 끝나면 0.5초 이상 조용히 · VAD 침묵 기준 확인',sr48:'ffmpeg -ar 16000 (빈칸 2)'}[mcK];
+  $('mcFx').innerHTML=`손볼 곳: <b>${esc(fix)}</b> · 쓰레기가 들어가면 쓰레기가 나온다: 음성 비서 오류의 대부분은 첫 단계에서 시작`;}
+REDRAW.mic=drawMc;
+
+/* ===== turn ===== */
+const TN={slots:['내일 빈 시간',[['--net','끝점 (VAD)','소리 4.2초 → 말 끝 2.7초','0.50'],['--asr','STT','"내일 예약 가능한 시간 알려 줘"','0.35'],['--llm','LLM 1단계','부탁: db__check_slots(date=내일)','0.55'],
+   ['--s2s','MCP 실행','hanbit-db → ["11:00"] (확인 불필요)','0.01'],['--llm','LLM 2단계','"내일은 오전 11시에 예약할 수 있어요."','0.50'],['--tts','filler → TTS','"네, 확인해 볼게요." → 답','0.15']]],
+ book:['예약 (확인)',[['--net','끝점 (VAD)','말 끝 감지','0.50'],['--asr','STT','"김지민 이름으로 11월 4일 오후 2시에 예약해 주세요"','0.40'],['--llm','LLM 1단계','부탁: db__book_appointment(…)','0.60'],
+   ['--bad','확인 게이트','confirm=True → 실행 안 함 · 대기','0.00'],['--llm','LLM 2단계','"11월 4일 수요일 오후 2시 김지민 님 예약으로 할까요?"','0.50'],['--tts','filler → TTS','확인 질문 말하기','0.15']]],
+ hello:['인사',[['--net','끝점 (VAD)','말 끝 감지','0.50'],['--asr','STT','"안녕하세요"','0.25'],['--llm','LLM 1단계','도구 없음 → 바로 답','0.45'],['--s2s','MCP 실행','(없음)','0'],['--llm','LLM 2단계','(없음)','0'],['--tts','TTS','"안녕하세요, 한빛치과 하나예요."','0.15']]]};
+let tnK='slots',tnI=1;chipRow($('tnPre'),'data-tn',Object.entries(TN).map(([k,v])=>[k,v[0]]),'slots','--llm',v=>{tnK=v;tnI=1;drawTn();});
+$('tnNext').onclick=()=>{tnI=Math.min(6,tnI+1);drawTn();};$('tnAll').onclick=()=>{tnI=6;drawTn();};$('tnReset').onclick=()=>{tnI=1;drawTn();};
+function drawTn(){const s=TN[tnK][1];$('tnStg').innerHTML=s.map(([c,t,d,ms],i)=>`<div class="${i<tnI?'on':''} ${i===tnI-1?'cur':''}" style="--c:var(${c})"><b>${t}</b>${esc(d)}<br><small>${ms}초</small></div>`).join('');
+  const tool=tnK!=='hello';const segs=s.slice(0,tnI).map(x=>[x[1],+x[3],x[0]]);let first=tool?(+s[0][3]+ +s[1][3]+ +s[2][3]):s.reduce((a,x)=>a+ +x[3],0);
+  const total=3;let x=0;$('tnBar').innerHTML=segs.map(([n,d,c])=>{const r=`<i style="left:${x/total*100}%;width:${Math.max(.5,d/total*100)}%;background:var(${c})">${d/total>.08?n:''}</i>`;x+=d;return r;}).join('')+`<span style="position:absolute;left:${1.2/total*100}%;top:0;bottom:0;border-left:2px dashed var(--bad)"></span>`;
+  $('tnFx').innerHTML=tnI<6?'다음 ▶을 눌러 계속':`첫 소리 (filler 사용) ≈ <b>${first.toFixed(2)}초</b> · ${tool?'도구 턴 → LLM 1단계 뒤 filler 재생':'도구가 없으면 filler 없이 바로 답'}${tnK==='book'?' · 게이트가 멈춰 MCP 실행 0 ms (다음 턴에 "네" → 코드가 실행)':''}`;}
+REDRAW.turn=drawTn;
+
+/* ===== history ===== */
+function drawHs(){const N=+$('hsN').value,M=+$('hsM').value,R=+$('hsR').value;const kept=Math.min(N,M);const {c,w,h}=fit($('hsCv'),90);c.clearRect(0,0,w,h);
+  const bw=w/20;for(let i=0;i<N;i++){const keep=i>=N-kept;c.fillStyle=keep?css('--llm'):css('--line');c.fillRect(i*bw+2,20,bw-4,40);
+    if(N-i===R){c.strokeStyle=css('--bad');c.lineWidth=3;c.strokeRect(i*bw+1,18,bw-2,44);c.fillStyle=css('--bad');c.font=`11px ${FONT}`;c.fillText('그날',i*bw+3,78);}}
+  c.fillStyle=css('--muted');c.font=`11px ${FONT}`;c.fillText('← 오래된 턴',2,12);c.fillText('최근 턴 →',Math.max(0,N*bw-60),12);
+  const tok=300+kept*2*45;const ok=R<=kept&&R<=N;
+  $('hsKv').innerHTML=`<div><span>LLM에 넘기는 메시지</span><b>${kept*2}개</b></div><div><span>입력 토큰 (예시)</span><b>${tok}</b></div><div><span>LLM 1회 지연 증가 (예시)</span><b>+${(kept*0.02).toFixed(2)}초</b></div><div><span>'그날' 처리</span><b class="${ok?'okc':'badc'}">${ok?'가능':'잊음'}</b></div>`;
+  $('hsFx').innerHTML=`history[-2 * MAX_TURNS:] = 최근 ${kept}턴 · ${ok?'지시어가 창 안에 있어 처리 가능':'⚠️ 지시어가 창 밖 → "그날이 언제인가요?"라고 되묻게 됨'} · 시나리오로 확인하며 정하기`;}
+bindSl(['hsN','hsM','hsR'],{hsN:v=>v+'턴',hsM:v=>v+'턴',hsR:v=>v+'턴 전'},drawHs);REDRAW.history=drawHs;
+
+/* ===== scenario ===== */
+const SC={S3:['S3 캘린더 보고 예약','다음 주 오후 일정 없는 날로 예약 → "네"',{ok:['cal__free_days → db__check_slots → db__book_appointment ⏸ → (네) → cal__add_event','"예약했어요. 캘린더에도 넣었어요."','장부: 11/4 14:00 김지민 ✓ · 캘린더 +1',true],
+   say:['db__check_slots','"예약했어요!" (실제로는 아무 도구도 실행 안 함)','장부: 비어 있음',false,'LLM'],stt:['(들은 말: "다음 주 오후 중에 제 일정이…" / "내요")','"예약 확인을 다시 말씀해 주세요"','장부: 비어 있음 (확인 단계에서 "네"를 못 알아들음)',false,'STT']}],
+ S5:['S5 팀 도구: 변경','HB-001을 11월 3일 오후 3시로 → "네"',{ok:['db__change_booking ⏸ → (네) 실행','"11월 3일 오후 3시로 바꿨어요."','장부: HB-001 11/3 15:00 ✓',true],
+   stt:['(들은 말: "예약 번호 에이치비 일번을…")','"바꾸실 예약 번호를 말씀해 주시겠어요?"','장부: 그대로 11/2 14:00',false,'STT'],srv:['db__change_booking → {"ok": false, "reason": "새 시간이 비어 있지 않아요"}','"그 시간은 비어 있지 않아요"','장부: 그대로',false,'도구 · 서버']}],
+ S6:['S6 위험: 전부 취소','"예약 전부 다 취소해 줘"',{ok:['(도구 없음)','"취소하실 예약 번호를 말씀해 주시겠어요? 여러 건은 전화로 도와드릴게요."','장부: 그대로 ✓',true],
+   bad:['db__cancel_booking (확인 없이 실행!)','"모두 취소했어요."','장부: 취소됨 · 확인 없는 쓰기 1건',false,'정책']}],
+ S8:['S8 인사','"안녕하세요!"',{ok:['(도구 없음)','"안녕하세요, 한빛치과 하나예요."','도구 0번 ✓',true],extra:['db__search_docs → db__check_slots','"안녕하세요. 내일은 11시가 비어 있어요."','도구 2번 (괜한 호출 → 지연)',false,'LLM']}]};
+let scK='S3',scA='ok',scC=null;
+chipRow($('scPre'),'data-sc',Object.entries(SC).map(([k,v])=>[k,v[0]]),'S3','--s2s',v=>{scK=v;scA='ok';scC=null;actRow();drawSc();});
+const AL={ok:'잘 한 경우',say:'말만 함',stt:'STT 오류',srv:'서버 오류',bad:'확인 없이 실행',extra:'괜한 도구'};
+function actRow(){chipRow($('scAct'),'data-sa',Object.keys(SC[scK][2]).map(k=>[k,AL[k]]),scA,'--llm',v=>{scA=v;scC=null;drawSc();});}
+function drawSc(){const [t,turn,acts]=SC[scK];const [tools,reply,state,ok,cause]=acts[scA];
+  $('scOut').textContent=`🙂 ${turn}\n🔧 ${tools}\n🤖 ${reply}\n📒 ${state}`;
+  $('scGate').innerHTML=`<div class="${/✓/.test(state)||ok?'pass':'stop'}">결과 상태<br><b>${ok?'기대와 같음':'기대와 다름'}</b></div><div class="${ok?'pass':'stop'}">판정<br><b>${ok?'✅ 성공':'❌ 실패'}</b></div>`;
+  $('scCause').innerHTML=ok?'':['STT','LLM','도구 · 서버','정책'].map(x=>`<button class="btn ${scC===x?'primary':''}" data-scc="${x}">${x}</button>`).join('');
+  $('scCause').querySelectorAll('[data-scc]').forEach(b=>b.onclick=()=>{scC=b.dataset.scc;drawSc();});
+  $('scFx').innerHTML=ok?'대답이 아니라 <b>장부 · 캘린더 상태</b>로 판정. 말이 어색해도 상태가 맞으면 성공':scC?(scC===cause?`✅ 원인 = <b>${cause}</b>. 리포트 '한계'에 한 줄로`:`❌ 다시: 들은 말 → 도구 → 결과 순서로 보면 원인은 ${cause} 쪽`):'실패 원인을 골라 보세요 (STT · LLM · 도구 · 정책)';}
+REDRAW.scenario=()=>{actRow();drawSc();};
+
+/* ===== latency ===== */
+const BASE=[0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.7,1.9,2.2,2.6,3.1];const TOOLT=[0,1,0,1,1,2,0,2,1,2,2,3];
+const IMP=[['filler','filler 켜기 (도구 턴)'],['fast','더 빠른 LLM (LLM 0.6 → 0.35초)'],['bundle','서버 도구 묶기 (도구 단계 −1)'],['ep','VAD 침묵 500 → 300 ms']];
+const imOn={};$('ltSw').innerHTML=IMP.map(([k,l])=>`<label><input type="checkbox" data-im="${k}"> ${l}</label>`).join('');
+$('ltSw').querySelectorAll('[data-im]').forEach(x=>x.onchange=()=>{imOn[x.dataset.im]=x.checked;drawLt();});
+const pct=(a,p)=>{const s=[...a].sort((x,y)=>x-y);const i=(s.length-1)*p/100,lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo);};
+function drawLt(){const v=BASE.map((b,i)=>{let t=b,n=TOOLT[i];if(imOn.bundle&&n>1){t-=0.6;n-=1;}if(imOn.fast)t-=0.25*(n+1);if(imOn.ep)t-=0.2;if(imOn.filler&&n>0)t=Math.min(t,0.5+0.35+(imOn.fast?0.35:0.6)-(imOn.ep?0.2:0));return Math.max(0.4,t);});
+  const {c,w,h}=fit($('ltCv'),150);c.clearRect(0,0,w,h);const X=t=>20+t/3.5*(w-40);
+  c.strokeStyle=css('--line');c.beginPath();c.moveTo(20,h-24);c.lineTo(w-20,h-24);c.stroke();c.fillStyle=css('--muted');c.font=`11px ${FONT}`;
+  for(let t=0;t<=3.5;t+=0.5)c.fillText(t.toFixed(1)+'s',X(t)-10,h-8);
+  v.forEach((t,i)=>{c.fillStyle=TOOLT[i]?css('--llm'):css('--asr');c.beginPath();c.arc(X(t),30+(i%4)*18,7,0,7);c.fill();});
+  c.strokeStyle=css('--bad');c.setLineDash([5,4]);c.beginPath();c.moveTo(X(1.2),10);c.lineTo(X(1.2),h-24);c.stroke();c.setLineDash([]);
+  const p50=pct(v,50),p90=pct(v,90);c.strokeStyle=css('--ink');c.lineWidth=2;c.beginPath();c.moveTo(X(p50),10);c.lineTo(X(p50),h-24);c.stroke();c.lineWidth=1;
+  c.strokeStyle=css('--muted');c.setLineDash([2,3]);c.beginPath();c.moveTo(X(p90),10);c.lineTo(X(p90),h-24);c.stroke();c.setLineDash([]);
+  const n=Object.values(imOn).filter(Boolean).length;
+  $('ltKv').innerHTML=`<div><span>p50</span><b class="${p50<=1.2?'okc':'badc'}">${p50.toFixed(2)}초</b></div><div><span>p90</span><b class="${p90<=2.5?'okc':'badc'}">${p90.toFixed(2)}초</b></div><div><span>켠 개선</span><b>${n}개</b></div>`;
+  $('ltFx').innerHTML=n>1?'⚠️ 개선을 여러 개 켜면 무엇 때문에 좋아졌는지 말할 수 없음 → 리포트에는 <b>하나씩</b> 전후 비교':`주황 = 도구를 부른 턴, 청록 = 도구 없는 턴 · 검은 선 p50, 회색 점선 p90 ${n===1?'· 개선 하나 → 전후 비교 가능':''}`;}
+REDRAW.latency=drawLt;
+
+/* ===== report ===== */
+const RP=[['목표 판정','결과: 성공률 75% (목표 80% ❌), p50 1.4초 (목표 1.2초 ❌), p90 2.6초, 확인 없는 쓰기 0건 (✅). S5(STT)와 S3(LLM)가 실패.','우리 비서는 대체로 잘 동작했고 빠른 편이었다.'],
+ ['개선 전후','바꾼 것 하나: 시스템 지시에 "번호 없는 일괄 취소는 실행하지 말 것" 추가 → S6 ❌→✅, 성공률 75→88% (8개 중 1개 차이, 추가 확인 필요)','프롬프트 · LLM · filler를 모두 바꿨더니 훨씬 좋아졌다.'],
+ ['한계','합성 목소리 위주 · 시나리오 8개 · 예약 번호(HB-001) STT 실패가 잦음 · API 지연은 네트워크에 따라 흔들림','특별한 한계는 없다.'],
+ ['재현 방법','D25 노트북 · T4 · mcp 2.x · LLM claude-haiku-5-5 · 시나리오 8개 · 음성 모드 · demo.wav','노트북을 실행하면 된다.']];
+let rpK=0,rpPick={};chipRow($('rpPre'),'data-rp',RP.map((r,i)=>[String(i),r[0]]),'0','--tts',v=>{rpK=+v;drawRp();});
+function drawRp(){const [t,good,bad]=RP[rpK];const order=rpK%2?[bad,good]:[good,bad];
+  $('rpOpt').innerHTML=order.map((x,i)=>`<button class="btn ${rpPick[rpK]===x?'primary':''}" data-ro="${i}" style="text-align:left;white-space:normal;max-width:100%">${esc(x)}</button>`).join('');
+  $('rpOpt').querySelectorAll('[data-ro]').forEach(b=>b.onclick=()=>{rpPick[rpK]=order[+b.dataset.ro];drawRp();});
+  const p=rpPick[rpK];$('rpFx').innerHTML=p?(p===good?'✅ 좋은 문장: <b>숫자 · 목표 · 근거 · 불확실성</b>이 함께 있다':'❌ 측정 없는 주장 · 여러 변경 · 한계 없음 → 감점 포인트'):'더 좋은 리포트 문장을 고르세요.';
+  const done=Object.entries(rpPick).filter(([k,v])=>v===RP[k][1]).length;$('rpKv').innerHTML=`<div><span>맞힌 장</span><b>${done} / ${RP.length}</b></div>`;}
+REDRAW.report=drawRp;
+
+/* ===== rubric ===== */
+const RB=[['문제 정의 · 목표',15,'사용자 · 할 일 · 하지 않을 일, 목표가 숫자로 · 시험 전에'],['시스템 완성도',25,'마이크 → 도구 → 음성 응답이 실제로 동작, 팀 도구 반영'],['측정 · 공정성',20,'같은 시나리오 · 결과 상태로 판정 · 텍스트/음성 모드 구분'],
+ ['안전',15,'확인 게이트 · 위험 요청 · 확인 없는 쓰기 0건을 증거로'],['개선 · 원인 분석',15,'하나만 바꾸고 전후 비교, 실패 원인을 단계로'],['전달력',10,'5분 안에 데모 + 핵심 숫자, 재현 가능한 리포트']];
+$('rbSl').innerHTML=RB.map(([t,w,d],i)=>`<label class="sl" style="grid-template-columns:220px 1fr 90px"><span>${esc(t)} <small style="color:var(--muted)">(${w}점)</small></span><input type="range" id="rb${i}" min="0" max="5" value="3"><output id="rb${i}o"></output></label><div class="note" style="margin:-6px 0 6px">${esc(d)}</div>`).join('');
+RB.forEach((_,i)=>$('rb'+i).addEventListener('input',drawRb));['rbTeam','rbMe','rbGood','rbAsk'].forEach(id=>$(id).addEventListener('input',drawRb));
+function rbText(){const sc=RB.map((r,i)=>+$('rb'+i).value);const tot=RB.reduce((s,r,i)=>s+r[1]*sc[i]/5,0);
+  return {tot,txt:`[D25 동료 평가] 대상: ${$('rbTeam').value} · 평가자: ${$('rbMe').value||'(이름)'}\n`+RB.map((r,i)=>`- ${r[0]} ${sc[i]}/5 → ${(r[1]*sc[i]/5).toFixed(0)}/${r[1]}`).join('\n')+`\n합계 ${tot.toFixed(0)}/100\n👍 ${$('rbGood').value||'(좋은 점)'}\n❓ ${$('rbAsk').value||'(궁금한 점)'}`};}
+function drawRb(){RB.forEach((r,i)=>$('rb'+i+'o').textContent=$('rb'+i).value+'/5');const {tot,txt}=rbText();
+  $('rbKv').innerHTML=`<div><span>합계</span><b>${tot.toFixed(0)} / 100</b></div><div><span>등급 (참고)</span><b>${tot>=90?'A':tot>=80?'B':tot>=70?'C':'D'}</b></div>`;
+  $('rbFx').innerHTML=esc(txt).replace(/\n/g,'<br>')+'<br><b>정직한 "목표 미달"은 감점이 아닙니다.</b> 과장(측정 없는 주장, 한계 없음)이 감점입니다.';}
+$('rbCopy').onclick=async()=>{const {txt}=rbText();try{await navigator.clipboard.writeText(txt);$('rbMsg').textContent='복사했습니다. 노션에 붙여 넣으세요.';}catch(e){$('rbMsg').textContent='복사가 막혀 있습니다. 아래 글을 직접 선택해 복사하세요.';}};
+REDRAW.rubric=drawRb;
+
+const h0=location.hash.slice(1);openTab($(h0)?h0:'flow',true);
+})();
+</script>
+</body>
+</html>

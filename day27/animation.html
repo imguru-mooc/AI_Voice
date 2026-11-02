@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D27 Pipecat 기초</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.belt{position:relative;height:120px;background:var(--soft);border-radius:12px;margin:10px 0;overflow:hidden}
+.fbx{position:absolute;top:44px;width:86px;height:36px;border-radius:8px;border:2px solid var(--c);background:var(--panel);font-size:.76rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:left .45s,top .45s,opacity .3s;text-align:center;line-height:1.1}
+.fbx.sys{top:6px}
+.worker{position:absolute;left:12px;top:30px;width:92px;height:64px;border-radius:12px;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;text-align:center}
+.flog{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;background:var(--soft);border-radius:10px;padding:8px 12px;min-height:60px;max-height:150px;overflow:auto}
+.flog div{padding:1px 0}
+.ps3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0}
+.ps3 div{border:2px solid var(--line);border-radius:10px;padding:10px;font-size:.88rem;opacity:.4;transition:all .25s}
+.ps3 div.on{opacity:1;border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.ps3 div.skip{opacity:1;border-color:var(--bad);border-style:dashed}
+.ps3 b{display:block;color:var(--c)}
+.res{margin-top:10px;padding:10px 14px;border-radius:10px;background:var(--soft);font-weight:500}
+.res.bad{background:color-mix(in srgb,var(--bad) 14%,var(--panel))}.res.good{background:color-mix(in srgb,var(--ok) 14%,var(--panel))}
+.lanes{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;align-items:center;margin-top:10px}
+.lanes .ln{font-size:.82rem;font-weight:700;color:var(--c)}
+.lanes .tr{position:relative;height:24px;background:var(--soft);border-radius:6px}
+.lanes .ev{position:absolute;top:3px;height:18px;border-radius:5px;background:var(--c);opacity:.25;transition:opacity .2s;font-size:.68rem;color:#fff;display:flex;align-items:center;padding:0 4px;white-space:nowrap;overflow:hidden}
+.lanes .ev.on{opacity:1}
+.agg{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;background:var(--soft);border-radius:10px;padding:10px;min-height:44px;margin:6px 0}
+.tok{display:inline-block;padding:2px 6px;margin:2px;border-radius:6px;background:color-mix(in srgb,var(--s2s) 20%,var(--panel));border:1px solid var(--s2s)}
+.snd{display:inline-block;height:14px;margin:2px;border-radius:4px;background:var(--tts);vertical-align:middle}
+.tport{display:grid;grid-template-columns:1fr 2fr 1fr;gap:10px;align-items:stretch;margin:12px 0}
+.tport div{border:2px solid var(--c);border-radius:12px;padding:12px;text-align:center;font-weight:700;transition:all .3s}
+.tport .mid{background:var(--soft)}
+@media (max-width:760px){.ps3,.tport{grid-template-columns:1fr}.lanes{grid-template-columns:80px 1fr}}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D27 Pipecat 기초</h1>
+  <p>Frame 세 종류, FrameProcessor의 규칙, 방향(downstream · upstream), 서비스와 문장 모으기, 이벤트 루프 막힘, 조립된 파이프라인의 한 턴, Transport 바꿔 끼우기를 직접 움직여 보는 수업 자료입니다. 탭 번호 D27-1 ~ D27-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다. 시간 숫자는 설명용 시뮬레이션입니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D27-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="frames"><span class="tc">D27-2</span>Frame 세 종류</button>
+  <button role="tab" aria-selected="false" data-t="proc"><span class="tc">D27-3</span>Processor 안에서</button>
+  <button role="tab" aria-selected="false" data-t="dir"><span class="tc">D27-4</span>방향</button>
+  <button role="tab" aria-selected="false" data-t="svc"><span class="tc">D27-5</span>서비스 세 개</button>
+  <button role="tab" aria-selected="false" data-t="loop"><span class="tc">D27-6</span>이벤트 루프 막힘</button>
+  <button role="tab" aria-selected="false" data-t="assemble"><span class="tc">D27-7</span>조립된 한 턴</button>
+  <button role="tab" aria-selected="false" data-t="transport"><span class="tc">D27-8</span>Transport</button>
+  <button role="tab" aria-selected="false" data-t="recap"><span class="tc">D27-9</span>오늘 정리</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D27-1</span>오늘 할 것: 상자 · 작업자 · 라인 · 서비스 · 조립 · 문</h2>
+  <p class="lead">단계를 눌러 할 일과 빈칸을 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="frames">
+  <h2><span class="hc">D27-2</span>Frame 세 종류: 줄 서기와 새치기</h2>
+  <p class="lead">작업자는 벨트 위의 Data · Control 상자를 <b>순서대로</b> 하나씩 처리합니다. System 상자를 보내면 줄을 건너뛰어 <b>바로</b> 처리되는 것을 보세요.</p>
+  <div class="stage">
+    <div class="row">
+      <button class="btn" id="frAddD">+ Data (LLMText)</button>
+      <button class="btn" id="frAddC">+ Control (TTSStopped)</button>
+      <button class="btn primary" id="frAddS">⚡ System (Interruption)</button>
+      <button class="btn" id="frAddM">⚡ System (InputAudio)</button>
+      <button class="btn" id="frReset">처음으로</button>
+    </div>
+    <div class="belt" id="belt"><div class="worker">작업자<br>(Processor)</div></div>
+    <div class="flog" id="frLog"></div>
+    <p class="note">초록 = Data(내용) · 주황 = Control(구분선) · 분홍 = System(즉시). 작업자는 상자 하나에 0.8초가 걸린다고 가정합니다.</p>
+  </div>
+</section>
+
+<section class="panel" id="proc">
+  <h2><span class="hc">D27-3</span>FrameProcessor 안에서: super → 일 → push</h2>
+  <p class="lead">들어올 Frame을 고르고, 규칙을 켜고 끈 다음 ▶ 처리를 눌러 보세요. 무엇이 다음 작업자에게 넘어가나요?</p>
+  <div class="stage">
+    <div class="row" id="pcIn"></div>
+    <div class="sw">
+      <label><input type="checkbox" id="pcSuper" checked> ① await super().process_frame()</label>
+      <label><input type="checkbox" id="pcPush" checked> ③ await self.push_frame() (모든 Frame)</label>
+    </div>
+    <div class="row"><button class="btn primary" id="pcRun">▶ 처리</button></div>
+    <div class="ps3" id="pcSteps">
+      <div style="--c:var(--ink)"><b>① 부모 먼저</b>StartFrame 설정 저장 · 시작 표시 · 끼어들기 처리</div>
+      <div style="--c:var(--llm)"><b>② 내 상자면 일</b>type(frame) is TextFrame → normalize_ko</div>
+      <div style="--c:var(--asr)"><b>③ 넘기기</b>await self.push_frame(frame, direction)</div>
+    </div>
+    <div class="res" id="pcRes">Frame을 고르고 ▶ 처리를 누르세요.</div>
+  </div>
+</section>
+
+<section class="panel" id="dir">
+  <h2><span class="hc">D27-4</span>방향: 내용은 앞 → 뒤, 알림은 뒤 → 앞</h2>
+  <p class="lead">문장을 보내 보세요. 개인정보 문장은 PolicyGuard에서 막히고, 알림(GuardNoticeFrame)이 <b>UPSTREAM</b>으로 거슬러 갑니다.</p>
+  <div class="stage">
+    <div class="row">
+      <button class="btn primary" data-dir="ok">"예약은 2시예요." 보내기</button>
+      <button class="btn" data-dir="ban">"제 주민번호는 900101이에요." 보내기</button>
+      <button class="btn" data-dir="bot">출력이 BotStartedSpeaking 알리기</button>
+    </div>
+    <canvas id="dirCv" height="190"></canvas>
+    <div class="flog" id="dirLog"></div>
+  </div>
+</section>
+
+<section class="panel" id="svc">
+  <h2><span class="hc">D27-5</span>서비스 세 개: LLM 조각 → TTS가 문장으로 모아 합성</h2>
+  <p class="lead">▶을 누르면 LLM이 토큰 조각(LLMTextFrame)을 하나씩 냅니다. TTS 서비스는 조각을 모으다 문장 끝(. ? !)에서 run_tts를 부릅니다. 첫 소리가 언제 나오는지 보세요.</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="svPlay">▶ LLM 답 흘려보내기</button>
+      <label class="sl" style="flex:1;min-width:220px">토큰 간격 (ms)<input type="range" id="svTok" min="20" max="200" step="10" value="60"><output id="svToko"></output></label></div>
+    <h3 class="sub3">LLM이 낸 LLMTextFrame</h3><div class="agg" id="svToks"></div>
+    <h3 class="sub3">TTS 안의 문장 버퍼 (아직 합성 전)</h3><div class="agg" id="svBuf"></div>
+    <h3 class="sub3">TTSAudioRawFrame (run_tts 결과)</h3><div class="agg" id="svAud"></div>
+    <div class="kv" id="svKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="loop">
+  <h2><span class="hc">D27-6</span>이벤트 루프 막힘: 20 ms 박동이 끊긴다</h2>
+  <p class="lead">Pipecat의 모든 작업자는 한 이벤트 루프를 나눠 씁니다. 무거운 모델을 그냥 부르면 그동안 마이크 조각 · VAD · 소리 전송이 모두 멈춥니다.</p>
+  <div class="stage">
+    <div class="row" id="lpMode"></div>
+    <label class="sl">모델 호출 시간 (ms)<input type="range" id="lpMs" min="100" max="1500" step="50" value="600"><output id="lpMso"></output></label>
+    <canvas id="lpCv" height="150"></canvas>
+    <div class="kv" id="lpKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="assemble">
+  <h2><span class="hc">D27-7</span>조립된 파이프라인의 한 턴</h2>
+  <p class="lead">값을 바꾸고 ▶ 재생을 누르면 한 턴 동안 각 작업자가 언제 일하는지 보입니다. 0초 = 사용자가 말을 멈춘 순간(VAD).</p>
+  <div class="stage">
+    <div class="formgrid">
+      <label>TURN_WAIT (초)<input type="range" id="asW" min="0.2" max="1.2" step="0.1" value="0.6"><output id="asWo"></output></label>
+      <label>STT (초)<input type="range" id="asS" min="0.1" max="1.5" step="0.1" value="0.4"><output id="asSo"></output></label>
+      <label>LLM 첫 글자 (초)<input type="range" id="asL" min="0.1" max="2" step="0.1" value="0.5"><output id="asLo"></output></label>
+      <label>LLM 첫 문장 끝 (초)<input type="range" id="asF" min="0.1" max="1.5" step="0.1" value="0.4"><output id="asFo"></output></label>
+      <label>TTS 첫 문장 (초)<input type="range" id="asT" min="0.05" max="1" step="0.05" value="0.2"><output id="asTo"></output></label>
+    </div>
+    <div class="row"><button class="btn primary" id="asPlay">▶ 재생</button></div>
+    <div class="lanes" id="asLanes"></div>
+    <div class="kv" id="asKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="transport">
+  <h2><span class="hc">D27-8</span>Transport 바꿔 끼우기</h2>
+  <p class="lead">바깥 세상을 고르면 양 끝의 문(Transport)과 번역기(Serializer)만 바뀝니다. 가운데 파이프라인은 그대로입니다.</p>
+  <div class="stage">
+    <div class="row" id="tpPick"></div>
+    <div class="tport" id="tpBox"></div>
+    <pre class="code" id="tpCode"></pre>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2><span class="hc">D27-9</span>오늘 정리: 증상 → 원인 찾기</h2>
+  <p class="lead">실제로 자주 만나는 증상입니다. 원인을 골라 보세요.</p>
+  <div class="stage" id="rcList"></div>
+</section>
+<footer>음성 AI 전문가 과정 · D27 Pipecat 기초 · 시간 숫자는 설명용 시뮬레이션입니다.</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(ids,fmt,cb){ids.forEach(id=>{const el=$(id);const o=$(id+'o');const up=()=>{if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;cb();};el.addEventListener('input',up);if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;});}
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);
+  const cols=['--asr','--llm','--tts','--s2s'];for(let i=0;i<14;i++){const x=((i*90+heroT*120)%(w+90))-90;c.fillStyle=css(cols[i%4]);c.globalAlpha=.85;c.beginPath();c.roundRect?c.roundRect(x,8,60,18,5):c.rect(x,8,60,18);c.fill();}c.globalAlpha=1;
+  if(!RM)requestAnimationFrame(heroLoop);})();
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active');if(a)(REDRAW[a.id]||(()=>{}))();});
+const sleep=ms=>new Promise(r=>setTimeout(r,RM?0:ms));
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 1',t:'Frame',c:'--net',go:'frames',items:['모든 것은 상자(Frame)','System = 즉시 · Data · Control = 순서대로','모든 Frame은 id를 가짐'],q:'🧩 빈칸 1: DataFrame'},
+ {p:'Part 2',t:'FrameProcessor',c:'--asr',go:'proc',items:['부모 먼저 → 내 일 → 무조건 넘기기','KoNormalizer: 2시 → 두 시','push 빼먹기 실험: StartFrame이 막힘'],q:'🧩 빈칸 2 · 3: process_frame, push_frame'},
+ {p:'Part 3',t:'Pipeline · 방향',c:'--llm',go:'dir',items:['Pipeline · PipelineWorker · WorkerRunner','UPSTREAM 알림 (GuardNoticeFrame)','Observer로 상자의 여행 기록'],q:'🧩 빈칸 4: UPSTREAM'},
+ {p:'Part 4',t:'서비스',c:'--s2s',go:'svc',items:['WhisperSTT · MMSTTS · LocalLLM / OpenAILLMService','run_stt · run_tts는 yield','asyncio.to_thread로 루프를 막지 않기'],q:'🧩 빈칸 5 · 6 · 7: TranscriptionFrame, to_thread, LLMContextFrame',more:[['loop','이벤트 루프 막힘']]},
+ {p:'Part 5',t:'조립',c:'--tts',go:'assemble',items:['user_agg · assistant_agg가 같은 LLMContext','턴 끝 = 말 끝 + 0.6초 조용함','두 턴 대화 · 턴별 시간'],q:'🧩 빈칸 8: assistant_agg (맨 끝)'},
+ {p:'Part 6',t:'Transport',c:'--bad',go:'transport',items:['transport.input() · output()','Serializer = 바이트 ⇄ Frame','WebSocket 클라이언트로 두 턴'],q:'🧩 빈칸 9: OutputAudioRawFrame',more:[['recap','오늘 정리']]}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== frames ===== */
+let frQ=[],frN=0,frTimer=null;const KCOL={D:'--asr',C:'--llm',S:'--tts'};
+function frLog(s){const d=document.createElement('div');d.innerHTML=s;$('frLog').prepend(d);}
+function frRender(){const belt=$('belt');belt.querySelectorAll('.fbx').forEach(e=>{if(!frQ.includes(e._f))e.remove();});
+  frQ.forEach((f,i)=>{let e=f.el;if(!e){e=document.createElement('div');e.className='fbx';e.style.setProperty('--c',`var(${KCOL[f.k]})`);e.textContent=f.n;e.style.left=(belt.clientWidth+10)+'px';e._f=f;f.el=e;belt.appendChild(e);void e.offsetWidth;}
+    e.style.left=(120+i*96)+'px';});}
+function frAdd(k,n){const f={k,n:`${n}#${++frN}`};if(k==='S'){const belt=$('belt');const e=document.createElement('div');e.className='fbx sys';e.style.setProperty('--c','var(--tts)');e.textContent=f.n;e.style.left='70%';belt.appendChild(e);
+    setTimeout(()=>{e.style.left='14px';e.style.top='44px';},30);setTimeout(()=>{e.style.opacity=0;setTimeout(()=>e.remove(),300);},520);
+    frLog(`<span class="badc">⚡ ${esc(f.n)}</span> 즉시 처리 (줄 ${frQ.length}개를 건너뜀)`);return;}
+  frQ.push(f);frRender();}
+function frTick(){if(frQ.length){const f=frQ.shift();f.el.style.opacity=0;setTimeout(()=>f.el.remove(),300);frLog(`${f.k==='D'?'<span class="okc">Data</span>':'<span class="warnc">Control</span>'} ${esc(f.n)} 처리 (순서대로)`);frRender();}}
+function frReset(){frQ=[];frN=0;$('belt').querySelectorAll('.fbx').forEach(e=>e.remove());$('frLog').innerHTML='';
+  [['D','Text'],['D','LLMText'],['C','TTSStarted'],['D','TTSAudio'],['D','TTSAudio'],['C','TTSStopped']].forEach(([k,n])=>frAdd(k,n));}
+$('frAddD').onclick=()=>frAdd('D','LLMText');$('frAddC').onclick=()=>frAdd('C','TTSStopped');$('frAddS').onclick=()=>frAdd('S','Interruption');$('frAddM').onclick=()=>frAdd('S','InputAudio');$('frReset').onclick=frReset;
+REDRAW.frames=()=>{if(!frTimer){frReset();frTimer=setInterval(frTick,800);}};
+
+/* ===== proc ===== */
+let pcF='text';
+const PCIN=[['text','TextFrame("오후 2시")'],['start','StartFrame'],['end','EndFrame'],['llm','LLMTextFrame("2")']];
+chipRow($('pcIn'),'data-pc',PCIN,'text','--asr',v=>{pcF=v;});
+$('pcRun').onclick=async()=>{const sup=$('pcSuper').checked,push=$('pcPush').checked;const st=[...$('pcSteps').children];st.forEach(d=>d.className='');$('pcRes').className='res';$('pcRes').textContent='처리 중…';
+  await sleep(350);st[0].className=sup?'on':'skip';await sleep(450);
+  const mine=pcF==='text';st[1].className=mine?'on':'';st[1].innerHTML=`<b>② 내 상자면 일</b>${mine?'TextFrame → "오후 두 시" (새 상자)':'내 상자 아님 → 그대로'}`;await sleep(450);
+  st[2].className=push?'on':'skip';await sleep(250);
+  let r,cls;
+  if(!sup){r='⚠️ 부모의 공통 일(StartFrame 설정 · 시작 표시 · 끼어들기)이 빠졌습니다. 수업 준비 실험에서는 파이프라인이 끝나지 않고 멈췄습니다.';cls='bad';}
+  else if(!push){r=pcF==='start'?'❌ StartFrame이 사라짐 → 끝까지 못 가서 "being blocked somewhere?" 시간 초과 (기본 20초)':pcF==='end'?'❌ EndFrame이 사라짐 → 파이프라인이 끝나지 않아 셀이 계속 돎':'❌ 상자가 이 작업자에서 사라짐 → 뒤쪽은 아무것도 못 받음';cls='bad';}
+  else{r=pcF==='text'?'✅ 다음 작업자가 TextFrame("오후 두 시")를 받음':pcF==='llm'?'✅ LLMTextFrame("2")는 그대로 넘어감 (type이 TextFrame이 아니므로 정규화 안 함 → 문장 단위인 run_tts에서 정규화)':`✅ ${pcF==='start'?'StartFrame':'EndFrame'}이 그대로 넘어감 (내 상자가 아니어도 넘기기)`;cls='good';}
+  $('pcRes').className='res '+cls;$('pcRes').textContent=r;};
+
+/* ===== dir ===== */
+const DIRN=['Source','Recorder 앞','KoNormalizer','PolicyGuard','Recorder 뒤','Sink'];let dirAnim=null;
+function dirDraw(tok){const {c,w,h}=fit($('dirCv'),190);c.clearRect(0,0,w,h);const n=DIRN.length,bw=Math.min(120,(w-20)/n-14),gap=(w-20-bw*n)/(n-1);
+  const X=i=>10+i*(bw+gap);c.font=`700 12px ${FONT}`;c.textAlign='center';c.textBaseline='middle';
+  DIRN.forEach((t,i)=>{c.strokeStyle=css(i===0||i===n-1?'--net':'--asr');c.lineWidth=2;c.fillStyle=css('--panel');c.beginPath();c.roundRect?c.roundRect(X(i),70,bw,46,10):c.rect(X(i),70,bw,46);c.fill();c.stroke();c.fillStyle=css('--ink');c.fillText(t,X(i)+bw/2,93);});
+  c.strokeStyle=css('--asr');c.fillStyle=css('--asr');c.font=`12px ${FONT}`;c.fillText('→ DOWNSTREAM',w/2,40);c.fillStyle=css('--tts');c.fillText('← UPSTREAM',w/2,150);
+  if(tok){const x=X(0)+bw/2+(X(n-1)-X(0))*tok.p;const y=tok.up?140:52;c.fillStyle=css(tok.col);c.beginPath();c.roundRect?c.roundRect(x-55,y-11,110,22,6):c.rect(x-55,y-11,110,22);c.fill();c.fillStyle='#fff';c.font=`700 11px ${FONT}`;c.fillText(tok.t,x,y);}
+  return {X,bw,n};}
+function dlog(s){const d=document.createElement('div');d.innerHTML=s;$('dirLog').prepend(d);}
+async function dirMove(t,col,from,to,up){const steps=RM?1:30;for(let k=0;k<=steps;k++){const p=(from+(to-from)*k/steps)/(DIRN.length-1);dirDraw({p,t,col,up});await sleep(16);}}
+document.querySelectorAll('[data-dir]').forEach(b=>b.onclick=async()=>{if(dirAnim)return;dirAnim=1;const k=b.dataset.dir;
+  if(k==='ok'){await dirMove('예약은 2시예요.','--asr',0,2,false);dlog('KoNormalizer: 새 TextFrame "예약은 두 시예요." (id 바뀜)');await dirMove('예약은 두 시예요.','--asr',2,5,false);dlog('<span class="okc">Sink 도착</span> · DOWNSTREAM');}
+  if(k==='ban'){await dirMove('주민번호…','--asr',0,3,false);dlog('<span class="badc">PolicyGuard: 원래 TextFrame은 return으로 버림</span>');await dirMove('GuardNotice','--tts',3,0,true);dlog('GuardNoticeFrame → 앞쪽 · <b>UPSTREAM</b> (뒤로는 가지 않음)');}
+  if(k==='bot'){await dirMove('BotStarted…','--s2s',5,0,true);dlog('출력 Transport가 BotStartedSpeakingFrame을 <b>UPSTREAM</b>으로도 보냄 → 앞쪽 VAD · user_agg가 "봇이 말하는 중"임을 앎 (D28 끼어들기)');}
+  dirDraw();dirAnim=null;});
+REDRAW.dir=()=>dirDraw();
+
+/* ===== svc ===== */
+const TOKS=['네, ','다음 ','주 ','수요일 ','오후 ','2시 ','스케일링 ','말씀이시죠? ','예약하실 ','분 ','성함을 ','알려 ','주세요.'];let svRun=false;
+bindSl(['svTok'],{svTok:v=>v+' ms'},()=>{});
+$('svPlay').onclick=async()=>{if(svRun)return;svRun=true;$('svToks').innerHTML='';$('svBuf').innerHTML='';$('svAud').innerHTML='';const dt=+$('svTok').value;let buf='',t=0,first=null,n=0;
+  for(const tk of TOKS){await sleep(dt);t+=dt;$('svToks').insertAdjacentHTML('beforeend',`<span class="tok">${esc(tk)}</span>`);buf+=tk;$('svBuf').textContent=buf;
+    if(/[.?!]\s*$/.test(buf)){const sent=buf.trim();buf='';n++;$('svBuf').textContent='';await sleep(180);t+=180;if(first===null)first=t;
+      $('svAud').insertAdjacentHTML('beforeend',`<span title="${esc(sent)}">run_tts("${esc(sent.replace('2시','두 시'))}") → </span><span class="snd" style="width:${sent.length*5}px"></span><br>`);}
+    $('svKv').innerHTML=`<div><span>지난 시간</span><b>${t} ms</b></div><div><span>첫 소리</span><b>${first===null?'-':first+' ms'}</b></div><div><span>run_tts 호출</span><b>${n}번</b></div>`;}
+  svRun=false;};
+
+/* ===== loop ===== */
+let lpM='block';
+chipRow($('lpMode'),'data-lp',[['block','그냥 호출 tts()'],['thread','await asyncio.to_thread(tts, …)']],'block','--s2s',v=>{lpM=v;drawLp();});
+bindSl(['lpMs'],{lpMs:v=>v+' ms'},()=>drawLp());
+function drawLp(){const M=+$('lpMs').value,T=2000,s0=500;const {c,w,h}=fit($('lpCv'),150);c.clearRect(0,0,w,h);const X=t=>40+t/T*(w-60);
+  c.fillStyle=css('--soft');c.fillRect(X(s0),20,X(s0+M)-X(s0),40);c.fillStyle=css('--s2s');c.font=`700 12px ${FONT}`;c.textAlign='left';c.fillText(lpM==='block'?'모델 계산 (루프 위에서)':'모델 계산 (다른 스레드)',X(s0)+4,40);
+  let ticks=[],t=0;while(t<T){t+=20;if(lpM==='block'&&t>s0&&t<s0+M)t=s0+M;ticks.push(t);}
+  let maxg=0,late=0;ticks.forEach((tt,i)=>{const g=tt-(i?ticks[i-1]:0);maxg=Math.max(maxg,g);if(g>40)late++;c.strokeStyle=css(g>40?'--bad':'--asr');c.lineWidth=g>40?3:1.5;c.beginPath();c.moveTo(X(tt),80);c.lineTo(X(tt),g>40?130:110);c.stroke();});
+  c.fillStyle=css('--muted');c.font=`11px ${FONT}`;c.fillText('20 ms 박동 (마이크 조각 · VAD · 소리 전송)',40,145);
+  const stuck=lpM==='block'?Math.floor(M/20):0;
+  $('lpKv').innerHTML=`<div><span>박동 최대 간격</span><b class="${maxg>40?'badc':'okc'}">${maxg} ms</b></div><div><span>그동안 쌓인 마이크 조각</span><b>${stuck}개</b></div><div><span>결과</span><b>${lpM==='block'?'VAD · 끼어들기 감지 · 소리 출력이 멈춤':'다른 작업자는 계속 돎'}</b></div>`;}
+REDRAW.loop=drawLp;
+
+/* ===== assemble ===== */
+const AS=['asW','asS','asL','asF','asT'];const sfx=v=>v.toFixed(2)+'초';bindSl(AS,{asW:sfx,asS:sfx,asL:sfx,asF:sfx,asT:sfx},()=>drawAs(99));
+function asEvents(){const W=+$('asW').value,S=+$('asS').value,L=+$('asL').value,F=+$('asF').value,T=+$('asT').value;
+  const turn=Math.max(W,S),llm0=turn,tok=llm0+L,sent=tok+F,snd=sent+T;
+  return {snd,ev:[['VAD','--asr',-2.2,0,'말소리 구간'],['STT','--asr',0,S,'Whisper'],['user_agg','--llm',0,turn,`턴 끝 대기 ${W}s`],['LLM','--s2s',llm0,tok,'첫 글자까지'],['LLM','--s2s',tok,sent+0.6,'조각들…'],['TTS','--tts',sent,snd,'첫 문장 합성'],['출력','--tts',snd,snd+1.5,'말하기'],['assistant_agg','--llm',snd+1.5,snd+1.6,'기록']]};}
+function drawAs(upto){const {snd,ev}=asEvents();const lo=-2.4,hi=Math.max(4,snd+2);const P=t=>((t-lo)/(hi-lo)*100).toFixed(2)+'%';
+  const L=[...new Set(ev.map(e=>e[0]))];$('asLanes').innerHTML=L.map(l=>{const c=ev.find(e=>e[0]===l)[1];return `<div class="ln" style="--c:var(${c})">${l}</div><div class="tr">${ev.map((e,i)=>e[0]===l?`<div class="ev ${i<=upto?'on':''}" style="--c:var(${e[1]});left:${P(e[2])};width:calc(${P(e[3])} - ${P(e[2])})">${esc(e[4])}</div>`:'').join('')}${l==='VAD'?`<div class="tmark" style="left:${P(0)}">0</div>`:''}</div>`;}).join('');
+  $('asKv').innerHTML=`<div><span>말 끝 → 첫 소리</span><b>${snd.toFixed(2)}초</b></div><div><span>가장 큰 덩어리</span><b>${(()=>{const W=+$('asW').value,S=+$('asS').value;const parts={'턴 끝 대기 / STT':Math.max(W,S),'LLM 첫 글자':+$('asL').value,'첫 문장 모으기':+$('asF').value,'TTS':+$('asT').value};return Object.entries(parts).sort((a,b)=>b[1]-a[1])[0][0];})()}</b></div>`;}
+$('asPlay').onclick=async()=>{for(let i=0;i<8;i++){drawAs(i);await sleep(420);}};
+REDRAW.assemble=()=>drawAs(99);
+
+/* ===== transport ===== */
+const TP={ws:['WebSocket (오늘)','--llm','SingleClientWebsocketServerTransport','RawPCMSerializer: 바이트 = 16 kHz int16 PCM','transport = SingleClientWebsocketServerTransport(host="127.0.0.1", port=WS_PORT,\n    params=SingleClientWebsocketServerParams(..., serializer=RawPCMSerializer()))'],
+ rtc:['브라우저 (WebRTC)','--tts','SmallWebRTCTransport','Serializer 없음: Opus · RTP · 지터 버퍼를 Transport가 처리','transport = SmallWebRTCTransport(webrtc_connection=conn,\n    params=TransportParams(audio_in_enabled=True, audio_out_enabled=True))'],
+ phone:['전화망 (Twilio 등)','--s2s','FastAPIWebsocketTransport','TwilioFrameSerializer: 8 kHz μ-law + JSON ⇄ 16 kHz PCM','transport = FastAPIWebsocketTransport(websocket=ws,\n    params=FastAPIWebsocketParams(..., serializer=TwilioFrameSerializer(stream_sid, ...)))'],
+ room:['여러 사람 방 (LiveKit · Daily)','--asr','LiveKitTransport · DailyTransport','미디어 서버의 Room에 참가 (D29 ~ D30)','transport = LiveKitTransport(url, token, room_name, params=LiveKitParams(...))']};
+let tpK='ws';chipRow($('tpPick'),'data-tp',Object.entries(TP).map(([k,v])=>[k,v[0]]),'ws','--llm',v=>{tpK=v;drawTp();});
+function drawTp(){const [n,c,cls,ser,code]=TP[tpK];$('tpBox').innerHTML=`<div style="--c:var(${c})">input()<br><small>${esc(cls)}</small></div><div class="mid" style="--c:var(--line)">VAD → STT → user_agg → LLM → TTS<br><small>그대로 (한 줄도 안 바뀜)</small></div><div style="--c:var(${c})">output()<br><small>${esc(ser)}</small></div>`;
+  $('tpCode').innerHTML=esc(code)+`\n\n<span class="cm"># 안쪽은 Part 5와 같음</span>\nPipeline([<b style="color:#F2B33D">transport.input()</b>, vad, stt, user_agg, llm, tts, <b style="color:#F2B33D">transport.output()</b>, assistant_agg])`;}
+drawTp();
+
+/* ===== recap ===== */
+const RC=[['셀이 끝나지 않고 계속 돈다. 20초 뒤 "being blocked somewhere?" 오류.',['push_frame 빼먹음','모델이 느림','키가 틀림'],0,'내 상자가 아닌 Frame(StartFrame · EndFrame)까지 넘겨야 합니다.'],
+ ['비서가 말하는 동안 사용자의 "잠깐만요"를 못 알아듣는다(소리가 밀림).',['assistant_agg 위치','모델을 그냥 호출해 루프가 막힘','Serializer 오류'],1,'await asyncio.to_thread(...)로 다른 스레드에서.'],
+ ['TTS가 "12시"를 "일 이 시"처럼 읽는다.',['LLM 조각 단위에서 정규화','STT 오류','VAD가 너무 민감'],0,'문장 단위인 run_tts 안에서 정규화.'],
+ ['두 번째 턴에서 비서가 첫 턴 내용을 모른다.',['assistant_agg를 빼거나 다른 LLMContext를 씀','TURN_WAIT가 김','UPSTREAM 방향'],0,'두 Aggregator가 같은 LLMContext를 나눠 써야 합니다.'],
+ ['사용자가 "수요일… 오후 두 시에"처럼 쉬어 말하면 중간에 말을 자르고 답한다.',['TURN_WAIT가 너무 짧음','to_thread 사용','Serializer'],0,'Smart Turn(D28)으로 내용 · 억양까지 보고 판단.'],
+ ['WebSocket 클라이언트가 비서 소리를 하나도 못 받는다.',['serialize가 OutputAudioRawFrame에 None을 돌려줌','STT가 느림','LLMContext가 비어 있음'],0,'빈칸 9: 소리 Frame일 때 frame.audio를 돌려줘야 합니다.']];
+$('rcList').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}" style="--c:var(--s2s)"><div class="q">${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{const a=RC[+s.dataset.i][2];s.querySelectorAll('button').forEach(x=>x.className='');b.className=(+b.dataset.j===a)?'right':'wrong';if(+b.dataset.j!==a)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');}));
+
+const h0=location.hash.slice(1);openTab($(h0)?h0:'flow',true);
+})();
+</script>
+</body>
+</html>
