@@ -383,7 +383,7 @@ const ROAD=[
  {p:'Part 1',t:'Frame',c:'--net',go:'frames',items:['모든 것은 상자(Frame)','System = 즉시 · Data · Control = 순서대로','모든 Frame은 id를 가짐'],q:'🧩 빈칸 1: DataFrame'},
  {p:'Part 2',t:'FrameProcessor',c:'--asr',go:'proc',items:['부모 먼저 → 내 일 → 무조건 넘기기','KoNormalizer: 2시 → 두 시','push 빼먹기 실험: StartFrame이 막힘'],q:'🧩 빈칸 2 · 3: process_frame, push_frame'},
  {p:'Part 3',t:'Pipeline · 방향',c:'--llm',go:'dir',items:['Pipeline · PipelineWorker · WorkerRunner','UPSTREAM 알림 (GuardNoticeFrame)','Observer로 상자의 여행 기록'],q:'🧩 빈칸 4: UPSTREAM'},
- {p:'Part 4',t:'서비스',c:'--s2s',go:'svc',items:['WhisperSTT · MMSTTS · LocalLLM / OpenAILLMService','run_stt · run_tts는 yield','asyncio.to_thread로 루프를 막지 않기'],q:'🧩 빈칸 5 · 6 · 7: TranscriptionFrame, to_thread, LLMContextFrame',more:[['loop','이벤트 루프 막힘']]},
+ {p:'Part 4',t:'서비스',c:'--s2s',go:'svc',items:['WhisperSTT · KoTTS · LocalLLM / OpenAILLMService','run_stt · run_tts는 yield','asyncio.to_thread로 루프를 막지 않기'],q:'🧩 빈칸 5 · 6 · 7: TranscriptionFrame, to_thread, LLMContextFrame',more:[['loop','이벤트 루프 막힘']]},
  {p:'Part 5',t:'조립',c:'--tts',go:'assemble',items:['user_agg · assistant_agg가 같은 LLMContext','턴 끝 = 말 끝 + 0.6초 조용함','두 턴 대화 · 턴별 시간'],q:'🧩 빈칸 8: assistant_agg (맨 끝)'},
  {p:'Part 6',t:'Transport',c:'--bad',go:'transport',items:['transport.input() · output()','Serializer = 바이트 ⇄ Frame','WebSocket 클라이언트로 두 턴'],q:'🧩 빈칸 9: OutputAudioRawFrame',more:[['recap','오늘 정리']]}];
 $('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
