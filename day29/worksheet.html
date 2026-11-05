@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음성 AI Day 29 개념 워크시트 — LiveKit Agents 기초</title>
+<style>
+  :root{--bg:#0b1220;--panel:#111a2e;--line:#1f2b45;--text:#dbe4f0;--dim:#8a9bb8;--amber:#f5b942;--teal:#2dd4bf;--blue:#60a5fa;--green:#4ade80;--red:#f87171;--purple:#c084fc;--mono:"Consolas","D2Coding","JetBrains Mono",monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;font-size:15px;line-height:1.55}
+  .app{max-width:900px;margin:0 auto;padding:22px 20px 40px}
+  h1{color:var(--amber);font-size:24px;margin:0 0 6px}
+  .sub{color:var(--dim);margin:0 0 14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .panel h2{font-size:14px;color:var(--dim);margin:0 0 10px;font-weight:600}
+  button{background:#172239;border:1px solid #2a3a5c;color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--amber)}button.active{background:#3a2e12;border-color:var(--amber);color:var(--amber)}
+  button.primary{background:#123d33;border-color:var(--teal);color:var(--teal);font-weight:700;padding:9px 18px;font-size:14px}
+  button.submit{background:#3a2e12;border-color:var(--amber);color:var(--amber);font-weight:700;padding:9px 18px;font-size:14px}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  input[type=text]{background:#0a0f1c;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:14px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .tabs button .s{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+  .tabs button.graded .s{color:var(--green)}
+  .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .head .t{color:var(--amber);font-size:17px}
+  .head .a{font-size:13px;color:var(--teal);font-family:var(--mono)}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1628}
+  .q.unans{border-color:#5a3a1a}
+  .q .n{font-family:var(--mono);color:var(--dim);font-size:12px}
+  .q .p{margin:4px 0 10px;font-size:15px}
+  .q .p code,.opt code,.fb code,td code{font-family:var(--mono);color:var(--blue);background:#0a0f1c;padding:1px 5px;border-radius:4px}
+  .q pre.qc{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:10px 12px;margin:4px 0 12px;font-size:13.5px;line-height:1.5;white-space:pre;overflow-x:auto;color:#dbe4f3}
+  .q pre{font-family:var(--mono);background:#0a0f1c;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0 10px;font-size:14px;white-space:pre;overflow-x:auto}
+  .opts{display:grid;gap:6px}
+  .opt{text-align:left;padding:8px 12px;font-size:14px;font-family:inherit}
+  .opt.sel{border-color:var(--amber);background:#1f1a0c}
+  .opt.ok{border-color:var(--green);color:var(--green);background:#0d2216}
+  .opt.bad{border-color:var(--red);color:var(--red);background:#2a1212}
+  .opt:disabled{cursor:default;opacity:.9}
+  .fb{margin-top:8px;font-size:13px;color:var(--dim);border-left:3px solid var(--line);padding-left:10px}
+  .fb.ok{border-left-color:var(--green)}.fb.bad{border-left-color:var(--red)}
+  .fb .anim{color:var(--teal);font-family:var(--mono);font-size:12px;display:block;margin-top:3px}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .code{font-family:var(--mono);font-size:20px;color:var(--amber);letter-spacing:1px}
+  .score{font-family:var(--mono);color:var(--green);font-size:16px}
+  .hint{color:var(--dim);font-size:13px}
+  details{color:var(--dim);font-size:13px}
+  details summary{cursor:pointer;color:var(--dim)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* dialog */
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0;max-width:820px;width:92vw;max-height:88vh}
+  dialog::backdrop{background:#000a}
+  .dg{padding:18px 20px}
+  .dg h3{color:var(--amber);margin:0 0 4px;font-size:20px}
+  .dg .meta{color:var(--dim);font-size:13px;margin-bottom:12px;font-family:var(--mono)}
+  .dg .sec{margin:14px 0 6px;color:var(--teal);font-weight:700;font-size:14px}
+  .dg table{width:100%;border-collapse:collapse;font-size:13px}
+  .dg th{text-align:left;color:var(--dim);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12px}
+  .dg td{padding:5px 8px;border-bottom:1px solid #16203a;vertical-align:top}
+  .dg td.r{font-family:var(--mono)}
+  .dg .ok{color:var(--green)}.dg .bad{color:var(--red)}.dg .none{color:var(--dim)}
+  .dg .sum{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-family:var(--mono)}
+  .dgbar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .toast{color:var(--green);font-size:13px;margin-right:auto}
+  .body{overflow:auto;max-height:calc(88vh - 60px)}
+
+.q .n .ty{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;font-family:inherit}
+.ty-mc{background:#1b2a4a;color:var(--blue)} .ty-ox{background:#2a2410;color:var(--amber)} .ty-match{background:#13302c;color:var(--teal)}
+.ty-order{background:#2a1a3a;color:var(--purple)} .ty-multi{background:#2a1616;color:#fca5a5}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:360px}
+.oxrow .opt{text-align:center;font-size:22px;font-weight:700;padding:10px}
+.reflist{display:grid;gap:4px;margin:2px 0 10px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;font-size:14px;color:var(--text)}
+.reflist b{color:var(--teal);font-family:var(--mono);margin-right:6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow .l{font-size:14px} .mrow .l b{font-family:var(--mono);color:var(--dim);margin-right:6px}
+.mrow select{width:100%;background:#0a0f1c;color:var(--text);border:1px solid #2a3a5c;border-radius:6px;padding:6px 8px;font:inherit;font-size:13.5px}
+.mrow select.ok{border-color:var(--green);color:var(--green)} .mrow select.bad{border-color:var(--red);color:var(--red)}
+.steps{display:grid;gap:6px}
+.step{display:flex;gap:10px;align-items:center;text-align:left;padding:8px 12px;font-size:14px}
+.step .badge{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid #2a3a5c;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.step.on{border-color:var(--purple)} .step.on .badge{background:var(--purple);border-color:var(--purple);color:#0b1220;font-weight:700}
+.step.ok{border-color:var(--green)} .step.ok .badge{background:var(--green);color:#0b1220;border-color:var(--green)}
+.step.bad{border-color:var(--red)} .step.bad .badge{background:var(--red);color:#0b1220;border-color:var(--red)}
+.seqbar{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.seqbar button{padding:4px 10px;font-size:12px}
+.multi .opt::before{content:"☐ ";color:var(--dim)} .multi .opt.sel::before{content:"☑ ";color:var(--amber)}
+.multi .opt.ok::before{content:"☑ ";color:var(--green)} .multi .opt.miss::before{content:"☐ ";color:var(--green)}
+.multi .opt.miss{border-color:var(--green);border-style:dashed}
+.typeinfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>음성 AI Day 29 개념 워크시트</h1>
+  <p class="sub">LiveKit Agents 기초 — Room · Participant · Track · SFU · Access Token(JWT) · VideoGrants · Agent · AgentSession · session.run · Plugin(_recognize_impl · LLMStream · ChunkedStream) · AudioInput/Output · AgentServer · entrypoint · fake job · 웹 클라이언트 · 4교시 × 10문항 (객관식 5 · OX 2 · 선잇기 1 · 순서 맞추기 1 · 모두 고르기 1). 🎬 표시는 같은 폴더 <a href="animation.html" style="color:var(--teal)">animation.html</a>의 애니메이션 번호입니다. 선잇기는 드롭다운으로, 순서 맞추기는 단계를 일어나는 순서대로 눌러서, 모두 고르기는 여러 개를 눌러서 답합니다. 답을 고른 뒤 아래 <b style="color:var(--teal)">채점하기</b>를 누르면 정오·해설과 결과 코드가 나타납니다. 채점 전에는 답을 바꿀 수 있고, 채점 후에는 잠깁니다. 모든 교시를 마치면 <b style="color:var(--amber)">제출</b>로 오답 정리를 열고, <b>캡처</b>로 복사해 노션에 붙여 넣으세요.</p>
+
+  <div class="panel">
+    <div class="row"><label style="color:var(--dim);font-size:13px">이름 <input type="text" id="name" placeholder="홍길동"></label><span class="hint">이름은 결과 코드 계산에만 쓰이며 저장되지 않습니다.</span></div>
+  </div>
+  <div class="panel"><h2>교시</h2><div class="tabs" id="tabs"></div></div>
+  <div class="panel" id="sheet"></div>
+  <div class="panel">
+    <div class="actions">
+      <button class="primary" id="gradeBtn">채점하기</button>
+      <span class="code" id="rcode">—</span><span class="score" id="rscore"></span><span class="hint" id="rhint"></span>
+      <button class="submit" id="submitBtn" style="margin-left:auto">제출</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="body"><div class="dg" id="dgBody"></div></div>
+  <div class="dgbar"><span class="toast" id="toast"></span><button id="captureBtn" class="primary">📋 캡처 (노션용 복사)</button><button id="closeBtn">닫기</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const Q=[{"t": "1교시 · Room과 출입증", "anim": "D29-2 방 · 참가자 · 트랙 · D29-3 토큰의 세 조각", "qs": [{"ty": "mc", "p": "빈칸 1: 정해진 방에 '들어갈' 수 있게 하는 VideoGrants 권한은?", "o": ["room_join", "room_create", "room_admin", "room_list"], "a": 0, "w": "", "an": "빈칸 1"}, {"ty": "mc", "p": "빈칸 2: AccessToken을 서명해 글자 한 줄로 만드는 메서드는?", "o": ["with_ttl()", "encode_base64()", "to_jwt()", "verify()"], "a": 2, "w": "", "an": "빈칸 2"}, {"ty": "mc", "p": "LiveKit 서버(SFU)가 하는 일로 맞는 것은?", "o": ["참가자의 트랙을 섞지 않고 필요한 참가자에게 골라 전달", "모든 소리를 받아쓰기", "LLM으로 답 만들기", "모든 참가자 소리를 하나로 섞어 녹음"], "a": 0, "w": "", "an": "Part 1 그림"}, {"ty": "mc", "p": "AI 비서는 방에서 무엇으로 취급되나?", "o": ["방 그 자체", "트랙의 한 종류", "서버 설정 파일", "kind = agent인 참가자(Participant)"], "a": 3, "w": "", "an": "Part 1 💬"}, {"ty": "mc", "p": "JWT의 세 조각을 순서대로 맞게 쓴 것은?", "o": ["방 · 사용자 · 시간", "머리(header) · 내용(payload) · 서명(signature)", "서명 · 머리 · 내용", "키 · Secret · 방"], "a": 1, "w": "", "an": "1-2"}, {"ty": "ox", "p": "JWT의 내용(payload)은 암호화되어 있어 Secret 없이는 읽을 수 없습니다.", "a": false, "w": "base64로 바꿨을 뿐이라 누구나 읽음. 고칠 수 없을 뿐", "an": "1-2"}, {"ty": "ox", "p": "출입증(토큰)은 API Secret이 필요하므로 브라우저가 아닌 우리 서버(백엔드)가 만들어야 합니다.", "a": true, "w": "", "an": "Part 1 ❓"}, {"ty": "match", "p": "권한과 뜻을 이으세요.", "left": ["can_publish", "can_subscribe", "agent (kind = agent)"], "right": ["다른 참가자의 트랙 받기", "AI 비서 참가자", "내 트랙 내보내기(말하기)"], "a": [2, 0, 1], "w": "", "an": "권한 비교표"}, {"ty": "multi", "p": "토큰 내용을 몰래 고쳐(roomAdmin 추가) 서버에 내면 일어나는 일로 맞는 것을 모두 고르세요.", "o": ["서명이 맞지 않아 거절된다", "고친 사람은 Secret이 없어 새 서명을 못 만든다", "서버가 자동으로 권한을 고쳐 받아 준다", "TokenVerifier가 InvalidSignatureError를 낸다"], "a": [0, 1, 3], "w": "", "an": "토큰 열어 보기"}, {"ty": "order", "p": "사용자가 방에서 비서의 목소리를 듣기까지 순서대로 놓으세요.", "steps": ["사용자가 마이크 트랙 publish", "백엔드가 출입증 발급", "비서가 그 트랙을 subscribe해 답을 만들고 목소리 트랙 publish", "출입증으로 방에 입장"], "a": [1, 3, 0, 2], "w": "", "an": "D29-2"}]}, {"t": "2교시 · Agent와 AgentSession", "anim": "D29-4 Agent와 AgentSession", "qs": [{"ty": "mc", "p": "빈칸 3: Agent에 시스템 프롬프트(지시문)를 넘기는 인자 이름은?", "o": ["system", "prompt", "persona", "instructions"], "a": 3, "w": "", "an": "빈칸 3"}, {"ty": "mc", "p": "빈칸 4: 소리 없이 글자 한 마디로 한 턴을 돌리고 결과(RunResult)를 받는 메서드는?", "o": ["session.aclose()", "session.run(user_input=...)", "session.say(...)", "session.start(...)"], "a": 1, "w": "", "an": "빈칸 4"}, {"ty": "mc", "p": "Agent와 AgentSession의 역할 나눔으로 맞는 것은?", "o": ["Agent = 소리 입출력, AgentSession = 지시문", "둘은 같은 것", "Agent = 서버, AgentSession = 브라우저", "Agent = 무엇을(지시문 · 도구), AgentSession = 어떻게(STT · LLM · TTS · VAD 엮기)"], "a": 3, "w": "", "an": "Part 2 표"}, {"ty": "mc", "p": "로컬 Qwen LLM 플러그인에서 LLMStream._run()이 하는 일은?", "o": ["방에 접속한다", "토큰을 만든다", "ChatChunk 조각을 하나씩 _event_ch로 보낸다", "소리를 받아쓴다"], "a": 2, "w": "", "an": "2-1"}, {"ty": "mc", "p": "클라우드 LLM(Claude · Gemini)을 기성 openai 플러그인 하나로 쓸 수 있는 이유는?", "o": ["세 회사 모두 OpenAI 호환 주소(base_url)를 제공하므로", "LiveKit이 모든 회사 API를 대신 호출하므로", "모델 이름이 같으므로", "키가 같으므로"], "a": 0, "w": "", "an": "2-1"}, {"ty": "ox", "p": "session.run()을 두 번 부르면 두 번째 LLM 호출에는 첫 질문과 답이 함께 들어갑니다.", "a": true, "w": "", "an": "빈칸 4 해설"}, {"ty": "ox", "p": "session.say(문장)은 LLM에게 그 문장을 바탕으로 새 답을 만들게 합니다.", "a": false, "w": "정해진 문장을 LLM 없이 바로 TTS로 말함", "an": "Part 3 통화"}, {"ty": "match", "p": "세션 상태와 뜻을 이으세요.", "left": ["listening", "thinking", "speaking"], "right": ["LLM이 답을 만드는 중", "비서 목소리가 나가는 중", "사용자 말을 듣는 중"], "a": [2, 0, 1], "w": "", "an": "D29-4"}, {"ty": "multi", "p": "글자로 먼저 시험(session.run)하면 좋은 점을 모두 고르세요.", "o": ["STT 오류와 LLM 오류를 나눠 볼 수 있다", "result.expect로 자동 시험을 쓸 수 있다", "마이크 · 서버 없이 빨리 돌릴 수 있다", "TTS 음질을 확인할 수 있다"], "a": [0, 1, 2], "w": "", "an": "Part 2 ❓"}, {"ty": "order", "p": "session.run(user_input=q) 한 번에 일어나는 일을 순서대로 놓으세요.", "steps": ["LLM 플러그인의 chat() 호출", "사용자 메시지가 대화 기록에 추가", "ChatChunk가 모여 비서 메시지 완성", "RunResult에 ChatMessageEvent 기록"], "a": [1, 0, 2, 3], "w": "", "an": "2-3"}]}, {"t": "3교시 · Plugin 구조와 방 없이 통화", "anim": "D29-5 세션 안의 흐름 · D29-6 플러그인의 콘센트", "qs": [{"ty": "mc", "p": "빈칸 5: STT 플러그인에서 우리가 채우는 받아쓰기 메서드는?", "o": ["run_stt", "stream", "_recognize_impl", "recognize"], "a": 2, "w": "recognize는 부모가 가진 '바깥 문'", "an": "빈칸 5"}, {"ty": "mc", "p": "빈칸 6: 확정된 받아쓰기를 뜻하는 SpeechEventType은?", "o": ["FINAL_TRANSCRIPT", "INTERIM_TRANSCRIPT", "START_OF_SPEECH", "END_OF_SPEECH"], "a": 0, "w": "", "an": "빈칸 6"}, {"ty": "mc", "p": "빈칸 7: TTS 일감에서 만든 소리 바이트를 내보내는 output_emitter 메서드는?", "o": ["flush", "send", "push", "initialize"], "a": 2, "w": "", "an": "빈칸 7"}, {"ty": "mc", "p": "STTCapabilities(streaming=False)인 STT를 세션에 넣으면 세션은?", "o": ["LLM이 대신 받아쓴다", "VAD로 말 한 마디씩 잘라 _recognize_impl을 부른다(StreamAdapter)", "오류를 내고 멈춘다", "소리를 받아쓰지 않는다"], "a": 1, "w": "", "an": "3-3"}, {"ty": "mc", "p": "방에서 오는 48 kHz 소리를 Whisper에 넣기 전에 해야 할 일은?", "o": ["아무것도 안 해도 됨", "MP3로 압축", "볼륨을 0으로", "16 kHz로 리샘플링"], "a": 3, "w": "", "an": "3-1"}, {"ty": "ox", "p": "TTS 플러그인은 소리가 조금씩 도착할 때마다 push()를 여러 번 불러도 됩니다.", "a": true, "w": "그러면 첫 소리(TTFB)가 빨라짐", "an": "빈칸 7 해설"}, {"ty": "ox", "p": "가짜 스피커(AudioOutput)는 재생 끝을 알리지 않아도 세션이 알아서 비서 말이 끝난 것을 압니다.", "a": false, "w": "on_playback_finished로 알려야 함", "an": "3-4"}, {"ty": "match", "p": "칸과 우리가 채울 곳을 이으세요.", "left": ["STT", "LLM", "TTS"], "right": ["chat() → LLMStream._run()", "synthesize() → ChunkedStream._run(emitter)", "_recognize_impl(buffer)"], "a": [2, 0, 1], "w": "", "an": "Part 3 표"}, {"ty": "multi", "p": "메시지마다 붙는 metrics에서 읽을 수 있는 값을 모두 고르세요.", "o": ["e2e_latency (말 끝 → 첫 소리)", "llm_node_ttft", "tts_node_ttfb", "사용자의 나이"], "a": [0, 1, 2], "w": "", "an": "Part 3 표"}, {"ty": "order", "p": "방 없이 통화에서 사용자 말 한 마디가 비서 목소리가 되기까지 순서대로 놓으세요.", "steps": ["STT _recognize_impl → 확정 받아쓰기", "FileMic이 20 ms 조각을 흘려보냄", "LLM 조각 → 문장 → TTS push", "VAD가 말 끝을 판단"], "a": [1, 3, 0, 2], "w": "", "an": "D29-5"}]}, {"t": "4교시 · Agent Worker와 연결", "anim": "D29-7 작업자의 하루 · D29-8 세 가지 연결 방법", "qs": [{"ty": "mc", "p": "빈칸 8: '방 통화 일감이 오면 이 함수를 불러라'라고 등록하는 장식자는?", "o": ["@server.route()", "@server.rtc_session()", "@server.on_job()", "@function_tool()"], "a": 1, "w": "", "an": "빈칸 8"}, {"ty": "mc", "p": "빈칸 9: entrypoint에서 세션을 배정된 방에 올릴 때 room= 에 넣는 것은?", "o": ["ROOM", "rtc.Room()", "ctx.job.id", "ctx.room"], "a": 3, "w": "", "an": "빈칸 9"}, {"ty": "mc", "p": "LiveKit 서버에 등록하지 않고 작업자와 entrypoint를 시험하는 방법은?", "o": ["session.run()", "run(unregistered=True) + simulate_job(fake_job=True)", "livekit-server --dev", "jupyter.run_app()"], "a": 1, "w": "", "an": "4-1"}, {"ty": "mc", "p": "JobExecutorType.PROCESS(실서비스 기본값)의 장점은?", "o": ["통화마다 격리되어 한 통화가 죽어도 다른 통화는 안전", "모델을 한 번만 불러 모든 통화가 공유", "GPU가 필요 없음", "토큰이 필요 없음"], "a": 0, "w": "", "an": "4-1 ⚙️"}, {"ty": "mc", "p": "브라우저(웹 클라이언트)에서 비서 목소리를 들으려면?", "o": ["토큰을 소리로 바꾼다", "서버 로그를 읽는다", "TrackSubscribed 이벤트에서 오디오 트랙을 track.attach()로 &lt;audio&gt;에 붙인다", "WebSocket으로 MP3를 받는다"], "a": 2, "w": "", "an": "4-3 JavaScript"}, {"ty": "ox", "p": "fake job과 진짜 방에서 entrypoint 코드는 달라야 합니다.", "a": false, "w": "같은 entrypoint를 그대로 씀", "an": "Part 4 ❓"}, {"ty": "ox", "p": "Colab 안에 띄운 livekit-server --dev 방에는 사용자 컴퓨터의 브라우저가 바로 들어갈 수 없습니다.", "a": true, "w": "브라우저는 LiveKit Cloud로", "an": "4-2"}, {"ty": "match", "p": "연결 방법과 사용자 역할을 이으세요.", "left": ["livekit-server --dev (Colab 안)", "LiveKit Cloud + jupyter.run_app", "fake job"], "right": ["사용자 없음(가짜 마이크 · 스피커)", "Python 참가자", "브라우저 마이크"], "a": [1, 2, 0], "w": "", "an": "4-2 표"}, {"ty": "multi", "p": "Python 참가자가 방에서 하는 일을 모두 고르세요.", "o": ["출입증으로 room.connect()", "AudioSource → LocalAudioTrack을 publish", "비서 트랙을 AudioStream으로 받아 녹음", "LLM 답을 직접 만든다"], "a": [0, 1, 2], "w": "", "an": "room_call"}, {"ty": "order", "p": "Agent Worker의 흐름을 순서대로 놓으세요.", "steps": ["서버가 작업자에게 Job을 보냄", "작업자가 LiveKit 서버에 등록", "entrypoint(ctx) → session.start(room=ctx.room)", "사용자가 출입증으로 방에 입장"], "a": [1, 3, 0, 2], "w": "", "an": "D29-7"}]}];
+
+const TYNAME={mc:'객관식',ox:'OX',match:'선잇기',order:'순서 맞추기',multi:'모두 고르기'};
+let tab=0;
+const ans=Q.map(s=>s.qs.map(q=>q.ty==='multi'?[]:(q.ty==='match'?q.left.map(()=>null):(q.ty==='order'?[]:null))));
+const graded=Q.map(()=>false);
+function hash(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16).padStart(8,'0').slice(-4);}
+function codeFor(name,t,score){return `${t}${'ABCDEFGHIJK'[10-score]||'K'}-${hash(`${name.trim()}|${t}|${score}|voice-day29`)}`;}
+function strip(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent;}
+const eqArr=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+function answered(q,a){if(q.ty==='mc'||q.ty==='ox')return a!==null;if(q.ty==='multi')return a.length>0;if(q.ty==='match')return a.every(x=>x!==null);return a.length===q.steps.length;}
+function correct(q,a){if(!answered(q,a))return false;if(q.ty==='multi')return eqArr([...a].sort((x,y)=>x-y),q.a);if(q.ty==='match'||q.ty==='order')return eqArr(a,q.a);return a===q.a;}
+function scoreOf(i){return ans[i].filter((a,k)=>correct(Q[i].qs[k],a)).length;}
+function nAns(i){return ans[i].filter((a,k)=>answered(Q[i].qs[k],a)).length;}
+function txt(q,a){ /* 답을 문자열로 (오답 정리 · 해설용) */
+  if(!answered(q,a))return '미응답';
+  if(q.ty==='mc')return '①②③④'[a]+' '+strip(q.o[a]);
+  if(q.ty==='ox')return a?'O':'X';
+  if(q.ty==='multi')return [...a].sort((x,y)=>x-y).map(j=>'ABCDEFGH'[j]).join(', ');
+  if(q.ty==='match')return a.map((r,i)=>(i+1)+'-'+'ABCDEFGH'[r]).join(' · ');
+  return a.map(j=>'ABCDEFGH'[j]).join(' → ');}
+function renderTabs(){$('#tabs').innerHTML=Q.map((s,i)=>`<button class="${i===tab?'active':''} ${graded[i]?'graded':''}" data-i="${i}">${s.k||(i+1)+'교시'}<span class="s">${graded[i]?scoreOf(i)+'/10':nAns(i)+'/10'}</span></button>`).join('');$('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=+b.dataset.i;render();window.scrollTo({top:0});});}
+function body(q,k,a,g){
+  if(q.ty==='mc'){return `<div class="opts">${q.o.map((o,j)=>{let c='';if(g){if(j===q.a)c='ok';else if(j===a)c='bad';}else if(j===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-j="${j}" ${g?'disabled':''}>${'①②③④'[j]} ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='ox'){return `<div class="oxrow">${[true,false].map(v=>{let c='';if(g){if(v===q.a)c='ok';else if(v===a)c='bad';}else if(v===a)c='sel';return `<button class="opt ${c}" data-k="${k}" data-v="${v?1:0}" ${g?'disabled':''}>${v?'O':'X'}</button>`;}).join('')}</div>`;}
+  if(q.ty==='multi'){return `<div class="opts multi">${q.o.map((o,j)=>{const on=a.includes(j),ri=q.a.includes(j);let c='';if(g){if(on&&ri)c='ok';else if(on&&!ri)c='bad';else if(!on&&ri)c='miss';}else if(on)c='sel';return `<button class="opt ${c}" data-k="${k}" data-m="${j}" ${g?'disabled':''}>${'ABCDEFGH'[j]}. ${o}</button>`;}).join('')}</div>`;}
+  if(q.ty==='match'){return `<div class="reflist">${q.right.map((r,j)=>`<div><b>${'ABCDEFGH'[j]}</b>${r}</div>`).join('')}</div>`+q.left.map((l,i)=>{let c='';if(g)c=a[i]===q.a[i]?'ok':'bad';return `<div class="mrow"><div class="l"><b>${i+1}.</b>${l}</div><select class="${c}" data-k="${k}" data-i="${i}" ${g?'disabled':''}><option value="">— 고르기 —</option>${q.right.map((r,j)=>`<option value="${j}" ${a[i]===j?'selected':''}>${'ABCDEFGH'[j]}. ${strip(r)}</option>`).join('')}</select></div>`;}).join('');}
+  /* order */
+  return `<div class="steps">${q.steps.map((s,j)=>{const pos=a.indexOf(j);let c=pos>=0?'on':'';if(g){c=(pos>=0&&a[pos]===q.a[pos])?'ok':'bad';}return `<button class="opt step ${c}" data-k="${k}" data-s="${j}" ${g?'disabled':''}><span class="badge">${pos>=0?pos+1:'ABCDEFGH'[j]}</span><span>${'ABCDEFGH'[j]}. ${s}</span></button>`;}).join('')}</div><div class="seqbar">순서: ${a.length?a.map(j=>'ABCDEFGH'[j]).join(' → '):'단계를 일어나는 순서대로 누르세요'}${g?'':` <button data-k="${k}" data-reset="1">다시</button>`}</div>`;
+}
+function render(){renderTabs();const s=Q[tab];const g=graded[tab];
+  $('#sheet').innerHTML=`<div class="head"><span class="t">${s.t}</span><span class="a">🎬 ${s.anim}</span></div>`+s.qs.map((q,k)=>{const a=ans[tab][k];const ok=correct(q,a);
+    return `<div class="q ${g&&!answered(q,a)?'unans':''}"><div class="n">문항 ${k+1}<span class="ty ty-${q.ty}">${TYNAME[q.ty]}</span></div><div class="p">${q.p}</div>${q.c?`<pre class="qc">${q.c}</pre>`:``}${body(q,k,a,g)}${g?`<div class="fb ${ok?'ok':'bad'}">${!answered(q,a)?'미응답. ':(ok?'정답. ':'오답. ')}${q.ty!=='mc'&&!ok?`<b>정답: ${txt(q,q.a)}</b> · `:''}${q.w}<span class="anim">확인: ${q.an}</span></div>`:''}</div>`;}).join('');
+  if(!g){
+    $('#sheet').querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.j;ans[tab][k]=(ans[tab][k]===j?null:j);render();});
+    $('#sheet').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,v=b.dataset.v==='1';ans[tab][k]=(ans[tab][k]===v?null:v);render();});
+    $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.m;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p,1);else a.push(j);render();});
+    $('#sheet').querySelectorAll('select[data-i]').forEach(sl=>sl.onchange=()=>{const k=+sl.dataset.k,i=+sl.dataset.i;ans[tab][k][i]=sl.value===''?null:+sl.value;renderTabs();updHint();});
+    $('#sheet').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.s;const a=ans[tab][k];const p=a.indexOf(j);if(p>=0)a.splice(p);else a.push(j);render();});
+    $('#sheet').querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{ans[tab][+b.dataset.k]=[];render();});
+  }
+  $('#gradeBtn').disabled=g;$('#gradeBtn').textContent=g?'채점 완료':'채점하기';updHint();
+}
+function updHint(){const g=graded[tab];const nm=$('#name').value;
+  if(g){const sc=scoreOf(tab);$('#rscore').textContent=`${sc}/10`;if(nm.trim()){$('#rcode').textContent=codeFor(nm,tab+1,sc);$('#rhint').textContent='결과 코드';}else{$('#rcode').textContent='—';$('#rhint').textContent='이름을 입력하면 결과 코드가 나옵니다.';}}
+  else{$('#rcode').textContent='—';$('#rscore').textContent='';$('#rhint').textContent=`${Q[tab].k||(tab+1)+'교시'}: ${nAns(tab)}/10 답했습니다. 채점하기를 누르면 잠깁니다.`;}}
+$('#gradeBtn').onclick=()=>{const n=nAns(tab);if(n<10&&!confirm(`아직 ${10-n}문항을 끝까지 답하지 않았습니다. 그래도 채점할까요? (미응답은 오답 처리)`))return;graded[tab]=true;render();};
+$('#name').addEventListener('input',updHint);
+
+/* ── 제출 대화상자 ── */
+let lastHtml='',lastText='';
+function buildReport(){
+  const nm=$('#name').value.trim()||'(이름 없음)';const ds=new Date().toLocaleString('ko-KR');
+  let h=`<h3>음성 AI Day 29 개념 워크시트 — 오답 정리</h3><div class="meta">${nm} · ${ds}</div>`;
+  let t=`음성 AI Day 29 개념 워크시트 — 오답 정리\n이름: ${nm}\n일시: ${ds}\n\n`;
+  Q.forEach((s,i)=>{if(!graded[i])return;
+    const wrong=s.qs.map((q,k)=>({q,k,a:ans[i][k]})).filter(x=>!correct(x.q,x.a));
+    h+=`<div class="sec">${s.t} — ${scoreOf(i)}/10</div>`;t+=`### ${s.t} — ${scoreOf(i)}/10\n`;
+    if(!wrong.length){h+=`<div class="ok" style="margin:4px 0 8px">오답 없음</div>`;t+=`오답 없음\n\n`;return;}
+    h+=`<table><tr><th>#</th><th>유형</th><th>문항</th><th>내 답</th><th>정답</th></tr>`;t+=`| # | 유형 | 문항 | 내 답 | 정답 |\n|---|---|---|---|---|\n`;
+    wrong.forEach(({q,k,a})=>{const my=txt(q,a),co=txt(q,q.a);const qt=strip(q.p).replace(/\s+/g,' ').slice(0,60);
+      h+=`<tr><td class="r">${k+1}</td><td>${TYNAME[q.ty]}</td><td>${qt}</td><td class="bad">${my}</td><td class="ok">${co}</td></tr>`;
+      t+=`| ${k+1} | ${TYNAME[q.ty]} | ${qt.replace(/\|/g,'/')} | ${my.replace(/\|/g,'/')} | ${co.replace(/\|/g,'/')} |\n`;});
+    h+=`</table>`;t+=`\n`;});
+  const ng=Q.map((s,i)=>graded[i]?null:(s.k||(i+1)+'교시')).filter(x=>x);
+  if(ng.length){h+=`<div class="meta" style="margin-top:10px">미채점: ${ng.join(', ')}</div>`;t+=`미채점: ${ng.join(', ')}\n`;}
+  lastHtml=h;lastText=t;return h;
+}
+$('#submitBtn').onclick=()=>{if(!graded.some(x=>x)){alert('먼저 채점하기를 눌러 주세요.');return;}$('#dgBody').innerHTML=buildReport();$('#toast').textContent='';$('#dlg').showModal();};
+$('#closeBtn').onclick=()=>$('#dlg').close();
+function copyRich(html,text){
+  // 1) copy 이벤트에 두 형식을 직접 실어 보내기 (사용자 클릭 안에서 동기 실행 — file:// 에서도 동작)
+  let done=false;
+  const onCopy=e=>{e.clipboardData.setData('text/html',html);e.clipboardData.setData('text/plain',text);e.preventDefault();done=true;};
+  document.addEventListener('copy',onCopy);
+  try{
+    const body=$('#dgBody');const sel=window.getSelection();const range=document.createRange();range.selectNodeContents(body);sel.removeAllRanges();sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }catch(e){}
+  document.removeEventListener('copy',onCopy);
+  return done;
+}
+$('#captureBtn').onclick=async()=>{
+  const htmlDoc=`<meta charset="utf-8">`+lastHtml.replace(/ class="[^"]*"/g,'').replace(/<table>/g,'<table border="1" style="border-collapse:collapse">');
+  if(copyRich(htmlDoc,lastText)){$('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;}
+  // 2) 비동기 Clipboard API
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([htmlDoc],{type:'text/html'}),'text/plain':new Blob([lastText],{type:'text/plain'})})]);
+    }else{await navigator.clipboard.writeText(lastText);}
+    $('#toast').textContent='복사됨 — 노션 페이지에서 Ctrl+V 로 붙여 넣으세요.';return;
+  }catch(e){}
+  // 3) 최종: 텍스트 영역 선택 복사
+  try{
+    const ta=document.createElement('textarea');ta.value=lastText;ta.style.position='fixed';ta.style.opacity='0';$('#dlg').appendChild(ta);ta.focus();ta.select();
+    const ok=document.execCommand('copy');ta.remove();
+    $('#toast').textContent=ok?'텍스트(마크다운 표)로 복사됨 — 노션에서 Ctrl+V.':'복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';
+  }catch(e){$('#toast').textContent='복사 실패 — 대화상자 내용을 드래그해 Ctrl+C 로 복사하세요.';}
+};
+render();
+</script>
+</body>
+</html>

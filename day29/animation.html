@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D29 LiveKit Agents 기초</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.tl{position:relative;height:30px;background:var(--soft);border-radius:8px;margin:6px 0}
+.tl .seg{position:absolute;top:4px;height:22px;border-radius:6px;background:var(--c);color:#fff;font-size:.72rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:left .2s,width .2s}
+.tl .mk{position:absolute;top:-3px;bottom:-3px;border-left:3px solid var(--c)}
+.tlrow{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center}
+.tlrow .lab{font-size:.84rem;font-weight:700;color:var(--c)}
+.jwt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;word-break:break-all;line-height:1.6;background:var(--soft);border-radius:10px;padding:10px 12px}
+.jwt .h{color:var(--tts)}.jwt .p{color:var(--s2s)}.jwt .s{color:var(--asr)}.jwt .dot{color:var(--ink);font-weight:700}
+.tokgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.tokgrid{grid-template-columns:1fr}.tlrow{grid-template-columns:90px 1fr}}
+.tokgrid label{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:.92rem}
+.tokgrid input[type=text]{font:inherit;font-size:.9rem;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);flex:1}
+.verdict{margin-top:10px;font-weight:700;padding:10px 14px;border-radius:10px}
+.verdict.good{background:color-mix(in srgb,var(--ok) 15%,var(--panel));color:var(--ok)}
+.verdict.badv{background:color-mix(in srgb,var(--bad) 15%,var(--panel));color:var(--bad)}
+.lamps{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+.lamp{border:2px solid var(--c);border-radius:999px;padding:8px 16px;font-weight:700;opacity:.35;transition:all .25s}
+.lamp.on{opacity:1;background:var(--c);color:#fff}
+.logbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;min-height:120px;line-height:1.7;white-space:pre-wrap}
+.logbox .g{color:#5FD38D}.logbox .y{color:#F2B33D}.logbox .p{color:#C9B8FF}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D29 LiveKit Agents 기초</h1>
+  <p>방(Room) · 참가자(Participant) · 트랙(Track), 출입증(Access Token)의 세 조각, Agent와 AgentSession, 세션 안의 흐름과 지연, 플러그인의 콘센트 모양, 작업자(Agent Worker)의 하루, 세 가지 연결 방법을 직접 움직여 보는 수업 자료입니다. 탭 번호 D29-1 ~ D29-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다. 숫자는 설명용 시뮬레이션입니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D29-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="room"><span class="tc">D29-2</span>방 · 참가자 · 트랙</button>
+  <button role="tab" aria-selected="false" data-t="token"><span class="tc">D29-3</span>토큰의 세 조각</button>
+  <button role="tab" aria-selected="false" data-t="session"><span class="tc">D29-4</span>Agent와 Session</button>
+  <button role="tab" aria-selected="false" data-t="pipeline"><span class="tc">D29-5</span>세션 안의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="plugin"><span class="tc">D29-6</span>플러그인의 콘센트</button>
+  <button role="tab" aria-selected="false" data-t="worker"><span class="tc">D29-7</span>작업자의 하루</button>
+  <button role="tab" aria-selected="false" data-t="connect"><span class="tc">D29-8</span>세 가지 연결</button>
+  <button role="tab" aria-selected="false" data-t="recap"><span class="tc">D29-9</span>정리 퀴즈</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D29-1</span>오늘 할 것: 같은 비서를 LiveKit 틀에 옮겨 담기</h2>
+  <p class="lead">단계를 눌러 할 일과 빈칸을 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="room">
+  <h2><span class="hc">D29-2</span>방 · 참가자 · 트랙: 누가 무엇을 publish · subscribe하나</h2>
+  <p class="lead">▶ 다음 단계를 누르며 통화 한 번이 방 안에서 어떻게 만들어지는지 보세요. 서버(SFU)는 소리를 섞지 않고 필요한 참가자에게 골라 전달만 합니다.</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="rmNext">▶ 다음 단계</button><button class="btn" id="rmReset">처음부터</button><span id="rmStep" style="color:var(--muted)"></span></div>
+    <canvas id="rmCv" height="300"></canvas>
+    <div class="kv" id="rmKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="token">
+  <h2><span class="hc">D29-3</span>출입증(JWT)의 세 조각: 누구나 읽지만, 아무나 고칠 수 없다</h2>
+  <p class="lead">왼쪽에서 출입증 내용을 정하면 오른쪽에 진짜 JWT가 만들어집니다(브라우저의 HMAC-SHA256). '몰래 고치기'를 누르면 서명은 그대로 두고 내용만 바꿉니다. 서버의 검증 결과를 보세요.</p>
+  <div class="stage">
+    <div class="tokgrid">
+      <div>
+        <label>identity <input type="text" id="tkId" value="minjun"></label>
+        <label>room <input type="text" id="tkRoom" value="hanbit-call-0001"></label>
+        <label><input type="checkbox" id="tkJoin" checked> roomJoin (입장)</label>
+        <label><input type="checkbox" id="tkPub" checked> canPublish (말하기)</label>
+        <label><input type="checkbox" id="tkAgent"> kind = agent (비서)</label>
+        <label>API Secret <input type="text" id="tkSec" value="secret"></label>
+        <div class="row" style="margin-top:8px"><button class="btn primary" id="tkMake">서명해서 만들기 (to_jwt)</button><button class="btn" id="tkTamper">몰래 고치기: roomAdmin = true</button></div>
+      </div>
+      <div>
+        <div class="jwt" id="tkJwt"></div>
+        <div class="fx" id="tkDec"></div>
+        <div class="verdict" id="tkVer"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="session">
+  <h2><span class="hc">D29-4</span>Agent(대본)와 AgentSession(진행자)</h2>
+  <p class="lead">대본을 고르고 '사용자가 말함'을 누르세요. 진행자(세션)가 상태를 바꾸며 귀 · 머리 · 입을 차례로 부릅니다. 대본만 바꿔도 같은 무대에서 다른 비서가 됩니다.</p>
+  <div class="stage">
+    <div class="row" id="ssAgent"></div>
+    <div class="lamps"><span class="lamp" style="--c:var(--net)" data-s="initializing">initializing</span><span class="lamp" style="--c:var(--s2s)" data-s="listening">listening</span><span class="lamp" style="--c:var(--llm)" data-s="thinking">thinking</span><span class="lamp" style="--c:var(--asr)" data-s="speaking">speaking</span></div>
+    <div class="row"><button class="btn primary" id="ssStart">session.start(agent)</button><button class="btn" id="ssTalk" disabled>🎤 사용자가 말함</button><button class="btn" id="ssRun" disabled>⌨️ session.run(user_input=…)</button></div>
+    <div class="logbox" id="ssLog"></div>
+  </div>
+</section>
+
+<section class="panel" id="pipeline">
+  <h2><span class="hc">D29-5</span>세션 안의 흐름과 턴마다 재는 지연</h2>
+  <p class="lead">사용자 말이 끝난 뒤 비서의 첫 소리가 나기까지 무엇이 차례로 일어나는지 손잡이로 바꿔 보세요. 메시지의 <code>metrics</code>에 이 값들이 붙습니다.</p>
+  <div class="stage">
+    <label class="sl">턴 끝 판단 지연 (end_of_turn_delay)<input type="range" id="plE" min="0.2" max="2.5" step="0.05" value="0.6"><output id="plEo"></output></label>
+    <label class="sl">LLM 첫 글자 (llm_node_ttft)<input type="range" id="plL" min="0.05" max="1.5" step="0.05" value="0.4"><output id="plLo"></output></label>
+    <label class="sl">첫 문장 완성까지<input type="range" id="plS" min="0" max="1.5" step="0.05" value="0.3"><output id="plSo"></output></label>
+    <label class="sl">TTS 첫 소리 (tts_node_ttfb)<input type="range" id="plT" min="0.05" max="1.2" step="0.05" value="0.25"><output id="plTo"></output></label>
+    <div class="row" id="plTts"></div>
+    <div id="plLanes"></div>
+    <div class="kv" id="plKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="plugin">
+  <h2><span class="hc">D29-6</span>플러그인의 콘센트: 부모 클래스 + 메서드 하나</h2>
+  <p class="lead">칸을 고르면 우리가 채울 코드와, 부모 클래스 · 세션이 대신해 주는 일이 나옵니다. <code>streaming</code>을 바꿔 StreamAdapter가 언제 끼어드는지 보세요.</p>
+  <div class="stage">
+    <div class="row" id="pgKind"></div>
+    <div class="row" id="pgStream"></div>
+    <div class="pipewrap">
+      <pre class="fx" id="pgCode"></pre>
+      <div class="infocard" id="pgInfo"></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="worker">
+  <h2><span class="hc">D29-7</span>작업자의 하루: 등록 → 방 → 일감 → entrypoint → 세션</h2>
+  <p class="lead">'진짜 방'과 'fake job'을 골라 ▶를 누르세요. entrypoint는 두 경우 모두 같고, 작업자를 켜는 방법과 사용자만 다릅니다.</p>
+  <div class="stage">
+    <div class="row" id="wkMode"></div>
+    <div class="row"><button class="btn primary" id="wkPlay">▶ 하루 돌려 보기</button></div>
+    <div class="pipewrap">
+      <div class="pstages" id="wkSteps"></div>
+      <div class="logbox" id="wkLog"></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="connect">
+  <h2><span class="hc">D29-8</span>세 가지 연결 방법: 같은 entrypoint, 다른 무대</h2>
+  <p class="lead">연결 방법을 골라 서버 · 사용자 · 필요한 것 · 코드를 비교하세요.</p>
+  <div class="stage">
+    <div class="row" id="cnPick"></div>
+    <div class="pipewrap">
+      <div class="infocard" id="cnInfo"></div>
+      <pre class="fx" id="cnCode"></pre>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2><span class="hc">D29-9</span>정리 퀴즈: 이 상황에서 무엇을 고칠까?</h2>
+  <p class="lead">실제 개발 중에 자주 만나는 상황입니다. 어느 LiveKit 부품을 볼지 골라 보세요.</p>
+  <div class="stage" id="rcList"></div>
+</section>
+<footer>음성 AI 전문가 과정 · D29 LiveKit Agents 기초 · 숫자는 설명용 시뮬레이션입니다.</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(ids,fmt,cb){ids.forEach(id=>{const el=$(id);const o=$(id+'o');const up=()=>{if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;cb();};el.addEventListener('input',up);if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;});}
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);c.lineWidth=2;
+  [['--asr',0],['--tts',0.5]].forEach(([col,ph],k)=>{c.strokeStyle=css(col);c.beginPath();for(let x=0;x<=w;x+=4){const gate=Math.sin(x/w*Math.PI*3+heroT*2+ph)>0?1:0.15;const y=h/2+(h/2-5)*gate*Math.sin(x/9+heroT*6+k)*0.8;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();});
+  if(!RM)requestAnimationFrame(heroLoop);})();
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active');if(a)(REDRAW[a.id]||(()=>{}))();});
+const sleep=ms=>new Promise(r=>setTimeout(r,RM?0:ms));
+const s2=v=>v.toFixed(2)+'초';
+function lanes(el,rows,lo,hi,marks){const P=t=>((t-lo)/(hi-lo)*100).toFixed(2)+'%';
+  el.innerHTML=rows.map(([lab,col,segs])=>`<div class="tlrow"><div class="lab" style="--c:var(${col})">${esc(lab)}</div><div class="tl">${segs.map(([a,b,t,c2])=>`<div class="seg" style="--c:var(${c2||col});left:${P(a)};width:calc(${P(b)} - ${P(a)})">${esc(t||'')}</div>`).join('')}${(marks||[]).map(([t,c3])=>`<div class="mk" style="--c:var(${c3});left:${P(t)}"></div>`).join('')}</div></div>`).join('');}
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 0',t:'준비 · 대응표',c:'--net',go:'flow',items:['livekit-agents 1.8.10 + silero · openai 플러그인','모델은 D27 · D28과 같음 (Whisper · Edge TTS · Qwen3)','Pipecat ↔ LiveKit 대응표'],q:'(빈칸 없음)'},
+ {p:'Part 1',t:'Room · Token',c:'--asr',go:'room',items:['Room · Participant · Track · SFU','AccessToken + VideoGrants → to_jwt()','내용은 읽히지만 서명 때문에 못 고침'],q:'🧩 빈칸 1 · 2: room_join, to_jwt',more:[['token','토큰의 세 조각']]},
+ {p:'Part 2',t:'Agent · Session',c:'--llm',go:'session',items:['Agent(instructions=…) = 대본','AgentSession(stt, llm, tts, vad) = 진행자','QwenLLM 플러그인 · session.run()'],q:'🧩 빈칸 3 · 4: instructions, run'},
+ {p:'Part 3',t:'Plugin',c:'--tts',go:'plugin',items:['WhisperSTT._recognize_impl → FINAL_TRANSCRIPT','KoTTS → ChunkedStream._run → emitter.push','FileMic · Speaker로 방 없이 통화'],q:'🧩 빈칸 5 · 6 · 7: _recognize_impl, FINAL_TRANSCRIPT, push',more:[['pipeline','세션 안의 흐름']]},
+ {p:'Part 4',t:'Worker · 연결',c:'--s2s',go:'worker',items:['AgentServer + @server.rtc_session()','fake job → 진짜 방(livekit-server --dev)','LiveKit Cloud + 브라우저 (jupyter.run_app)'],q:'🧩 빈칸 8 · 9: rtc_session, ctx.room',more:[['connect','세 가지 연결']]},
+ {p:'Part 5',t:'정리',c:'--bad',go:'recap',items:['오늘 만든 것 표','확인 체크리스트','D30: SIP · Handoff · Realtime · Gemini Live'],q:'워크시트 4교시'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== room ===== */
+const RMS=[
+ ['방이 비어 있음','LiveKit 서버(SFU)에 방 hanbit-call-0001 (아직 아무도 없음)'],
+ ['사용자 입장','minjun이 출입증(roomJoin)으로 입장 → 방이 생김'],
+ ['마이크 트랙 publish','minjun이 🎤 마이크 트랙을 내보냄 (can_publish)'],
+ ['비서 입장','서버가 작업자에게 일감 → hana-agent(kind = agent)가 입장'],
+ ['비서가 subscribe','비서가 minjun의 마이크 트랙을 구독 → 받아쓰기 시작'],
+ ['비서 목소리 publish','비서가 🔊 목소리 트랙을 내보내고, minjun이 구독해 스피커로'],
+ ['참관인 입장','observer(canPublish = False)가 듣기만: 두 트랙을 구독']];
+let rmK=0;
+function drawRm(){const {c,w,h}=fit($('rmCv'),300);c.clearRect(0,0,w,h);c.font=`600 13px ${FONT}`;c.textAlign='center';c.textBaseline='middle';
+  const S={x:w*0.5,y:h*0.5},U={x:w*0.13,y:h*0.3},A={x:w*0.87,y:h*0.3},O={x:w*0.13,y:h*0.82};
+  c.fillStyle=css('--soft');c.strokeStyle=css('--line');c.lineWidth=1.5;c.beginPath();c.roundRect(w*0.3,h*0.08,w*0.4,h*0.84,14);c.fill();c.stroke();
+  c.fillStyle=css('--muted');c.fillText('LiveKit 서버 (SFU) · Room: hanbit-call-0001',S.x,h*0.15);
+  const node=(p,t,col,on)=>{c.globalAlpha=on?1:0.18;c.strokeStyle=css(col);c.lineWidth=2.5;c.fillStyle=css('--panel');c.beginPath();c.roundRect(p.x-62,p.y-26,124,52,12);c.fill();c.stroke();c.fillStyle=css('--ink');t.split('\n').forEach((l,i,a)=>c.fillText(l,p.x,p.y+(i-(a.length-1)/2)*16));c.globalAlpha=1;};
+  const arr=(a,b,col,lab,on,dy)=>{if(!on)return;c.strokeStyle=css(col);c.fillStyle=css(col);c.lineWidth=2.5;const dx=b.x-a.x,dyy=b.y-a.y,L=Math.hypot(dx,dyy),ux=dx/L,uy=dyy/L;const ax=a.x+ux*70,ay=a.y+uy*30+(dy||0),bx=b.x-ux*70,by=b.y-uy*30+(dy||0);
+    c.beginPath();c.moveTo(ax,ay);c.lineTo(bx,by);c.stroke();c.beginPath();c.moveTo(bx,by);c.lineTo(bx-ux*10-uy*5,by-uy*10+ux*5);c.lineTo(bx-ux*10+uy*5,by-uy*10-ux*5);c.fill();
+    c.font=`600 11.5px ${FONT}`;c.fillText(lab,(ax+bx)/2,(ay+by)/2-10);c.font=`600 13px ${FONT}`;};
+  node(S,'트랙 중계\n(골라서 전달)','--net',true);
+  node(U,'사용자 minjun\nstandard','--llm',rmK>=1);node(A,'비서 hana-agent\nagent','--asr',rmK>=3);node(O,'참관인 observer\n듣기만','--s2s',rmK>=6);
+  arr(U,S,'--llm','🎤 publish',rmK>=2,-6);arr(S,A,'--llm','subscribe →',rmK>=4,-6);arr(A,S,'--asr','🔊 publish',rmK>=5,10);arr(S,U,'--asr','← subscribe',rmK>=5,10);arr(S,O,'--s2s','두 트랙 subscribe',rmK>=6,0);
+  $('rmStep').textContent=`${rmK+1} / ${RMS.length} · ${RMS[rmK][0]}`;
+  const parts=[rmK>=1,rmK>=3,rmK>=6].filter(Boolean).length,tracks=(rmK>=2)+(rmK>=5);
+  $('rmKv').innerHTML=`<div><span>지금 일어난 일</span><b style="font-size:.95rem">${esc(RMS[rmK][1])}</b></div><div><span>참가자 수</span><b>${parts}</b></div><div><span>publish된 트랙</span><b>${tracks}</b></div>`;}
+$('rmNext').onclick=()=>{rmK=Math.min(RMS.length-1,rmK+1);drawRm();};$('rmReset').onclick=()=>{rmK=0;drawRm();};REDRAW.room=drawRm;
+
+/* ===== token ===== */
+const b64u=bytes=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const enc=s=>new TextEncoder().encode(s);
+async function hmac(secret,msg){if(!(crypto&&crypto.subtle))return 'no-webcrypto';const k=await crypto.subtle.importKey('raw',enc(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return b64u(new Uint8Array(await crypto.subtle.sign('HMAC',k,enc(msg))));}
+let TK=null;
+function tkPayload(){const v={roomJoin:$('tkJoin').checked,room:$('tkRoom').value,canPublish:$('tkPub').checked,canSubscribe:true};if($('tkAgent').checked)v.agent=true;
+  const p={sub:$('tkId').value,video:v,iss:'devkey',nbf:1793750400,exp:1793751000};if($('tkAgent').checked)p.kind='agent';return p;}
+async function tkShow(h,p,sig,note){const H=b64u(enc(JSON.stringify(h))),P=b64u(enc(JSON.stringify(p)));
+  $('tkJwt').innerHTML=`<span class="h">${H}</span><span class="dot">.</span><span class="p">${P}</span><span class="dot">.</span><span class="s">${sig}</span>`;
+  $('tkDec').innerHTML=`<b>머리</b> ${esc(JSON.stringify(h))}<br><b>내용</b> ${esc(JSON.stringify(p))}<br><b>서명</b> HMAC-SHA256(Secret, 머리 + "." + 내용)`;
+  const expect=await hmac('secret',H+'.'+P);const ok=expect===sig;
+  $('tkVer').className='verdict '+(ok?'good':'badv');$('tkVer').textContent=(ok?'서버 검증(Secret = secret): 통과 ✔ ':'서버 검증(Secret = secret): 거절 ✘ InvalidSignatureError ')+(note||'');}
+async function tkMake(){const h={alg:'HS256',typ:'JWT'},p=tkPayload();const sig=await hmac($('tkSec').value,b64u(enc(JSON.stringify(h)))+'.'+b64u(enc(JSON.stringify(p))));TK={h,p,sig};
+  await tkShow(h,p,sig,$('tkSec').value==='secret'?'· 같은 Secret으로 서명했으므로':'· 다른 Secret으로 서명했으므로');}
+$('tkMake').onclick=tkMake;
+$('tkTamper').onclick=async()=>{if(!TK)await tkMake();const p=JSON.parse(JSON.stringify(TK.p));p.video.roomAdmin=true;await tkShow(TK.h,p,TK.sig,'· 내용이 바뀌어 서명이 맞지 않음');};
+REDRAW.token=()=>{if(!TK)tkMake();};
+
+/* ===== session ===== */
+const AG={hana:['Hana (예약 담당)','당신은 한빛치과의 전화 예약 도우미입니다…','네, 다음 주 수요일 오후 2시 스케일링이시죠? 성함을 알려 주세요.'],
+ bill:['Billing (수납 담당)','당신은 한빛치과의 수납 안내 도우미입니다…','스케일링은 보험 적용 시 약 만 오천 원입니다. 결제는 진료 후에 하시면 됩니다.']};
+let ssA='hana',ssBusy=false,ssStarted=false;
+function lamp(s){document.querySelectorAll('#session .lamp').forEach(l=>l.classList.toggle('on',l.dataset.s===s));}
+function slog(t){$('ssLog').innerHTML+=t+'\n';}
+chipRow($('ssAgent'),'data-ag',[['hana','대본: Hana (예약)'],['bill','대본: Billing (수납)']],'hana','--tts',v=>{ssA=v;slog(`<span class="p">agent 교체 → ${esc(AG[v][0])} · instructions = "${esc(AG[v][1])}"</span>`);});
+$('ssStart').onclick=async()=>{if(ssStarted)return;ssStarted=true;$('ssLog').innerHTML='';lamp('initializing');slog('<span class="y">await session.start(agent=Hana())</span>');await sleep(600);lamp('listening');slog('state → listening (귀를 엶)');$('ssTalk').disabled=false;$('ssRun').disabled=false;};
+async function turn(audio){if(ssBusy)return;ssBusy=true;const q='다음 주 수요일 오후 두 시에 스케일링 예약하고 싶어요';
+  if(audio){slog('🎤 사용자 말소리 → VAD: 말 시작 … 말 끝');await sleep(700);slog(`STT _recognize_impl → FINAL_TRANSCRIPT "${q}"`);await sleep(400);}
+  else slog(`<span class="y">session.run(user_input="${q}")</span> (귀 · 입 없이)`);
+  lamp('thinking');slog(`state → thinking · llm.chat(chat_ctx = [system: ${esc(AG[ssA][0])}, user])`);await sleep(800);
+  if(audio){lamp('speaking');slog(`state → speaking · TTS 문장 단위 → 🔊 "${esc(AG[ssA][2])}"`);await sleep(1400);}
+  else slog(`RunResult: ChatMessageEvent(assistant) "${esc(AG[ssA][2])}"`);
+  lamp('listening');slog('state → listening');ssBusy=false;}
+$('ssTalk').onclick=()=>turn(true);$('ssRun').onclick=()=>turn(false);
+
+/* ===== pipeline ===== */
+const PL=['plE','plL','plS','plT'];let plStream='no';
+bindSl(PL,{plE:s2,plL:s2,plS:s2,plT:s2},()=>drawPl());
+chipRow($('plTts'),'data-pt',[['no','TTS: 문장 다 받고 읽기 (StreamAdapter)'],['yes','TTS: 글자 흘려 받으며 읽기 (streaming)']],'no','--tts',v=>{plStream=v;drawPl();});
+function drawPl(){const E=+$('plE').value,L=+$('plL').value,S=plStream==='yes'?0:+$('plS').value,T=+$('plT').value;const t0=1.0,a=t0+E,b=a+L,c2=b+S,d=c2+T,end=d+2.2;
+  lanes($('plLanes'),[['사용자','--llm',[[0,t0,'예약하고 싶어요']]],['턴 판단','--net',[[t0,a,'조용함 확인']]],['LLM','--s2s',[[a,b,'TTFT'],[b,c2+1.2,'글자 조각…']]],['TTS','--tts',[[c2,d,'TTFB']]],['비서 소리','--asr',[[d,end,'네, 다음 주 수요일…']]]],0,Math.max(6,end+0.2),[[t0,'--bad'],[d,'--ok']]);
+  $('plKv').innerHTML=`<div><span>말 끝 → 첫 소리 (e2e_latency)</span><b>${s2(d-t0)}</b></div><div><span>가장 큰 덩어리</span><b>${[['턴 판단',E],['LLM TTFT',L],['첫 문장',S],['TTS TTFB',T]].sort((x,y)=>y[1]-x[1])[0][0]}</b></div><div><span>📐</span><b style="font-size:.9rem">e2e ≈ ${E.toFixed(2)} + ${L.toFixed(2)} + ${S.toFixed(2)} + ${T.toFixed(2)}</b></div>`;}
+REDRAW.pipeline=drawPl;
+
+/* ===== plugin ===== */
+const PG={
+ stt:{col:'--llm',code:(st)=>`class WhisperSTT(lk_stt.STT):
+    def __init__(self):
+        super().__init__(capabilities=lk_stt.STTCapabilities(
+            streaming=${st?'True':'False'}, interim_results=False))
+
+    async def <b>_recognize_impl</b>(self, buffer, *, language=None, conn_options=None):
+        frame = rtc.combine_audio_frames(buffer)
+        text = await asyncio.to_thread(stt, to_16k(frame))
+        return lk_stt.SpeechEvent(type=lk_stt.SpeechEventType.<b>FINAL_TRANSCRIPT</b>,
+            alternatives=[lk_stt.SpeechData(language="ko", text=text)])${st?`
+
+    def stream(self, ...):   # streaming=True면 이것도 채워야 함
+        ...                  # INTERIM → FINAL 을 흘려 보냄`:''}`,
+  info:st=>[['바깥에서 부르는 문','recognize() / stream()'],['부모가 해 주는 일','재시도 · 지연(metrics) 기록'],['세션이 해 주는 일',st?'그대로 흐름에 연결 (중간 받아쓰기 가능)':'StreamAdapter: VAD로 말 한 마디씩 잘라 _recognize_impl 호출'],['돌려주는 것','SpeechEvent(FINAL_TRANSCRIPT)']]},
+ llm:{col:'--s2s',code:()=>`class QwenLLM(lk_llm.LLM):
+    def <b>chat</b>(self, *, chat_ctx, tools=None, conn_options=..., **kw):
+        return QwenStream(self, chat_ctx=chat_ctx, tools=tools or [],
+                          conn_options=conn_options)
+
+class QwenStream(lk_llm.LLMStream):
+    async def <b>_run</b>(self):
+        messages, _ = self._chat_ctx.to_provider_format("openai")
+        for piece in qwen_stream(messages):
+            self._event_ch.send_nowait(lk_llm.<b>ChatChunk</b>(id=rid,
+                delta=lk_llm.ChoiceDelta(role="assistant", content=piece)))`,
+  info:()=>[['바깥에서 부르는 문','llm.chat(chat_ctx) → 흐름'],['부모가 해 주는 일','재시도 · TTFT · 토큰 수 기록'],['세션이 해 주는 일','instructions + 대화 기록을 chat_ctx로 모아 줌, 조각을 TTS로'],['돌려주는 것','ChatChunk 조각들 (도구 호출도 여기로)']]},
+ tts:{col:'--tts',code:(st)=>`class KoTTS(lk_tts.TTS):
+    def __init__(self):
+        super().__init__(capabilities=lk_tts.TTSCapabilities(streaming=${st?'True':'False'}),
+                         sample_rate=16000, num_channels=1)
+    def <b>synthesize</b>(self, text, *, conn_options=...):
+        return KoChunk(tts=self, input_text=text, conn_options=conn_options)
+
+class KoChunk(lk_tts.ChunkedStream):
+    async def <b>_run</b>(self, output_emitter):
+        y = await asyncio.to_thread(tts, normalize_ko(self.input_text))
+        output_emitter.initialize(request_id=..., sample_rate=16000,
+                                  num_channels=1, mime_type="audio/pcm")
+        output_emitter.<b>push</b>(pcm_bytes(y))
+        output_emitter.flush()`,
+  info:st=>[['바깥에서 부르는 문',st?'synthesize() / stream()':'synthesize(문장)'],['부모가 해 주는 일','재시도 · TTFB 기록, 바이트 → AudioFrame'],['세션이 해 주는 일',st?'LLM 글자를 그대로 흘려 넣음':'StreamAdapter: LLM 글자를 문장 단위로 모아 synthesize 호출'],['돌려주는 것','emitter.push(소리 바이트)']]}};
+let pgK='stt',pgS=false;
+chipRow($('pgKind'),'data-pk',[['stt','귀 STT'],['llm','머리 LLM'],['tts','입 TTS']],'stt','--asr',v=>{pgK=v;drawPg();});
+chipRow($('pgStream'),'data-ps',[['0','streaming = False (오늘)'],['1','streaming = True']],'0','--net',v=>{pgS=v==='1';drawPg();});
+function drawPg(){const g=PG[pgK];$('pgCode').innerHTML=g.code(pgS).replace(/&lt;b&gt;/g,'<b>').replace(/&lt;\/b&gt;/g,'</b>');
+  $('pgInfo').innerHTML=`<h3 style="color:var(${g.col})">${{stt:'귀 STT',llm:'머리 LLM',tts:'입 TTS'}[pgK]} 플러그인</h3><table>${g.info(pgS).map(([k,v])=>`<tr><td>${esc(k)}</td><td${k.startsWith('세션')?' class="chg"':''}>${esc(v)}</td></tr>`).join('')}</table>`;}
+REDRAW.plugin=drawPg;
+
+/* ===== worker ===== */
+const WK={real:[['① 등록','AgentServer.run() → LiveKit 서버에 "일할 수 있어요"','<span class="g">registered worker id=AW_x7k2</span>'],
+ ['② 방 생김','minjun이 출입증으로 입장 → 방 hanbit-call-0002 생성','room created: hanbit-call-0002'],
+ ['③ 일감','서버가 등록된 작업자에게 Job 보냄 (dispatch)','<span class="y">received job request job-9f3a</span>'],
+ ['④ entrypoint','@server.rtc_session() → entrypoint(ctx) · await ctx.connect()','entrypoint(ctx): ctx.room.name = hanbit-call-0002'],
+ ['⑤ 세션','session.start(agent=Hana(), room=ctx.room) → 마이크 트랙 구독 · 목소리 publish','<span class="p">agent_state: listening → speaking "안녕하세요, 한빛치과…"</span>'],
+ ['⑥ 끝','minjun이 나감 → 세션 닫힘 → 작업자는 다음 일감 대기','participant disconnected → session closed']],
+ fake:[['① 켜기','AgentServer.run(unregistered=True): 서버에 등록하지 않음','<span class="g">worker started (unregistered)</span>'],
+ ['② 방 없음','진짜 방 대신 가짜 방(console)','simulate_job("hanbit-fake-room", fake_job=True)'],
+ ['③ 가짜 일감','작업자가 스스로 Job을 만들어 실행','<span class="y">launch job mock-job-54ca</span>'],
+ ['④ entrypoint','같은 entrypoint(ctx) · ctx.is_fake_job() = True','entrypoint(ctx): fake → FileMic · Speaker 꽂기'],
+ ['⑤ 세션','session.start(agent=Hana(), room=ctx.room) → 꽂아 둔 가짜 입출력 사용','<span class="p">user: "다음 주 수요일 …" → assistant: "네, …"</span>'],
+ ['⑥ 끝','wait_call → session.aclose() → 기록(CALLS) 확인','job done · items = 5']]};
+let wkM='real',wkBusy=false;
+chipRow($('wkMode'),'data-wm',[['real','진짜 방 (등록)'],['fake','fake job (서버 없이)']],'real','--s2s',v=>{wkM=v;drawWk(-1);});
+function drawWk(k){$('wkSteps').innerHTML=WK[wkM].map(([h,t],i)=>`<div class="pst ${i<=k?'on':''} ${i===k?'cur':''}" style="--c:var(--s2s)"><b>${h.slice(0,1)}</b><div><b style="color:var(--ink)">${esc(h.slice(2))}</b><br><span style="font-size:.88rem;color:var(--muted)">${esc(t)}</span></div></div>`).join('');
+  $('wkLog').innerHTML=WK[wkM].slice(0,k+1).map(x=>x[2]).join('\n');}
+$('wkPlay').onclick=async()=>{if(wkBusy)return;wkBusy=true;for(let k=0;k<6;k++){drawWk(k);await sleep(700);}wkBusy=false;};
+REDRAW.worker=()=>drawWk(wkBusy?5:-1);
+
+/* ===== connect ===== */
+const CN={
+ dev:['Colab 안 서버 + Python 참가자 (4-2)',[['LiveKit 서버','livekit-server --dev (이 Colab, 127.0.0.1:7880)'],['사용자','Python 참가자: 녹음 파일을 마이크 트랙으로'],['필요한 것','없음 (devkey / secret 공개 개발용)'],['브라우저 마이크','✘ (브라우저가 Colab 안에 못 들어옴)'],['좋은 점','자동 시험 · 반복 측정에 좋음']],
+  `room_server = AgentServer(ws_url="ws://127.0.0.1:7880",
+    api_key="devkey", api_secret="secret",
+    job_executor_type=JobExecutorType.THREAD)
+room_server.rtc_session()(entrypoint)
+asyncio.ensure_future(room_server.run(devmode=True))
+
+room = rtc.Room()
+await room.connect(DEV_URL, make_token("minjun", room=ROOM2))
+await room.local_participant.publish_track(track, ...)`],
+ cloud:['LiveKit Cloud + 브라우저 (4-3)',[['LiveKit 서버','LiveKit Cloud (wss://…livekit.cloud)'],['사용자','브라우저 마이크 (Colab 셀 위젯)'],['필요한 것','LIVEKIT_URL · API_KEY · API_SECRET (보안 비밀)'],['브라우저 마이크','✔'],['좋은 점','진짜 사람 목소리 · 네트워크로 통화']],
+  `from livekit.agents import jupyter
+cloud_server = AgentServer(ws_url=LK_CLOUD["LIVEKIT_URL"],
+    api_key=LK_CLOUD["LIVEKIT_API_KEY"],
+    api_secret=LK_CLOUD["LIVEKIT_API_SECRET"])
+cloud_server.rtc_session()(entrypoint)
+jupyter.run_app(cloud_server)   # 위젯 + 작업자 (■ 중지)`],
+ web:['우리 웹 페이지 (livekit-client)',[['LiveKit 서버','Cloud 또는 직접 운영'],['사용자','우리 서비스의 웹 · 앱'],['필요한 것','토큰 발급 API (백엔드) + 상시 작업자'],['브라우저 마이크','✔'],['좋은 점','실서비스 모양 그대로']],
+  `const { url, token } = await fetch("/api/livekit-token")
+                              .then(r => r.json());
+const room = new Room();
+room.on(RoomEvent.TrackSubscribed, (track) => {
+  if (track.kind === "audio")
+    document.body.appendChild(track.attach());
+});
+await room.connect(url, token);
+await room.localParticipant.setMicrophoneEnabled(true);`]};
+let cnK='dev';
+chipRow($('cnPick'),'data-cn',[['dev','Colab 안 서버'],['cloud','LiveKit Cloud'],['web','우리 웹 페이지']],'dev','--asr',v=>{cnK=v;drawCn();});
+function drawCn(){const [t,rows,code]=CN[cnK];$('cnInfo').innerHTML=`<h3>${esc(t)}</h3><table>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table><div class="okb">entrypoint는 세 경우 모두 같음</div>`;$('cnCode').textContent=code;}
+REDRAW.connect=drawCn;
+
+/* ===== recap ===== */
+const RC=[['브라우저 JavaScript 안에 API Secret을 넣어 토큰을 만들고 있다.',['백엔드가 토큰을 발급하고 브라우저는 받기만','ttl을 길게','roomAdmin 추가'],0,'Secret이 브라우저에 있으면 누구나 관리자 토큰을 만들 수 있습니다.'],
+ ['비서가 엉뚱하게 답하는데, 받아쓰기 탓인지 LLM 탓인지 모르겠다.',['session.run(user_input=…)으로 글자만 먼저 시험','VAD 튜닝','livekit-server 재시작'],0,'귀 · 입을 빼고 대본과 머리만 시험합니다.'],
+ ['예약 담당 비서를 수납 담당으로 바꾸려 한다. STT · TTS는 그대로다.',['Agent(instructions)만 바꾼다','AgentSession을 새로 만든다','토큰을 다시 발급한다'],0,'세션(무대)은 그대로, 대본(Agent)만 교체 → D30 Handoff.'],
+ ['사내 STT 엔진을 LiveKit에 쓰고 싶다(한 번에 받아쓰기만 됨).',['stt.STT 상속 + _recognize_impl, streaming=False','Agent를 상속','TTS 플러그인 수정'],0,'세션이 VAD로 잘라 불러 줍니다(StreamAdapter).'],
+ ['서버 없이 entrypoint 로직을 CI에서 시험하고 싶다.',['run(unregistered=True) + simulate_job(fake_job=True)','jupyter.run_app','livekit-server --dev'],0,'가짜 방에 가짜 입출력을 꽂아 돌립니다.'],
+ ['통화 하나가 죽으면 다른 통화까지 같이 끊긴다.',['JobExecutorType.PROCESS + setup_fnc로 모델 미리 불러 두기','THREAD로 바꾸기','VAD 끄기'],0,'통화마다 프로세스로 격리(실서비스 기본값).']];
+$('rcList').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}" style="--c:var(--s2s)"><div class="q">${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{const a=RC[+s.dataset.i][2];s.querySelectorAll('button').forEach(x=>x.className='');b.className=(+b.dataset.j===a)?'right':'wrong';if(+b.dataset.j!==a)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');}));
+
+const h0=location.hash.slice(1);openTab($(h0)?h0:'flow',true);
+})();
+</script>
+</body>
+</html>
