@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D31 FastAPI 음성 API 서버</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.tl{position:relative;height:30px;background:var(--soft);border-radius:8px;margin:6px 0}
+.tl .seg{position:absolute;top:4px;height:22px;border-radius:6px;background:var(--c);color:#fff;font-size:.72rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:left .2s,width .2s}
+.tl .mk{position:absolute;top:-3px;bottom:-3px;border-left:3px solid var(--c)}
+.tlrow{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center}
+.tlrow .lab{font-size:.84rem;font-weight:700;color:var(--c)}
+.jwt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;word-break:break-all;line-height:1.6;background:var(--soft);border-radius:10px;padding:10px 12px}
+.jwt .h{color:var(--tts)}.jwt .p{color:var(--s2s)}.jwt .s{color:var(--asr)}.jwt .dot{color:var(--ink);font-weight:700}
+.tokgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.tokgrid{grid-template-columns:1fr}.tlrow{grid-template-columns:90px 1fr}}
+.tokgrid label{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:.92rem}
+.tokgrid input[type=text]{font:inherit;font-size:.9rem;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);flex:1}
+.verdict{margin-top:10px;font-weight:700;padding:10px 14px;border-radius:10px}
+.verdict.good{background:color-mix(in srgb,var(--ok) 15%,var(--panel));color:var(--ok)}
+.verdict.badv{background:color-mix(in srgb,var(--bad) 15%,var(--panel));color:var(--bad)}
+.lamps{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+.lamp{border:2px solid var(--c);border-radius:999px;padding:8px 16px;font-weight:700;opacity:.35;transition:all .25s}
+.lamp.on{opacity:1;background:var(--c);color:#fff}
+.logbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;min-height:120px;line-height:1.7;white-space:pre-wrap}
+.logbox .g{color:#5FD38D}.logbox .y{color:#F2B33D}.logbox .p{color:#C9B8FF}
+</style>
+<style>
+.req{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;line-height:1.65;white-space:pre-wrap;background:var(--soft);border-radius:10px;padding:10px 14px;min-height:180px}
+.req .m{color:var(--asr);font-weight:700}.req .h{color:var(--muted)}.req .b{color:var(--s2s)}.req .s{color:var(--tts);font-weight:700}.req .bd{color:var(--bad)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media (max-width:760px){.two{grid-template-columns:1fr}}
+.guest{display:inline-block;margin:2px;padding:4px 8px;border-radius:8px;font-size:.8rem;font-weight:700;color:#fff;background:var(--c)}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D31 FastAPI 음성 API 서버</h1>
+  <p>요청과 응답의 일생, 업로드 한 건의 생김새, 상태 코드 고르기, 이벤트 루프가 막히는 순간, 번호표(Semaphore) 줄 세우기, WebSocket 메시지 흐름, 말 끝 찾기 손잡이를 직접 움직여 보는 수업 자료입니다. 탭 번호 D31-1 ~ D31-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다. 숫자는 설명용 시뮬레이션입니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D31-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="http"><span class="tc">D31-2</span>요청과 응답</button>
+  <button role="tab" aria-selected="false" data-t="upload"><span class="tc">D31-3</span>업로드 해부</button>
+  <button role="tab" aria-selected="false" data-t="status"><span class="tc">D31-4</span>상태 코드</button>
+  <button role="tab" aria-selected="false" data-t="loop"><span class="tc">D31-5</span>이벤트 루프</button>
+  <button role="tab" aria-selected="false" data-t="queue"><span class="tc">D31-6</span>번호표 줄</button>
+  <button role="tab" aria-selected="false" data-t="ws"><span class="tc">D31-7</span>WebSocket</button>
+  <button role="tab" aria-selected="false" data-t="endpoint"><span class="tc">D31-8</span>말 끝 찾기</button>
+  <button role="tab" aria-selected="false" data-t="recap"><span class="tc">D31-9</span>정리 퀴즈</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D31-1</span>오늘 할 것: 노트북 함수를 API 서버로</h2>
+  <p class="lead">단계를 눌러 할 일과 빈칸을 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="http">
+  <h2><span class="hc">D31-2</span>요청과 응답의 일생</h2>
+  <p class="lead">엔드포인트를 고르고 ▶를 누르세요. 요청이 uvicorn → FastAPI(경로 찾기 · 검사) → 함수 → 응답으로 가는 동안, 오른쪽에 실제 요청 · 응답 글자가 채워집니다. '틀린 요청'을 켜면 어디서 멈추는지 보세요.</p>
+  <div class="stage">
+    <div class="row" id="htEp"></div>
+    <div class="row"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="htBad"> 틀린 요청 보내기</label><button class="btn primary" id="htPlay">▶ 요청 보내기</button></div>
+    <div class="pipewrap"><div class="pstages" id="htSteps"></div><div><div class="req" id="htReq"></div><div class="req" id="htRes" style="margin-top:8px;min-height:110px"></div></div></div>
+  </div>
+</section>
+
+<section class="panel" id="upload">
+  <h2><span class="hc">D31-3</span>업로드 한 건 해부: multipart/form-data</h2>
+  <p class="lead">파일을 고르면 클라이언트가 실제로 보내는 요청 본문 모양과, FastAPI의 <code>UploadFile</code>이 꺼내 주는 값이 나옵니다.</p>
+  <div class="stage">
+    <div class="row" id="upFile"></div>
+    <div class="two"><div class="req" id="upRaw"></div><div class="infocard" id="upInfo"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="status">
+  <h2><span class="hc">D31-4</span>상태 코드 고르기</h2>
+  <p class="lead">상황마다 서버가 돌려줄 상태 코드를 골라 보세요. 4xx는 '보낸 쪽 잘못', 5xx는 '서버 잘못'입니다.</p>
+  <div class="stage" id="stList"></div>
+</section>
+
+<section class="panel" id="loop">
+  <h2><span class="hc">D31-5</span>이벤트 루프 한 명: 막힘 vs to_thread</h2>
+  <p class="lead">모드를 고르고 ▶를 누르세요. STT 손님 3명과 /health 손님이 차례로 옵니다. 직원(이벤트 루프)이 직접 요리하면 모두가 기다리고, 주방(스레드)에 맡기면 /health는 바로 나갑니다.</p>
+  <div class="stage">
+    <div class="row" id="lpMode"></div>
+    <div class="row"><button class="btn primary" id="lpPlay">▶ 손님 받기</button></div>
+    <div id="lpLanes"></div>
+    <div class="kv" id="lpKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="queue">
+  <h2><span class="hc">D31-6</span>번호표 줄 세우기: Semaphore(n)</h2>
+  <p class="lead">번호표 수(n)와 동시 요청 수를 바꿔 보세요. n이 크면 줄 선 시간은 줄지만 GPU 메모리가 늘고, 한 번에 여러 개를 돌리면 한 건의 처리 시간도 길어집니다.</p>
+  <div class="stage">
+    <label class="sl">번호표 수 n<input type="range" id="quN" min="1" max="4" step="1" value="1"><output id="quNo"></output></label>
+    <label class="sl">동시 요청 수<input type="range" id="quR" min="1" max="8" step="1" value="4"><output id="quRo"></output></label>
+    <label class="sl">한 건 처리 시간 (혼자일 때)<input type="range" id="quW" min="0.2" max="2" step="0.1" value="0.5"><output id="quWo"></output></label>
+    <div id="quLanes"></div>
+    <div class="kv" id="quKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="ws">
+  <h2><span class="hc">D31-7</span>WebSocket 메시지 흐름 (/ws/voice)</h2>
+  <p class="lead">▶를 누르면 연결 → 소리 조각 → 말 시작 · 끝 → final → answer → 답 소리 → audio_end 순서로 메시지가 오갑니다. 왼쪽은 클라이언트, 오른쪽은 서버입니다.</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="wsPlay">▶ 한 턴</button></div>
+    <canvas id="wsCv" height="360"></canvas>
+  </div>
+</section>
+
+<section class="panel" id="endpoint">
+  <h2><span class="hc">D31-8</span>말 끝 찾기 손잡이: THRESH_DB · HANG_SEC</h2>
+  <p class="lead">'진료 시간이, (쉼) 어떻게 되나요?'처럼 중간에 쉼이 있는 말입니다. 손잡이를 바꾸면 서버가 말을 몇 덩어리로 자르는지, 말 끝 → 글자가 얼마나 걸리는지 보세요.</p>
+  <div class="stage">
+    <label class="sl">THRESH_DB (말로 볼 크기)<input type="range" id="epT" min="-55" max="-20" step="1" value="-38"><output id="epTo"></output></label>
+    <label class="sl">HANG_SEC (말 끝 기다림)<input type="range" id="epH" min="0.2" max="1.2" step="0.05" value="0.6"><output id="epHo"></output></label>
+    <canvas id="epCv" height="200"></canvas>
+    <div class="kv" id="epKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2><span class="hc">D31-9</span>정리 퀴즈: 이 상황에서 무엇을 쓸까?</h2>
+  <p class="lead">음성 API 서버를 운영하며 만나는 상황입니다.</p>
+  <div class="stage" id="rcList"></div>
+</section>
+<footer>음성 AI 전문가 과정 · D31 FastAPI 음성 API 서버 · 숫자는 설명용 시뮬레이션입니다.</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(ids,fmt,cb){ids.forEach(id=>{const el=$(id);const o=$(id+'o');const up=()=>{if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;cb();};el.addEventListener('input',up);if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;});}
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);c.lineWidth=2;
+  [['--asr',0],['--tts',0.5]].forEach(([col,ph],k)=>{c.strokeStyle=css(col);c.beginPath();for(let x=0;x<=w;x+=4){const gate=Math.sin(x/w*Math.PI*3+heroT*2+ph)>0?1:0.15;const y=h/2+(h/2-5)*gate*Math.sin(x/9+heroT*6+k)*0.8;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();});
+  if(!RM)requestAnimationFrame(heroLoop);})();
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active');if(a)(REDRAW[a.id]||(()=>{}))();});
+const sleep=ms=>new Promise(r=>setTimeout(r,RM?0:ms));
+const s2=v=>v.toFixed(2)+'초';
+function lanes(el,rows,lo,hi,marks){const P=t=>((t-lo)/(hi-lo)*100).toFixed(2)+'%';
+  el.innerHTML=rows.map(([lab,col,segs])=>`<div class="tlrow"><div class="lab" style="--c:var(${col})">${esc(lab)}</div><div class="tl">${segs.map(([a,b,t,c2])=>`<div class="seg" style="--c:var(${c2||col});left:${P(a)};width:calc(${P(b)} - ${P(a)})">${esc(t||'')}</div>`).join('')}${(marks||[]).map(([t,c3])=>`<div class="mk" style="--c:var(${c3});left:${P(t)}"></div>`).join('')}</div></div>`).join('');}
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--net',go:'flow',items:['fastapi · uvicorn · python-multipart · websockets · httpx','Whisper · Edge TTS (D27 ~ D30과 같음)','한빛치과 FAQ 표 = 오늘의 머리'],q:'(빈칸 없음)'},
+ {p:'Part 1',t:'FastAPI 기초',c:'--asr',go:'http',items:['요청 = 메서드 + 경로 + 머리글 + 본문','@app.get("/health") · Swagger /docs','POST /tts: BaseModel → WAV'],q:'🧩 빈칸 1 · 2 · 3: get, BaseModel, "audio/wav"'},
+ {p:'Part 2',t:'STT 업로드',c:'--llm',go:'upload',items:['UploadFile = File(...)','WAV · FLAC · MP3 · WebM → 16 kHz 모노','415 · 413 · 400 · 422'],q:'🧩 빈칸 4 · 5: UploadFile, HTTPException',more:[['status','상태 코드 고르기']]},
+ {p:'Part 3',t:'비동기',c:'--s2s',go:'loop',items:['async def 안의 stt() = 서버 멈춤','asyncio.to_thread + Semaphore(1)','작업 큐: 202 + GET /jobs/{id}'],q:'🧩 빈칸 6 · 7: to_thread, Semaphore',more:[['queue','번호표 줄']]},
+ {p:'Part 4',t:'WebSocket',c:'--tts',go:'ws',items:['ws.accept() · receive() · send_json · send_bytes','/ws/stt: 에너지 VAD로 말 끝 → final','/ws/voice: 소리 → FAQ 답 → 소리'],q:'🧩 빈칸 8 · 9: accept, send_json',more:[['endpoint','말 끝 찾기']]},
+ {p:'Part 5',t:'정리',c:'--bad',go:'recap',items:['API 명세표 (OpenAPI 자동)','서버 끄기','D32: 브라우저 마이크 → 이 API'],q:'워크시트 4교시'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== http ===== */
+const HT={health:{req:'<span class="m">GET</span> /health HTTP/1.1\n<span class="h">host: 127.0.0.1:8031\naccept: */*</span>\n\n<span class="b">(본문 없음)</span>',bad:'<span class="m">GET</span> /helth HTTP/1.1\n<span class="h">host: 127.0.0.1:8031</span>',
+   res:'<span class="s">HTTP/1.1 200 OK</span>\n<span class="h">content-type: application/json</span>\n\n<span class="b">{"ok": true, "gpu": true, "asr": "openai/whisper-small"}</span>',badres:'<span class="bd">HTTP/1.1 404 Not Found</span>\n<span class="h">content-type: application/json</span>\n\n<span class="b">{"detail": "Not Found"}</span>',stop:1},
+ tts:{req:'<span class="m">POST</span> /tts HTTP/1.1\n<span class="h">content-type: application/json</span>\n\n<span class="b">{"text": "평일은 오전 9시 반부터 진료합니다."}</span>',bad:'<span class="m">POST</span> /tts HTTP/1.1\n<span class="h">content-type: application/json</span>\n\n<span class="b">{"text": ""}</span>',
+   res:'<span class="s">HTTP/1.1 200 OK</span>\n<span class="h">content-type: audio/wav\nx-synth-seconds: 0.312</span>\n\n<span class="b">RIFF....WAVEfmt ... (42,284 바이트)</span>',badres:'<span class="bd">HTTP/1.1 422 Unprocessable Content</span>\n\n<span class="b">{"detail": [{"msg": "String should have at least 1 character"}]}</span>',stop:2},
+ stt:{req:'<span class="m">POST</span> /stt HTTP/1.1\n<span class="h">content-type: multipart/form-data; boundary=XyZ</span>\n\n<span class="b">--XyZ\ncontent-disposition: form-data; name="file"; filename="voice1.wav"\ncontent-type: audio/wav\n\nRIFF....(88 KB)\n--XyZ--</span>',bad:'<span class="m">POST</span> /stt HTTP/1.1\n<span class="h">content-type: multipart/form-data; boundary=XyZ</span>\n\n<span class="b">--XyZ\ncontent-disposition: form-data; name="file"; filename="photo.png"\ncontent-type: image/png\n\n‰PNG....\n--XyZ--</span>',
+   res:'<span class="s">HTTP/1.1 200 OK</span>\n<span class="h">content-type: application/json</span>\n\n<span class="b">{"text": "안녕하세요, 진료 시간이 어떻게 되나요?", "audio_sec": 2.8, "stt_sec": 0.42, "rtf": 0.15}</span>',badres:'<span class="bd">HTTP/1.1 415 Unsupported Media Type</span>\n\n<span class="b">{"detail": "지원하지 않는 형식: image/png"}</span>',stop:3}};
+const HTS=[['uvicorn','연결을 받아 HTTP를 해석'],['경로 찾기','메서드 + 경로 → 엔드포인트 (없으면 404)'],['검사','pydantic · File (틀리면 422)'],['엔드포인트 함수','우리 코드 (HTTPException이면 4xx)'],['응답','상태 코드 + 머리글 + 본문']];
+let htK='tts',htBusy=false;
+chipRow($('htEp'),'data-he',[['health','GET /health'],['tts','POST /tts'],['stt','POST /stt']],'tts','--asr',v=>{htK=v;drawHt(-1);});
+function drawHt(k,bad){const e=HT[htK],stop=bad?e.stop:9;$('htSteps').innerHTML=HTS.map(([h,t],i)=>{const on=i<=k&&i<=stop,x=bad&&i===stop&&k>=stop;return `<div class="pst ${on?'on':''} ${i===k?'cur':''}" style="--c:var(${x?'--bad':'--asr'})"><b>${i+1}</b><div><b style="color:var(--ink)">${esc(h)}</b>${x?' <b style="color:var(--bad)">✘ 여기서 멈춤</b>':''}<br><span style="font-size:.86rem;color:var(--muted)">${esc(t)}</span></div></div>`;}).join('');
+  $('htReq').innerHTML=k>=0?(bad?e.bad:e.req):'(요청 대기)';$('htRes').innerHTML=(k>=4||(bad&&k>=stop))?(bad?e.badres:e.res):'(응답 대기)';}
+$('htPlay').onclick=async()=>{if(htBusy)return;htBusy=true;const bad=$('htBad').checked;const stop=bad?HT[htK].stop:4;for(let k=0;k<=stop;k++){drawHt(k,bad);await sleep(600);}htBusy=false;};
+REDRAW.http=()=>drawHt(-1);
+
+/* ===== upload ===== */
+const UP={wav:['voice1.wav','audio/wav','RIFF$\\x00\\x01WAVEfmt \\x10...',88.2,'soundfile → 16 kHz 그대로'],w48:['voice1_48k.wav','audio/wav','RIFF..WAVEfmt (48000 Hz, 2ch)...',528.8,'soundfile → 모노 평균 → 16 kHz로 리샘플'],
+ mp3:['voice3.mp3','audio/mpeg','ID3\\x04... \\xff\\xfb (MPEG frame)...',18.9,'soundfile 실패 → ffmpeg로 풀기'],webm:['voice1.webm','audio/webm','\\x1aE\\xdf\\xa3 (EBML) ... Opus ...',9.1,'ffmpeg로 풀기 (브라우저 MediaRecorder 기본 형식)'],
+ png:['photo.png','image/png','\\x89PNG\\r\\n\\x1a\\n...',2.0,'ALLOWED에 없음 → 415 (풀지도 않음)']};
+let upK='webm';
+chipRow($('upFile'),'data-uf',[['wav','16 kHz WAV'],['w48','48 kHz 스테레오 WAV'],['mp3','MP3'],['webm','WebM (브라우저)'],['png','PNG 이미지']],'webm','--llm',v=>{upK=v;drawUp();});
+function drawUp(){const [n,ct,raw,kb,how]=UP[upK];
+  $('upRaw').innerHTML=`<span class="m">POST</span> /stt HTTP/1.1\n<span class="h">content-type: multipart/form-data; boundary=----b7f3\ncontent-length: ${Math.round(kb*1024+180).toLocaleString()}</span>\n\n<span class="b">------b7f3\ncontent-disposition: form-data; name="file"; filename="${n}"\ncontent-type: ${ct}\n\n${esc(raw)}\n------b7f3--</span>`;
+  $('upInfo').innerHTML=`<h3>UploadFile이 꺼내 주는 것</h3><table><tr><td><code>file.filename</code></td><td>${n}</td></tr><tr><td><code>file.content_type</code></td><td>${ct}</td></tr><tr><td><code>len(await file.read())</code></td><td>${Math.round(kb*1024).toLocaleString()} 바이트</td></tr><tr><td>decode_audio</td><td class="chg">${esc(how)}</td></tr></table><p style="margin:8px 0 0;font-size:.88rem;color:var(--muted)">칸 이름 <code>name="file"</code>이 함수 인자 이름 <code>file</code>과 같아야 합니다(다르면 422).</p>`;}
+REDRAW.upload=drawUp;
+
+/* ===== status ===== */
+const ST=[['STT 성공',200],['긴 회의 녹음을 접수만 하고 나중에 처리',202],['이미지 파일을 /stt에 올림',415],['15 MB WAV (한도 10 MB)',413],['WAV라고 했는데 내용이 깨짐',400],['TTS 요청의 text가 빈 글자',422],['없는 작업 번호 조회',404],['한 사용자가 1초에 100번 요청',429],['Whisper가 GPU 메모리 부족으로 예외',500]];
+const CODES=[200,202,400,404,413,415,422,429,500];
+$('stList').innerHTML=ST.map(([q,a],i)=>`<div class="scen" data-i="${i}" style="--c:var(--llm)"><div class="q">${esc(q)}</div><div class="opts">${CODES.map(c=>`<button data-c="${c}">${c}</button>`).join('')}</div><div class="fb">${a<300?'성공 (2xx)':a<500?'보낸 쪽 문제 (4xx)':'서버 문제 (5xx)'} · 정답 ${a}</div></div>`).join('');
+$('stList').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{const a=ST[+s.dataset.i][1];s.querySelectorAll('button').forEach(x=>x.className='');b.className=(+b.dataset.c===a)?'right':'wrong';if(+b.dataset.c!==a)s.querySelector(`[data-c="${a}"]`).className='right';s.classList.add('done');}));
+
+/* ===== loop ===== */
+let lpM='block',lpT=-1,lpBusy=false;
+chipRow($('lpMode'),'data-lm',[['block','async def + stt(y) 직접'],['thread','to_thread + Semaphore(1)']],'block','--s2s',v=>{lpM=v;lpT=-1;drawLp();});
+function lpPlan(){const W=0.5,arr=[0.1,0.15,0.2],H=[0.3,0.6,0.9,1.2];const stt=[],hl=[];let busy=0.1;
+  arr.forEach((a,i)=>{const s=Math.max(a,busy);stt.push([s,s+W,`STT ${i+1}`]);busy=s+W;});
+  H.forEach((h,i)=>{if(lpM==='block'){const s=Math.max(h,...stt.filter(x=>x[0]<=h).map(x=>x[1]));hl.push([h,s+0.005,s-h]);}else hl.push([h,h+0.005,0.003]);});
+  return {stt,hl};}
+function drawLp(){const {stt,hl}=lpPlan();const T=lpT<0?99:lpT;
+  lanes($('lpLanes'),[['이벤트 루프','--s2s',lpM==='block'?stt.filter(s=>s[0]<T).map(([a,b,t])=>[a,Math.min(b,T),t,'--bad']):hl.filter(h=>h[0]<T).map(([a])=>[a,a+0.03,'',''])],
+    ['스레드(GPU)','--tts',lpM==='thread'?stt.filter(s=>s[0]<T).map(([a,b,t])=>[a,Math.min(b,T),t]):[]],
+    ['/health 손님','--llm',hl.filter(h=>h[0]<T).map(([a,b,w])=>[a,a+Math.max(w,0.02),w>0.05?`${Math.round(w*1000)} ms 대기`:''])]],0,2);
+  const mx=Math.max(...hl.map(h=>h[2]));$('lpKv').innerHTML=`<div><span>/health 최대 대기</span><b>${Math.round(mx*1000)} ms</b></div><div><span>STT 3건 끝</span><b>${stt[2][1].toFixed(2)}초</b></div><div><span>루프 상태</span><b style="font-size:.92rem">${lpM==='block'?'STT 하는 동안 정지':'기다리는 동안 딴 일'}</b></div>`;}
+$('lpPlay').onclick=async()=>{if(lpBusy)return;lpBusy=true;for(lpT=0;lpT<=2;lpT+=0.05){drawLp();await sleep(40);}lpT=-1;drawLp();lpBusy=false;};REDRAW.loop=drawLp;
+
+/* ===== queue ===== */
+bindSl(['quN','quR','quW'],{quW:s2},()=>drawQu());
+function drawQu(){const n=+$('quN').value,R=+$('quR').value,W=+$('quW').value;const work=W*(1+0.35*(n-1));const slots=Array(n).fill(0);const rows=[];let waits=[];
+  for(let i=0;i<R;i++){let j=slots.indexOf(Math.min(...slots));const s=slots[j];rows.push([s,s+work,j,i]);slots[j]=s+work;waits.push(s);}
+  lanes($('quLanes'),Array.from({length:n},(_,j)=>[`번호표 ${j+1}`,'--s2s',rows.filter(r=>r[2]===j).map(([a,b,_,i])=>[a,b,`요청 ${i+1}`])]),0,Math.max(...slots)+0.2);
+  $('quKv').innerHTML=`<div><span>평균 줄 선 시간</span><b>${s2(waits.reduce((a,b)=>a+b,0)/R)}</b></div><div><span>마지막 요청 끝</span><b>${s2(Math.max(...slots))}</b></div><div><span>한 건 처리 시간</span><b>${s2(work)}</b></div><div><span>GPU 메모리 (모델 1개 ≈ 1)</span><b>${(1+0.4*(n-1)).toFixed(1)} 배</b></div>`;}
+REDRAW.queue=drawQu;
+
+/* ===== ws ===== */
+const WM=[['→','GET /ws/voice  Upgrade: websocket','--net'],['←','101 Switching Protocols  (ws.accept())','--net'],['→','binary 640 B × 50/초  (소리 조각)','--llm'],['←','json {"type": "final", "text": "진료 시간이 …"}','--asr'],
+ ['←','json {"type": "answer", "text": "평일은 …"}','--asr'],['←','binary 답 소리 (문장 1)','--s2s'],['←','binary 답 소리 (문장 2)','--s2s'],['←','json {"type": "audio_end"}','--asr'],['→','text "END"','--llm'],['←','json {"type": "done"}','--asr']];
+let wsK=-1,wsBusy=false;
+function drawWs(){const {c,w,h}=fit($('wsCv'),360);c.clearRect(0,0,w,h);const L=w*0.1,R=w*0.9;c.strokeStyle=css('--llm');c.lineWidth=2;c.beginPath();c.moveTo(L,28);c.lineTo(L,h-8);c.stroke();c.strokeStyle=css('--s2s');c.beginPath();c.moveTo(R,28);c.lineTo(R,h-8);c.stroke();
+  c.font=`700 13px ${FONT}`;c.textAlign='center';c.fillStyle=css('--llm');c.fillText('클라이언트',L,16);c.fillStyle=css('--s2s');c.fillText('서버',R,16);
+  WM.forEach(([d,t,col],i)=>{if(i>wsK)return;const y=46+i*31;c.strokeStyle=css(col);c.fillStyle=css(col);c.lineWidth=2;const a=d==='→'?L+4:R-4,b=d==='→'?R-4:L+4;c.beginPath();c.moveTo(a,y);c.lineTo(b,y);c.stroke();
+    const s=d==='→'?1:-1;c.beginPath();c.moveTo(b,y);c.lineTo(b-8*s,y-5);c.lineTo(b-8*s,y+5);c.fill();c.font=`500 11.5px ui-monospace,Menlo,monospace`;c.fillText(t,(L+R)/2,y-6);});}
+$('wsPlay').onclick=async()=>{if(wsBusy)return;wsBusy=true;for(wsK=0;wsK<WM.length;wsK++){drawWs();await sleep(450);}wsK=WM.length;wsBusy=false;};REDRAW.ws=drawWs;
+
+/* ===== endpoint ===== */
+const EPS=(()=>{const a=[];for(let i=0;i<300;i++){const t=i*0.02;let db=-58+Math.sin(i*1.7)*2;
+  if(t>0.5&&t<1.5)db=-24+Math.sin(i*0.9)*6; if(t>=1.5&&t<1.95)db=-46+Math.sin(i)*3; if(t>=1.95&&t<3.0)db=-26+Math.sin(i*0.8)*6; if(t>=3.0&&t<3.25)db=-41; a.push([t,db]);}return a;})();
+bindSl(['epT','epH'],{epT:v=>v+' dBFS',epH:s2},()=>drawEp());
+function drawEp(){const T=+$('epT').value,H=+$('epH').value;const segs=[];let ins=false,q=0,st=0;
+  EPS.forEach(([t,db])=>{if(!ins&&db>T){ins=true;q=0;st=t;} if(ins){q=db<=T?q+0.02:0; if(q>=H){ins=false;segs.push([st,t+0.02-H,t+0.02]);}}}); if(ins)segs.push([st,6,6]);
+  const {c,w,h}=fit($('epCv'),200);c.clearRect(0,0,w,h);const X=t=>20+t/6*(w-30),Y=db=>10+(-(db)-10)/55*(h-50);
+  c.strokeStyle=css('--muted');c.lineWidth=1.2;c.beginPath();EPS.forEach(([t,db],i)=>i?c.lineTo(X(t),Y(db)):c.moveTo(X(t),Y(db)));c.stroke();
+  c.strokeStyle=css('--bad');c.setLineDash([5,4]);c.beginPath();c.moveTo(X(0),Y(T));c.lineTo(X(6),Y(T));c.stroke();c.setLineDash([]);
+  segs.forEach(([a,b,f],i)=>{c.fillStyle=css('--asr');c.globalAlpha=.25;c.fillRect(X(a),h-38,X(b)-X(a),20);c.globalAlpha=1;c.fillStyle=css('--s2s');c.fillRect(X(f),h-40,3,24);c.font=`600 11px ${FONT}`;c.fillText('final '+(i+1),X(f)+5,h-26);});
+  c.fillStyle=css('--muted');c.font=`500 11px ${FONT}`;c.fillText('dBFS (위 = 큼)',24,14);[0,1,2,3,4,5].forEach(t=>c.fillText(t+'s',X(t),h-4));
+  $('epKv').innerHTML=`<div><span>잘린 덩어리 수</span><b>${segs.length} ${segs.length===1?'✔ (한 문장)':segs.length===0?'(못 들음)':'(쉼에서 쪼개짐)'}</b></div><div><span>말 끝 → final</span><b>${s2(H)} + STT</b></div>`;}
+REDRAW.endpoint=drawEp;
+
+/* ===== recap ===== */
+const RC=[['앱 팀이 "TTS 요청을 어떤 모양으로 보내요?"라고 묻는다.',['/docs (OpenAPI) 주소를 준다','소스 코드 전체를 보낸다','말로 설명한다'],0,'장식자 · pydantic에서 자동 생성된 명세가 가장 정확합니다.'],
+ ['받아쓰기 중에 /health가 몇 초씩 늦어 로드밸런서가 서버를 죽은 것으로 판단한다.',['await asyncio.to_thread(stt, y)','타임아웃을 늘린다','서버를 재시작한다'],0,'async def 안의 블로킹 호출이 루프를 막은 것입니다.'],
+ ['동시 요청이 많아지자 GPU 메모리 부족 오류(500)가 난다.',['asyncio.Semaphore(1)로 한 번에 하나씩','요청을 모두 거절','모델을 매번 새로 로드'],0,'번호표로 줄을 세우고 줄 선 시간을 모니터링합니다.'],
+ ['1시간짜리 회의 녹음을 올리면 중간에 연결이 끊긴다.',['202 접수 + BackgroundTasks + GET /jobs/{id}','파일 크기 한도를 없앤다','WebSocket으로 바꾼다'],0,'오래 걸리는 일은 접수증부터.'],
+ ['브라우저 녹음 파일을 올리면 400이 난다.',['decode_audio에서 ffmpeg로 WebM(Opus) 풀기','content_type 검사 삭제','WAV만 받는다고 공지'],0,'MediaRecorder 기본 형식은 WebM입니다(D32).'],
+ ['말하는 동안 바로바로 받아쓰기를 보여 주고 싶다.',['WebSocket: 20 ms 조각 + 말 끝마다 final','POST /stt를 1초마다 호출','TTS를 빠르게'],0,'연결을 열어 두고 양방향으로 주고받습니다.']];
+$('rcList').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}" style="--c:var(--s2s)"><div class="q">${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{const a=RC[+s.dataset.i][2];s.querySelectorAll('button').forEach(x=>x.className='');b.className=(+b.dataset.j===a)?'right':'wrong';if(+b.dataset.j!==a)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');}));
+
+const h0=location.hash.slice(1);openTab($(h0)?h0:'flow',true);
+})();
+</script>
+</body>
+</html>

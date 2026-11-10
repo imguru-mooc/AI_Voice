@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D30 LiveKit 심화 & S2S</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.tl{position:relative;height:30px;background:var(--soft);border-radius:8px;margin:6px 0}
+.tl .seg{position:absolute;top:4px;height:22px;border-radius:6px;background:var(--c);color:#fff;font-size:.72rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:left .2s,width .2s}
+.tl .mk{position:absolute;top:-3px;bottom:-3px;border-left:3px solid var(--c)}
+.tlrow{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center}
+.tlrow .lab{font-size:.84rem;font-weight:700;color:var(--c)}
+.jwt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;word-break:break-all;line-height:1.6;background:var(--soft);border-radius:10px;padding:10px 12px}
+.jwt .h{color:var(--tts)}.jwt .p{color:var(--s2s)}.jwt .s{color:var(--asr)}.jwt .dot{color:var(--ink);font-weight:700}
+.tokgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.tokgrid{grid-template-columns:1fr}.tlrow{grid-template-columns:90px 1fr}}
+.tokgrid label{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:.92rem}
+.tokgrid input[type=text]{font:inherit;font-size:.9rem;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);flex:1}
+.verdict{margin-top:10px;font-weight:700;padding:10px 14px;border-radius:10px}
+.verdict.good{background:color-mix(in srgb,var(--ok) 15%,var(--panel));color:var(--ok)}
+.verdict.badv{background:color-mix(in srgb,var(--bad) 15%,var(--panel));color:var(--bad)}
+.lamps{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+.lamp{border:2px solid var(--c);border-radius:999px;padding:8px 16px;font-weight:700;opacity:.35;transition:all .25s}
+.lamp.on{opacity:1;background:var(--c);color:#fff}
+.logbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;min-height:120px;line-height:1.7;white-space:pre-wrap}
+.logbox .g{color:#5FD38D}.logbox .y{color:#F2B33D}.logbox .p{color:#C9B8FF}
+</style>
+<style>
+.spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:8px 0}
+.capgrid td.y{color:var(--ok);font-weight:700}.capgrid td.n{color:var(--bad);font-weight:700}
+.capgrid{width:100%;border-collapse:collapse;font-size:.9rem}.capgrid th,.capgrid td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left}
+.capgrid tr.sel{background:color-mix(in srgb,var(--s2s) 12%,transparent)}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D30 LiveKit 심화 & Speech-to-Speech</h1>
+  <p>도구 호출 한 바퀴, 담당 넘기기(Handoff)와 공유 메모, 전화가 방에 들어오는 길(SIP), 전화 한 통의 일생, 전화 음질(8 kHz · μ-law), Cascade와 S2S의 지연, 모델 능력(capabilities) 표를 직접 움직여 보는 수업 자료입니다. 탭 번호 D30-1 ~ D30-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다. 숫자는 설명용 시뮬레이션입니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D30-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="tools"><span class="tc">D30-2</span>도구 호출 한 바퀴</button>
+  <button role="tab" aria-selected="false" data-t="handoff"><span class="tc">D30-3</span>Handoff · 공유 메모</button>
+  <button role="tab" aria-selected="false" data-t="sip"><span class="tc">D30-4</span>전화가 들어오는 길</button>
+  <button role="tab" aria-selected="false" data-t="dispatch"><span class="tc">D30-5</span>전화 한 통의 일생</button>
+  <button role="tab" aria-selected="false" data-t="phone"><span class="tc">D30-6</span>전화 음질</button>
+  <button role="tab" aria-selected="false" data-t="s2s"><span class="tc">D30-7</span>Cascade vs S2S</button>
+  <button role="tab" aria-selected="false" data-t="caps"><span class="tc">D30-8</span>능력 표 읽기</button>
+  <button role="tab" aria-selected="false" data-t="recap"><span class="tc">D30-9</span>정리 퀴즈</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D30-1</span>오늘 할 것: 담당 나누기 · 전화 · 머리 바꾸기 · 리허설</h2>
+  <p class="lead">단계를 눌러 할 일과 빈칸을 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="tools">
+  <h2><span class="hc">D30-2</span>도구 호출 한 바퀴: LLM은 주문서만 쓴다</h2>
+  <p class="lead">질문을 고르고 ▶를 누르세요. LLM이 말 대신 <code>FunctionToolCall</code>(주문서)을 쓰면, 세션이 우리 함수를 실행하고 결과를 붙여 LLM을 다시 부릅니다.</p>
+  <div class="stage">
+    <div class="row" id="tlQ"></div>
+    <div class="row"><button class="btn primary" id="tlPlay">▶ 한 바퀴 돌리기</button></div>
+    <div class="pipewrap">
+      <div class="pstages" id="tlSteps"></div>
+      <div class="logbox" id="tlLog"></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="handoff">
+  <h2><span class="hc">D30-3</span>Handoff와 공유 메모(userdata)</h2>
+  <p class="lead">'대화 넘기기' 방식을 고르고 ▶를 누르세요. 담당이 바뀔 때 대화 · 공유 메모 · 목소리가 어떻게 넘어가는지, 그리고 수납 담당의 첫마디가 어떻게 달라지는지 보세요.</p>
+  <div class="stage">
+    <div class="row" id="hoCtx"></div>
+    <div class="row"><button class="btn primary" id="hoPlay">▶ 비용 질문 → Handoff</button></div>
+    <canvas id="hoCv" height="250"></canvas>
+    <div class="kv" id="hoKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="sip">
+  <h2><span class="hc">D30-4</span>전화가 방에 들어오는 길</h2>
+  <p class="lead">인바운드(환자가 거는 전화)와 아웃바운드(비서가 거는 전화)를 골라 ▶ 다음 단계를 누르세요.</p>
+  <div class="stage">
+    <div class="row" id="spDir"></div>
+    <div class="row"><button class="btn primary" id="spNext">▶ 다음 단계</button><button class="btn" id="spReset">처음부터</button><span id="spStep" style="color:var(--muted)"></span></div>
+    <canvas id="spCv" height="230"></canvas>
+    <pre class="fx" id="spCode"></pre>
+  </div>
+</section>
+
+<section class="panel" id="dispatch">
+  <h2><span class="hc">D30-5</span>전화 한 통의 일생 (Part 4 리허설)</h2>
+  <p class="lead">▶를 누르면 Dispatch부터 기록 저장까지 한 통화가 흘러갑니다. 아래 줄은 담당별 색으로 칠한 통화 타임라인입니다.</p>
+  <div class="stage">
+    <div class="row"><button class="btn primary" id="dpPlay">▶ 전화 한 통</button></div>
+    <div class="pipewrap">
+      <div class="pstages" id="dpSteps"></div>
+      <div class="logbox" id="dpLog"></div>
+    </div>
+    <div id="dpLanes"></div>
+  </div>
+</section>
+
+<section class="panel" id="phone">
+  <h2><span class="hc">D30-6</span>전화 음질 만들기: 대역 자르기 → 8 kHz → μ-law</h2>
+  <p class="lead">단계를 켜고 끄며 스펙트럼(가로: 주파수)에서 무엇이 사라지는지 보세요. 오른쪽 그래프는 μ 값에 따른 압축 곡선입니다(작은 소리를 크게 폄).</p>
+  <div class="stage">
+    <div class="row" id="phSteps"></div>
+    <label class="sl">μ 값<input type="range" id="phMu" min="0" max="255" step="1" value="255"><output id="phMuo"></output></label>
+    <div class="tokgrid" style="display:grid;grid-template-columns:3fr 2fr;gap:12px">
+      <canvas id="phSpec" height="220"></canvas>
+      <canvas id="phCurve" height="220"></canvas>
+    </div>
+    <div class="kv" id="phKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="s2s">
+  <h2><span class="hc">D30-7</span>Cascade vs Speech-to-Speech: 말 끝 → 첫 소리</h2>
+  <p class="lead">Cascade 단계 손잡이를 바꿔 S2S · Half-cascade와 비교하세요. 막대는 사용자 말이 끝난 뒤의 시간입니다.</p>
+  <div class="stage">
+    <label class="sl">턴 끝 판단 (Cascade)<input type="range" id="ssE" min="0.2" max="1.5" step="0.05" value="0.6"><output id="ssEo"></output></label>
+    <label class="sl">STT 받아쓰기<input type="range" id="ssA" min="0.05" max="1.5" step="0.05" value="0.4"><output id="ssAo"></output></label>
+    <label class="sl">LLM 첫 글자 + 첫 문장<input type="range" id="ssL" min="0.1" max="2" step="0.05" value="0.7"><output id="ssLo"></output></label>
+    <label class="sl">TTS 첫 소리<input type="range" id="ssT" min="0.05" max="1" step="0.05" value="0.25"><output id="ssTo"></output></label>
+    <label class="sl">S2S 모델 첫 소리<input type="range" id="ssS" min="0.2" max="1.5" step="0.05" value="0.5"><output id="ssSo"></output></label>
+    <div id="ssLanes"></div>
+    <div class="kv" id="ssKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="caps">
+  <h2><span class="hc">D30-8</span>능력(capabilities) 표 읽기: 세션이 무엇을 다르게 하나</h2>
+  <p class="lead">모델을 고르고 능력 줄을 누르면, 그 값 때문에 세션 · 코드가 어떻게 달라지는지 설명이 나옵니다.</p>
+  <div class="stage">
+    <div class="row" id="cpModel"></div>
+    <div class="pipewrap">
+      <table class="capgrid" id="cpTable"></table>
+      <div class="infocard" id="cpInfo"></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2><span class="hc">D30-9</span>정리 퀴즈: 이 상황에서 무엇을 쓸까?</h2>
+  <p class="lead">실제 콜센터 개발에서 만나는 상황입니다. 알맞은 방법을 골라 보세요.</p>
+  <div class="stage" id="rcList"></div>
+</section>
+<footer>음성 AI 전문가 과정 · D30 LiveKit 심화 & S2S · 숫자는 설명용 시뮬레이션입니다.</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(ids,fmt,cb){ids.forEach(id=>{const el=$(id);const o=$(id+'o');const up=()=>{if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;cb();};el.addEventListener('input',up);if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;});}
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);c.lineWidth=2;
+  [['--asr',0],['--tts',0.5]].forEach(([col,ph],k)=>{c.strokeStyle=css(col);c.beginPath();for(let x=0;x<=w;x+=4){const gate=Math.sin(x/w*Math.PI*3+heroT*2+ph)>0?1:0.15;const y=h/2+(h/2-5)*gate*Math.sin(x/9+heroT*6+k)*0.8;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();});
+  if(!RM)requestAnimationFrame(heroLoop);})();
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active');if(a)(REDRAW[a.id]||(()=>{}))();});
+const sleep=ms=>new Promise(r=>setTimeout(r,RM?0:ms));
+const s2=v=>v.toFixed(2)+'초';
+function lanes(el,rows,lo,hi,marks){const P=t=>((t-lo)/(hi-lo)*100).toFixed(2)+'%';
+  el.innerHTML=rows.map(([lab,col,segs])=>`<div class="tlrow"><div class="lab" style="--c:var(${col})">${esc(lab)}</div><div class="tl">${segs.map(([a,b,t,c2])=>`<div class="seg" style="--c:var(${c2||col});left:${P(a)};width:calc(${P(b)} - ${P(a)})">${esc(t||'')}</div>`).join('')}${(marks||[]).map(([t,c3])=>`<div class="mk" style="--c:var(${c3});left:${P(t)}"></div>`).join('')}</div></div>`).join('');}
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--net',go:'flow',items:['livekit-agents[silero,openai,google] 1.8.10','D29 부품 한 번에 (STT · TTS · 가짜 마이크 · 스피커)','사용자 말 세 마디: 예약 · 비용 · 인사'],q:'(빈칸 없음)'},
+ {p:'Part 1',t:'도구 · Handoff',c:'--asr',go:'tools',items:['Qwen3 <tool_call> → FunctionToolCall','@function_tool · RunContext.userdata','도구가 Agent를 돌려주면 Handoff'],q:'🧩 빈칸 1 ~ 4: FunctionToolCall, function_tool, userdata, contains_agent_handoff',more:[['handoff','Handoff · 공유 메모']]},
+ {p:'Part 2',t:'SIP 전화',c:'--llm',go:'sip',items:['PSTN → SIP Trunk → Dispatch Rule → Room','전화 음질 8 kHz · μ-law(μ=255)','Inbound Trunk · Dispatch Rule · CreateSIPParticipant'],q:'🧩 빈칸 5 · 6 · 7: 8000, 255, sip_call_to',more:[['phone','전화 음질']]},
+ {p:'Part 3',t:'S2S',c:'--s2s',go:'s2s',items:['OpenAI Realtime · Gemini Live = RealtimeModel','같은 Agent · 도구, llm 자리만 교체','Half-cascade: modalities=["text"] + 우리 TTS'],q:'🧩 빈칸 8 · 9: RealtimeModel, modalities',more:[['caps','능력 표 읽기']]},
+ {p:'Part 4',t:'전화 리허설',c:'--tts',go:'dispatch',items:['rtc_session(agent_name="hanbit-phone")','전화 음질 + Handoff + 고지 · 통화 기록','(시연) 진짜 전화 걸기'],q:'(빈칸 없음)'},
+ {p:'Part 5',t:'정리',c:'--bad',go:'recap',items:['오늘 만든 것 표','Cascade vs S2S 선택 기준','7주차: FastAPI · Docker · 운영'],q:'워크시트 4교시'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== tools ===== */
+const TQ={book:['다음 주 수요일 두 시 스케일링 예약할게요. 김민준이에요.','book_appointment','{"date": "다음 주 수요일", "time": "14:00", "service": "스케일링", "name": "김민준"}','예약 완료. 예약 번호 HB-0001 …','네, 다음 주 수요일 오후 2시로 예약해 드렸습니다. 예약 번호는 HB-0001입니다.'],
+ price:['미백은 얼마예요?','get_price','{"service": "미백"}','김민준 님, 미백: 약 30만 원 (2회)','미백은 2회에 약 30만 원입니다.'],
+ hello:['안녕하세요?',null,null,null,'안녕하세요, 한빛치과입니다. 무엇을 도와드릴까요?']};
+let tlK='book',tlBusy=false;
+chipRow($('tlQ'),'data-tq',[['book','예약 요청'],['price','가격 질문 (수납 담당)'],['hello','인사 (도구 없음)']],'book','--asr',v=>{tlK=v;drawTl(-1);});
+function tlSteps(){const q=TQ[tlK];return q[1]?[['①','세션 → LLM','대화 + 도구 설명서(이름 · docstring · 인자)'],['②','LLM → 주문서',`FunctionToolCall(name="${q[1]}")`],['③','우리 함수 실행',`${q[1]}(...) → 결과`],['④','세션 → LLM 다시','결과를 보고 말 만들기'],['⑤','말하기','TTS → 🔊']]:[['①','세션 → LLM','대화 + 도구 설명서'],['②','LLM → 말','도구가 필요 없음 → 바로 글자'],['⑤','말하기','TTS → 🔊']];}
+function drawTl(k){const q=TQ[tlK],S=tlSteps();$('tlSteps').innerHTML=S.map(([n,h,t],i)=>`<div class="pst ${i<=k?'on':''} ${i===k?'cur':''}" style="--c:var(--asr)"><b>${n}</b><div><b style="color:var(--ink)">${esc(h)}</b><br><span style="font-size:.86rem;color:var(--muted)">${esc(t)}</span></div></div>`).join('');
+  const L=[`<span class="y">user:</span> ${esc(q[0])}`];
+  if(q[1]){L.push(`<span class="p">assistant → FunctionToolCall</span> ${q[1]}(${esc(q[2])})`,`<span class="g">function_call_output:</span> ${esc(q[3])}`);}
+  L.push(`<span class="y">assistant:</span> ${esc(q[4])}`);
+  const show=q[1]?[1,2,3,3,4][Math.max(0,k)]:[1,1,2][Math.max(0,k)];
+  $('tlLog').innerHTML=k<0?'':L.slice(0,show).join('\n');}
+$('tlPlay').onclick=async()=>{if(tlBusy)return;tlBusy=true;const n=tlSteps().length;for(let k=0;k<n;k++){drawTl(k);await sleep(750);}tlBusy=false;};
+REDRAW.tools=()=>drawTl(-1);
+
+/* ===== handoff ===== */
+let hoMode='full',hoT=-1;
+chipRow($('hoCtx'),'data-hc',[['full','chat_ctx=self.chat_ctx (대화 넘김)'],['none','대화 안 넘김'],['recent','최근 2턴 + 요약']],'full','--tts',v=>{hoMode=v;hoT=-1;drawHo();});
+function drawHo(){const {c,w,h}=fit($('hoCv'),250);c.clearRect(0,0,w,h);c.font=`600 13px ${FONT}`;c.textAlign='center';c.textBaseline='middle';
+  const box=(x,y,bw,bh,t,col,on)=>{c.globalAlpha=on?1:.25;c.strokeStyle=css(col);c.lineWidth=2.5;c.fillStyle=css('--panel');c.beginPath();c.roundRect(x,y,bw,bh,12);c.fill();c.stroke();c.fillStyle=css('--ink');t.split('\n').forEach((l,i,a)=>c.fillText(l,x+bw/2,y+bh/2+(i-(a.length-1)/2)*17));c.globalAlpha=1;};
+  const p=Math.max(0,hoT);
+  box(w*0.03,20,w*0.28,90,'Hana (예약)\n목소리: SunHi',`--asr`,hoT<2);
+  box(w*0.69,20,w*0.28,90,'Billing (수납 다온)\n목소리: Hyunsu',`--s2s`,hoT>=2);
+  box(w*0.3,160,w*0.4,70,'userdata: 김민준 · HB-0001 · handoffs','--llm',true);
+  if(hoT>=1){c.strokeStyle=css('--asr');c.fillStyle=css('--asr');c.lineWidth=3;const x0=w*0.31,x1=w*0.69*(1)-4,y=65;const xp=x0+(x1-x0)*Math.min(1,(hoT-0.5)/1.5);c.beginPath();c.moveTo(x0,y);c.lineTo(xp,y);c.stroke();c.beginPath();c.moveTo(xp,y);c.lineTo(xp-10,y-6);c.lineTo(xp-10,y+6);c.fill();
+    c.font=`600 11.5px ${FONT}`;c.fillText({full:'대화 전체 + userdata',none:'userdata만',recent:'최근 2턴 + 요약 + userdata'}[hoMode],w*0.5,y-14);c.font=`600 13px ${FONT}`;}
+  const first={full:'"스케일링 비용 말씀이시죠? 보험 적용 시 약 1만 5천 원입니다."',none:'"무엇을 도와드릴까요?" (같은 질문을 다시 하게 됨)',recent:'"스케일링 비용 말씀이시죠? …" (토큰은 적게)'}[hoMode];
+  const tok={full:'많음 (통화가 길수록 증가)',none:'가장 적음',recent:'적당'}[hoMode];
+  $('hoKv').innerHTML=`<div><span>지금 담당</span><b>${hoT>=2?'Billing':'Hana'}</b></div><div><span>넘긴 입력 토큰</span><b style="font-size:.95rem">${tok}</b></div><div><span>수납 담당의 첫마디</span><b style="font-size:.9rem">${hoT>=3?esc(first):'…'}</b></div>`;}
+$('hoPlay').onclick=async()=>{for(const t of [0,1,1.5,2,3]){hoT=t;drawHo();await sleep(500);}};REDRAW.handoff=drawHo;
+
+/* ===== sip ===== */
+const SP={in:[['환자 휴대폰','070 대표번호로 전화 (PSTN)','--llm'],['SIP Trunk','통신사가 인터넷 전화(SIP)로 바꿔 LiveKit에 전달','--net'],['Inbound Trunk','"이 번호로 오는 전화를 받겠다" 확인','--tts'],['Dispatch Rule','새 방 call-8f2a + 비서 hanbit-phone 배정','--s2s'],['Room','SIP 참가자(환자) 입장 · 비서 작업자에 Job','--asr'],['Agent','phone_entrypoint(ctx) → 고지 · 인사','--bad']],
+ out:[['Agent 배정','create_dispatch(agent_name="hanbit-phone", room="call-out-…")','--bad'],['Room','비서가 방에서 기다림','--asr'],['CreateSIPParticipant','sip_call_to=환자 번호, wait_until_answered=True','--s2s'],['Outbound Trunk','통신사 주소 · 발신 번호로 SIP 발신','--tts'],['SIP Trunk','전화망으로 연결 → 환자 휴대폰 벨','--net'],['환자 휴대폰','받으면 SIP 참가자로 방에 입장','--llm']]};
+const SPC={in:`dispatch = api.CreateSIPDispatchRuleRequest(
+  rule=api.SIPDispatchRule(dispatch_rule_individual=
+      api.SIPDispatchRuleIndividual(room_prefix="call-")),
+  room_config=api.RoomConfiguration(agents=[
+      api.RoomAgentDispatch(agent_name="hanbit-phone")]))
+
+@server.rtc_session(agent_name="hanbit-phone")
+async def phone_entrypoint(ctx): ...`,out:`await lkapi.agent_dispatch.create_dispatch(
+    api.CreateAgentDispatchRequest(agent_name="hanbit-phone", room=room))
+await lkapi.sip.create_sip_participant(api.CreateSIPParticipantRequest(
+    sip_trunk_id=TRUNK, sip_call_to=PATIENT, room_name=room,
+    participant_identity="patient-minjun", wait_until_answered=True))`};
+let spD='in',spK=0;
+chipRow($('spDir'),'data-sd',[['in','인바운드 (환자 → 병원)'],['out','아웃바운드 (비서 → 환자)']],'in','--llm',v=>{spD=v;spK=0;drawSp();});
+function drawSp(){const S=SP[spD];const {c,w,h}=fit($('spCv'),230);c.clearRect(0,0,w,h);c.textAlign='center';c.textBaseline='middle';
+  const n=S.length,bw=(w-20)/n-12;
+  S.forEach(([t,d,col],i)=>{const x=10+i*(bw+12),on=i<=spK;c.globalAlpha=on?1:.2;c.strokeStyle=css(col);c.lineWidth=i===spK?3.5:2;c.fillStyle=css('--panel');c.beginPath();c.roundRect(x,30,bw,90,12);c.fill();c.stroke();
+    c.fillStyle=css('--ink');c.font=`700 12.5px ${FONT}`;c.fillText(t,x+bw/2,62);c.font=`500 10.5px ${FONT}`;c.fillStyle=css('--muted');c.fillText(spD==='in'?'→':'←',x+bw/2,92);
+    if(i<n-1&&i<spK){c.strokeStyle=css(col);c.beginPath();c.moveTo(x+bw,75);c.lineTo(x+bw+12,75);c.stroke();}c.globalAlpha=1;});
+  c.font=`600 13px ${FONT}`;c.fillStyle=css(S[spK][2]);c.fillText(S[spK][1],w/2,165);
+  c.font=`500 11.5px ${FONT}`;c.fillStyle=css('--muted');c.fillText('소리: 전화망 구간 8 kHz G.711 μ-law  ·  방 안 구간 WebRTC Opus',w/2,205);
+  $('spStep').textContent=`${spK+1} / ${n}`;$('spCode').textContent=SPC[spD];}
+$('spNext').onclick=()=>{spK=Math.min(SP[spD].length-1,spK+1);drawSp();};$('spReset').onclick=()=>{spK=0;drawSp();};REDRAW.sip=drawSp;
+
+/* ===== dispatch ===== */
+const DP=[['Dispatch','새 방 call-rehearsal · hanbit-phone 배정','<span class="g">job received (agent_name=hanbit-phone)</span>'],
+ ['entrypoint','AgentSession(userdata=CallInfo(), min_delay=0.8)','phone = +82100000**** (리허설)'],
+ ['고지 · 인사','"이 통화는 AI 상담원이 응대하며 …"','<span class="y">Hana: 한빛치과입니다. 이 통화는 …</span>'],
+ ['예약','book_appointment → HB-0001','<span class="p">tool book_appointment → 예약 완료 HB-0001</span>'],
+ ['Handoff','transfer_to_billing → Billing','<span class="p">handoff Hana → Billing</span>'],
+ ['수납','get_price → 1만 5천 원','<span class="y">Billing: 스케일링은 보험 적용 시 약 1만 5천 원 …</span>'],
+ ['끊김 · 기록','add_shutdown_callback → call_….json','<span class="g">saved call_rehearsal.json (history · userdata · usage)</span>']];
+let dpBusy=false;
+function drawDp(k){$('dpSteps').innerHTML=DP.map(([hd,t],i)=>`<div class="pst ${i<=k?'on':''} ${i===k?'cur':''}" style="--c:var(--tts)"><b>${i+1}</b><div><b style="color:var(--ink)">${esc(hd)}</b><br><span style="font-size:.86rem;color:var(--muted)">${esc(t)}</span></div></div>`).join('');
+  $('dpLog').innerHTML=DP.slice(0,k+1).map(x=>x[2]).join('\n');
+  const segs=[[0,3.6,'고지 · 인사','--asr'],[8.6,12.2,'예약 안내','--asr'],[16,17.4,'연결','--s2s'],[17.5,21.5,'가격 안내','--s2s'],[26,28.5,'끝인사','--s2s']];
+  const until=[0,1,3.6,12.2,17.4,21.5,30][Math.max(0,k)];
+  lanes($('dpLanes'),[['사용자','--llm',[[4,8.4,'예약 + 이름'],[13,15.4,'비용?'],[22.5,25,'감사합니다']].filter(s=>s[0]<until)],['비서','--asr',segs.filter(s=>s[0]<until)]],0,30);}
+$('dpPlay').onclick=async()=>{if(dpBusy)return;dpBusy=true;for(let k=0;k<DP.length;k++){drawDp(k);await sleep(700);}dpBusy=false;};
+REDRAW.dispatch=()=>drawDp(dpBusy?6:-1);
+
+/* ===== phone ===== */
+let phOn={band:true,rs:true,mu:true};
+function phChips(){$('phSteps').innerHTML=[['band','① 대역 300 ~ 3,400 Hz'],['rs','② 8 kHz 샘플링'],['mu','③ μ-law 8비트']].map(([k,l])=>`<button class="chip" style="--c:var(--llm)" data-ph="${k}" aria-pressed="${phOn[k]}">${l}</button>`).join('');
+  $('phSteps').querySelectorAll('[data-ph]').forEach(b=>b.onclick=()=>{phOn[b.dataset.ph]=!phOn[b.dataset.ph];phChips();drawPh();});}
+function spec(f){let a=Math.exp(-f/2500)*0.9+0.15*Math.exp(-(((f-5200)/1400)**2))+0.08*Math.exp(-(((f-3000)/500)**2));
+  if(phOn.band){if(f<300||f>3400)a*=f<300?0.08:Math.exp(-(f-3400)/120);} if(phOn.rs&&f>4000)a=0; return Math.max(a,0)+(phOn.mu?0.025:0.004);}
+function drawPh(){const mu=+$('phMu').value;$('phMuo').textContent=mu;
+  let {c,w,h}=fit($('phSpec'),220);c.clearRect(0,0,w,h);const L=36,B=h-26;c.strokeStyle=css('--line');c.strokeRect(L,10,w-L-8,B-10);
+  c.fillStyle=css('--llm');for(let x=0;x<w-L-8;x+=2){const f=x/(w-L-8)*8000;const a=spec(f);c.fillRect(L+x,B-(B-12)*Math.min(1,a),2,(B-12)*Math.min(1,a));}
+  c.fillStyle=css('--muted');c.font=`500 11px ${FONT}`;c.textAlign='center';[0,2000,4000,6000,8000].forEach(f=>c.fillText(f/1000+'k',L+f/8000*(w-L-8),B+14));c.textAlign='right';c.fillText('주파수 (Hz)',w-10,22);
+  c.strokeStyle=css('--bad');c.setLineDash([4,4]);[300,3400].forEach(f=>{const x=L+f/8000*(w-L-8);c.beginPath();c.moveTo(x,10);c.lineTo(x,B);c.stroke();});c.setLineDash([]);
+  ({c,w,h}=fit($('phCurve'),220));c.clearRect(0,0,w,h);const P=26,S=Math.min(w,h)-P-14;c.strokeStyle=css('--line');c.strokeRect(P,8,S,S);
+  c.strokeStyle=css('--muted');c.beginPath();c.moveTo(P,8+S);c.lineTo(P+S,8);c.stroke();
+  c.strokeStyle=css('--tts');c.lineWidth=2.5;c.beginPath();for(let i=0;i<=100;i++){const x=i/100;const y=mu>0?Math.log1p(mu*x)/Math.log1p(mu):x;i?c.lineTo(P+x*S,8+S-y*S):c.moveTo(P,8+S);}c.stroke();c.lineWidth=1;
+  c.fillStyle=css('--muted');c.font=`500 10.5px ${FONT}`;c.textAlign='left';c.fillText('입력 |x|',P+S-44,S+20);c.fillText('μ = '+mu,P+6,22);
+  const sm=0.05,y=mu>0?Math.log1p(mu*sm)/Math.log1p(mu):sm;const steps=Math.max(1,Math.round(y*128));
+  $('phKv').innerHTML=`<div><span>남은 대역</span><b>${phOn.band?'300 ~ 3,400 Hz':(phOn.rs?'0 ~ 4,000 Hz':'0 ~ 8,000 Hz')}</b></div><div><span>작은 소리(5%)에 주는 8비트 단계 수</span><b>${steps} / 128</b></div><div><span>데이터율</span><b>${phOn.rs?(phOn.mu?'64 kbps (G.711)':'128 kbps'):'256 kbps (16 kHz · 16비트)'}</b></div>`;}
+$('phMu').addEventListener('input',drawPh);phChips();REDRAW.phone=drawPh;
+
+/* ===== s2s ===== */
+bindSl(['ssE','ssA','ssL','ssT','ssS'],{ssE:s2,ssA:s2,ssL:s2,ssT:s2,ssS:s2},()=>drawSs());
+function drawSs(){const E=+$('ssE').value,A=+$('ssA').value,L=+$('ssL').value,T=+$('ssT').value,S=+$('ssS').value;
+  const cas=E+A+L+T,half=S*0.8+0.25+T,sv=S;
+  lanes($('ssLanes'),[['Cascade','--asr',[[0,E,'턴','--net'],[E,E+A,'STT','--llm'],[E+A,E+A+L,'LLM','--s2s'],[E+A+L,cas,'TTS','--tts']]],
+    ['Half-cascade','--tts',[[0,half-T,'S2S 귀 · 머리(글자)','--bad'],[half-T,half,'TTS','--tts']]],['S2S','--bad',[[0,sv,'RealtimeModel','--bad']]]],0,Math.max(4,cas+0.3),[[0,'--ink']]);
+  $('ssKv').innerHTML=`<div><span>Cascade</span><b>${s2(cas)}</b></div><div><span>Half-cascade</span><b>${s2(half)}</b></div><div><span>S2S</span><b>${s2(sv)}</b></div><div><span>Cascade가 S2S만큼 빨라지려면</span><b style="font-size:.95rem">${cas<=sv?'이미 같거나 빠름':s2(cas-sv)+' 줄이기'}</b></div>`;}
+REDRAW.s2s=drawSs;
+
+/* ===== caps ===== */
+const CM={openai:['OpenAI Realtime',{audio_output:1,turn_detection:1,user_transcription:1,auto_tool_reply_generation:0,message_truncation:1,supports_say:0}],
+ gemini:['Gemini Live',{audio_output:1,turn_detection:1,user_transcription:1,auto_tool_reply_generation:1,message_truncation:0,supports_say:0}],
+ half:['OpenAI Half-cascade',{audio_output:0,turn_detection:1,user_transcription:1,auto_tool_reply_generation:0,message_truncation:1,supports_say:0}]};
+const CI={audio_output:['소리로 답하는가','True면 세션이 우리 tts=를 쓰지 않음. False(Half-cascade)면 모델은 글자만 → 세션이 tts=로 말함.'],
+ turn_detection:['스스로 턴을 판단하는가','True면 우리 VAD · 턴 판단 없이 모델이 "말 끝"을 정함. 대신 min_delay 같은 손잡이가 모델 설정으로 옮겨감.'],
+ user_transcription:['사용자 말을 글자로 주는가','True면 session.history에 사용자 말 글자가 남음 → 통화 기록 · 시험 가능.'],
+ auto_tool_reply_generation:['도구 결과 뒤 자동으로 말하는가','True(Gemini)면 모델이 알아서 이어 말함. False면 세션이 generate_reply로 다시 시킴.'],
+ message_truncation:['끼어들 때 들은 곳까지 자르는가','True면 사용자가 끼어든 지점까지만 비서 말로 기록 → 다음 답이 "말하지 않은 부분"을 했다고 착각하지 않음.'],
+ supports_say:['정해진 문장 읽기(say)','False면 session.say(…) 불가 → 고지 문장은 generate_reply(instructions=…)나 Half-cascade TTS로.']};
+let cpM='openai',cpK='supports_say';
+chipRow($('cpModel'),'data-cm',[['openai','OpenAI Realtime'],['gemini','Gemini Live'],['half','Half-cascade']],'openai','--s2s',v=>{cpM=v;drawCp();});
+function drawCp(){const m=CM[cpM][1];$('cpTable').innerHTML='<tr><th>능력</th><th>뜻</th><th>값</th></tr>'+Object.keys(CI).map(k=>`<tr data-k="${k}" class="${k===cpK?'sel':''}" style="cursor:pointer"><td><code>${k}</code></td><td>${CI[k][0]}</td><td class="${m[k]?'y':'n'}">${m[k]?'True':'False'}</td></tr>`).join('');
+  $('cpTable').querySelectorAll('tr[data-k]').forEach(r=>r.onclick=()=>{cpK=r.dataset.k;drawCp();});
+  $('cpInfo').innerHTML=`<h3>${esc(CM[cpM][0])} · <code>${cpK}</code> = ${m[cpK]?'True':'False'}</h3><p>${esc(CI[cpK][1])}</p>`;}
+REDRAW.caps=drawCp;
+
+/* ===== recap ===== */
+const RC=[['수납 담당이 실수로 예약을 바꾸는 일이 생겼다.',['Billing에서 book_appointment 도구를 빼고 transfer_to_booking으로 넘긴다','지시문에 "예약 바꾸지 마"만 추가','LLM 온도를 0으로'],0,'최소 권한: 도구 자체를 주지 않는 것이 가장 확실합니다.'],
+ ['수납 담당이 매번 "무엇을 도와드릴까요?"부터 다시 묻는다.',['Handoff 때 chat_ctx(최근 대화)를 넘기고 on_enter에서 generate_reply','TTS 목소리 교체','VAD 민감도 올리기'],0,'대화를 넘기지 않으면 새 담당은 맥락을 모릅니다.'],
+ ['예약 담당이 적은 환자 이름을 수납 담당이 모른다.',['AgentSession(userdata=CallInfo())에 적고 context.userdata로 읽기','전역 변수에 저장','instructions에 이름을 끼워 넣기'],0,'userdata는 통화 하나에 하나, 담당이 바뀌어도 그대로.'],
+ ['전화로 받으면 "스케일링"이 자꾸 "스케일"로 받아써진다.',['전화 음질 데이터로 STT 파인튜닝 · 전화용 모델 · Krisp','LLM을 S2S로 바꾸기','TTS 속도 낮추기'],0,'8 kHz · μ-law로 높은 소리가 사라진 탓 (D13 LoRA).'],
+ ['예약 번호 "HB-0001"을 S2S 모델이 이상하게 읽는다.',['Half-cascade로 바꿔 우리 TTS 앞에서 normalize_ko','SIP Trunk 교체','Dispatch 규칙을 Direct로'],0,'글자를 TTS 앞에서 고칠 수 있어야 숫자 읽기를 제어합니다.'],
+ ['예약 전날 확인 전화를 비서가 직접 걸고 싶다.',['create_dispatch + CreateSIPParticipant(sip_call_to=환자 번호)','Inbound Trunk만 만들기','jupyter.run_app'],0,'아웃바운드: 방에 비서를 먼저 배정하고 그 방으로 전화를 겁니다.']];
+$('rcList').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}" style="--c:var(--s2s)"><div class="q">${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{const a=RC[+s.dataset.i][2];s.querySelectorAll('button').forEach(x=>x.className='');b.className=(+b.dataset.j===a)?'right':'wrong';if(+b.dataset.j!==a)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');}));
+
+const h0=location.hash.slice(1);openTab($(h0)?h0:'flow',true);
+})();
+</script>
+</body>
+</html>
