@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D34 음성 대화 설계: 인터랙티브 수업 자료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8;--panel:#FFFFFF;--ink:#1B2336;--muted:#5B6478;--line:#D6DCE6;--soft:#E9EDF3;
+  --asr:#1E9E8F;--llm:#D98A1E;--tts:#C2417A;--s2s:#6A4FCF;--net:#7B8496;--ok:#2E9E5B;--warn:#D98A1E;--bad:#D0453B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}}
+:root[data-theme="dark"]{
+  --bg:#121826;--panel:#1A2132;--ink:#E7EBF3;--muted:#9AA3B5;--line:#2C3548;--soft:#232B3E;
+  --asr:#3CC4B3;--llm:#F0AA45;--tts:#E36A9F;--s2s:#9A82F0;--net:#8E97A8;--ok:#4CC27E;--warn:#F0AA45;--bad:#F06A5F;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1060px;margin:0 auto;padding:26px 18px 60px}
+header h1{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:64ch}
+.signal{height:34px;margin:16px 0 18px;display:block;width:100%}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px;scrollbar-width:thin}
+nav.tabs button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.92rem;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--s2s);outline-offset:2px}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:1.35rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+canvas{display:block;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{font:inherit;font-size:.92rem;border:2px solid var(--c);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.two h3{margin:0 0 4px;font-size:1rem}
+.two p{margin:0;color:var(--muted);font-size:.95rem}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.big small{font-size:.9rem;color:var(--muted);font-weight:400}
+.kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.kv div{background:var(--soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+label.sl{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;margin:8px 0;font-size:.95rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=text]{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+@media (max-width:560px){label.sl{grid-template-columns:100px 1fr 70px;font-size:.88rem}}
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.road button{font:inherit;text-align:left;border:2px solid var(--c);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px;cursor:pointer;min-height:110px;display:flex;flex-direction:column;gap:4px}
+.road button b{color:var(--c);font-size:.85rem}
+.road button span{font-weight:700;line-height:1.35}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:820px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:14px;background:var(--soft);border-radius:12px;padding:16px}
+.roaddetail h3{margin:0 0 6px}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+.roaddetail .go{margin-top:10px}
+/* stack */
+.envwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.envwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:6px}
+.layer{border:0;font:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--soft);color:var(--ink);cursor:pointer;border-left:6px solid var(--c);opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .35s}
+.layer.in{opacity:1;transform:none}
+.layer.sel{outline:2px solid var(--c)}
+.badge{font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.given{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.detail{background:var(--soft);border-radius:12px;padding:16px}
+.detail h3{margin:0 0 6px}
+.detail p{margin:0 0 10px;color:var(--muted)}
+.detail code{display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;overflow-x:auto;white-space:pre}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:12px;padding:10px;opacity:.35;transition:opacity .25s,border-color .25s}
+.step.on{opacity:1;border-color:var(--c)}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--c)}
+.step canvas{height:100px;border-radius:6px;background:var(--soft)}
+.step .box{height:100px;border-radius:6px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:8px;font-weight:700;text-align:center}
+.step p{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.meter{height:16px;background:var(--soft);border-radius:99px;overflow:hidden;position:relative;margin-top:8px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:99px;transition:width .15s}
+.meter .mk{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink)}
+/* CER */
+.align{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.col{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:42px}
+.cell{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;background:var(--panel)}
+.op{font-size:.75rem;font-weight:700;height:18px}
+.S .cell{background:color-mix(in srgb,var(--llm) 25%,var(--panel));border-color:var(--llm)} .S .op{color:var(--llm)}
+.D .cell{background:color-mix(in srgb,var(--tts) 22%,var(--panel));border-color:var(--tts)} .D .op{color:var(--tts)}
+.I .cell{background:color-mix(in srgb,var(--s2s) 22%,var(--panel));border-color:var(--s2s)} .I .op{color:var(--s2s)}
+.rowlab{display:flex;flex-direction:column;gap:6px;min-width:48px}
+.rowlab div{height:42px;display:flex;align-items:center;font-weight:700;font-size:.85rem}
+.rowlab div:last-child{height:18px;color:var(--muted);font-size:.75rem}
+.cergrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media (max-width:600px){.cergrid{grid-template-columns:1fr}}
+.cergrid label{font-size:.85rem;color:var(--muted)}
+/* agent */
+.pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.pbox{border:2px solid var(--c);border-radius:12px;padding:10px;min-height:120px;background:var(--panel);transition:background .2s}
+.pbox.act{background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.pbox h4{margin:0 0 4px;font-size:.9rem;color:var(--c)}
+.pbox .t{font-size:.9rem;min-height:3em;word-break:keep-all}
+.pbox .ms{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+.arrowc{display:flex;align-items:center;color:var(--muted);font-size:1.3rem}
+@media (max-width:820px){.pipe{grid-template-columns:1fr}.arrowc{justify-content:center;transform:rotate(90deg);height:18px}}
+.dots::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.timeline{position:relative;height:64px;margin-top:16px;background:var(--soft);border-radius:10px;overflow:hidden}
+.tbar{position:absolute;height:22px;border-radius:6px;color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .1s linear}
+.tmark{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink);font-size:.72rem;padding-left:4px;white-space:nowrap}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem;background:var(--soft);color:var(--muted)}
+.pill.on{background:var(--ok);color:#fff}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.sub3{font-size:1rem;margin:20px 0 8px}
+.keybtn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.grid{display:grid;gap:3px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.grid div{background:var(--soft);border-radius:4px;padding:4px 6px;text-align:center}
+.grid .hL{background:color-mix(in srgb,var(--llm) 25%,var(--panel))}
+.grid .hR{background:color-mix(in srgb,var(--s2s) 25%,var(--panel))}
+.grid .hd{background:transparent;color:var(--muted);font-weight:700}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+.formgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.formgrid label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:760px){.formgrid{grid-template-columns:1fr 1fr}}
+.barrow{display:grid;grid-template-columns:150px 1fr 170px;gap:12px;align-items:center;margin:10px 0}
+.barrow .lab b{display:block}.barrow .lab small{color:var(--muted);font-size:.78rem}
+.barrow .track{height:26px;background:var(--soft);border-radius:8px;overflow:hidden;position:relative}
+.barrow .fill{height:100%;background:var(--c);border-radius:8px;transition:width .3s}
+.barrow .rng{position:absolute;top:0;bottom:0;background:var(--c);opacity:.35;border-radius:8px}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.barrow{grid-template-columns:90px 1fr 90px;font-size:.85rem}}
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tool{border:2px solid var(--c);color:var(--c);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.9rem}
+.tool small{color:var(--muted);font-weight:400}
+.scen{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scen .q{flex:1;min-width:220px;font-weight:500}
+.scen .opts{display:flex;gap:6px;flex-wrap:wrap}
+.scen .opts button{font:inherit;font-size:.85rem;border:2px solid var(--c);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.scen .opts button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.scen .opts button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.scen .fb{flex-basis:100%;font-size:.88rem;color:var(--muted);display:none}
+.scen.done .fb{display:block}
+pre.code{background:#1B2336;color:#E7EBF3;border-radius:10px;padding:14px 16px;font-size:.88rem;overflow-x:auto;margin:12px 0 0;line-height:1.6}
+pre.code .hl{background:rgba(242,179,61,.28);display:inline-block;width:100%;border-radius:4px}
+pre.code .cm{color:#8E97A8}
+.pipewrap{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:760px){.pipewrap{grid-template-columns:1fr}}
+.pstages{display:flex;flex-direction:column;gap:6px}
+.pst{border:1px solid var(--line);border-radius:10px;padding:8px 12px;opacity:.45;transition:all .25s;display:flex;gap:10px;align-items:center}
+.pst.on{opacity:1}.pst.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.pst b{color:var(--c);min-width:1.6em}
+.infocard{background:var(--soft);border-radius:12px;padding:14px 16px}
+.infocard h3{margin:0 0 8px;font-size:1rem}
+.infocard table{width:100%;border-collapse:collapse;font-size:.92rem}
+.infocard td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.infocard td:first-child{color:var(--muted);width:42%}
+.infocard td.chg{color:var(--asr);font-weight:700}
+.infocard .okb{margin-top:10px;font-weight:700;color:var(--ok)}
+
+nav.tabs .tc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);margin-right:6px}
+nav.tabs button[aria-selected="true"] .tc{color:var(--asr)}
+h2 .hc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--asr);border:1px solid var(--asr);border-radius:999px;padding:1px 8px;margin-right:8px;vertical-align:3px}
+.fx{margin-top:10px;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto}
+.fx b{color:#F2B33D;font-weight:700}
+
+.derive{display:grid;gap:6px;margin-top:12px}
+.dstep{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;opacity:.38;transition:opacity .25s,border-color .25s,background .25s}
+.dstep.on{opacity:1}
+.dstep.cur{border-color:var(--asr);background:color-mix(in srgb,var(--asr) 9%,var(--panel))}
+.dstep .n{width:26px;height:26px;border-radius:50%;background:var(--asr);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+.dstep .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1rem;color:var(--ink);margin-top:2px}
+.dstep .eq b{color:var(--tts)}
+.dstep p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+</style><style>
+.tl{position:relative;height:30px;background:var(--soft);border-radius:8px;margin:6px 0}
+.tl .seg{position:absolute;top:4px;height:22px;border-radius:6px;background:var(--c);color:#fff;font-size:.72rem;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:left .2s,width .2s}
+.tl .mk{position:absolute;top:-3px;bottom:-3px;border-left:3px solid var(--c)}
+.tlrow{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center}
+.tlrow .lab{font-size:.84rem;font-weight:700;color:var(--c)}
+.jwt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;word-break:break-all;line-height:1.6;background:var(--soft);border-radius:10px;padding:10px 12px}
+.jwt .h{color:var(--tts)}.jwt .p{color:var(--s2s)}.jwt .s{color:var(--asr)}.jwt .dot{color:var(--ink);font-weight:700}
+.tokgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.tokgrid{grid-template-columns:1fr}.tlrow{grid-template-columns:90px 1fr}}
+.tokgrid label{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:.92rem}
+.tokgrid input[type=text]{font:inherit;font-size:.9rem;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);flex:1}
+.verdict{margin-top:10px;font-weight:700;padding:10px 14px;border-radius:10px}
+.verdict.good{background:color-mix(in srgb,var(--ok) 15%,var(--panel));color:var(--ok)}
+.verdict.badv{background:color-mix(in srgb,var(--bad) 15%,var(--panel));color:var(--bad)}
+.lamps{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+.lamp{border:2px solid var(--c);border-radius:999px;padding:8px 16px;font-weight:700;opacity:.35;transition:all .25s}
+.lamp.on{opacity:1;background:var(--c);color:#fff}
+.logbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;background:#1B2336;color:#E7EBF3;border-radius:10px;padding:10px 14px;min-height:120px;line-height:1.7;white-space:pre-wrap}
+.logbox .g{color:#5FD38D}.logbox .y{color:#F2B33D}.logbox .p{color:#C9B8FF}
+</style>
+<style>
+canvas.cv{width:100%;display:block;background:var(--soft);border-radius:10px}
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}@media (max-width:760px){.slots{grid-template-columns:1fr 1fr}}
+.slot{border:2px dashed var(--line);border-radius:12px;padding:10px;min-height:86px;background:var(--panel);transition:all .25s}
+.slot h4{margin:0 0 4px;font-size:.85rem;color:var(--muted)}.slot .v{font-weight:700;font-size:.95rem;min-height:1.3em}
+.slot.filled{border-style:solid;border-color:var(--ok)}.slot.new{box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 35%,transparent)}
+.badge{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:999px;margin-top:6px;border:1px solid var(--c);color:var(--c)}
+.chat{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:330px;overflow:auto;padding:4px}
+.bub{max-width:82%;padding:8px 12px;border-radius:14px;font-size:.92rem;line-height:1.45}
+.bub.u{align-self:flex-end;background:color-mix(in srgb,var(--asr) 18%,var(--panel));border:1px solid var(--asr)}
+.bub.a{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.bub.a.free{border-color:var(--tts)}.bub.a.handoff{border-color:var(--bad)}.bub.a.end{border-color:var(--ok)}
+.steps{list-style:none;padding:0;margin:10px 0 0}.steps li{padding:6px 10px;border-left:3px solid var(--line);margin:4px 0;font-size:.9rem}
+.steps li b{color:var(--c)}
+.route{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.lane{border:2px solid var(--line);border-radius:12px;padding:12px;min-height:110px;transition:all .25s}
+.lane.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,var(--panel))}
+.lane h4{margin:0 0 6px;color:var(--c)}
+input.txt{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:1rem;box-sizing:border-box}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>D34 음성 대화 설계 (Voice UX)</h1>
+  <p>받아쓰기 결과를 값으로 바꾸는 한국어 역정규화(ITN), 슬롯 채우기, 암시적 · 명시적 확인, 오류 복구 사다리, 침묵과 맞장구, 상태 머신, 상태 머신 + LLM 혼합을 직접 움직여 보는 수업 자료입니다. 탭 번호 D34-1 ~ D34-9는 노트북 · 워크시트 · 슬라이드의 🎬 번호와 같습니다. 오늘 = 2026년 11월 12일(목)으로 고정합니다.</p>
+  <canvas class="signal" id="hero" aria-hidden="true"></canvas>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="flow"><span class="tc">D34-1</span>오늘의 흐름</button>
+  <button role="tab" aria-selected="false" data-t="itn"><span class="tc">D34-2</span>ITN 놀이터</button>
+  <button role="tab" aria-selected="false" data-t="slots"><span class="tc">D34-3</span>슬롯 보드</button>
+  <button role="tab" aria-selected="false" data-t="confirm"><span class="tc">D34-4</span>확인 전략</button>
+  <button role="tab" aria-selected="false" data-t="repair"><span class="tc">D34-5</span>오류 복구 사다리</button>
+  <button role="tab" aria-selected="false" data-t="silence"><span class="tc">D34-6</span>침묵과 맞장구</button>
+  <button role="tab" aria-selected="false" data-t="states"><span class="tc">D34-7</span>상태 머신</button>
+  <button role="tab" aria-selected="false" data-t="hybrid"><span class="tc">D34-8</span>규칙 + LLM</button>
+  <button role="tab" aria-selected="false" data-t="recap"><span class="tc">D34-9</span>정리 퀴즈</button>
+</nav>
+
+<section class="panel active" id="flow">
+  <h2><span class="hc">D34-1</span>오늘 할 것: 꼬일 때를 설계한 예약 대화</h2>
+  <p class="lead">단계를 눌러 할 일과 빈칸을 확인하고, 관련 애니메이션으로 이동하세요.</p>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="itn">
+  <h2><span class="hc">D34-2</span>ITN 놀이터: 들은 말 → 시스템 값</h2>
+  <p class="lead">예시를 고르거나 직접 입력하세요. 노트북의 함수와 같은 규칙으로 번호 · 날짜 · 시간 · 진료를 찾고, 어떤 단계를 거쳤는지 보여 줍니다.</p>
+  <div class="stage">
+    <div class="row" id="itChips"></div>
+    <input class="txt" id="itIn" value="다음 주 수요일 오후 두 시 반에 스케일링이요" aria-label="손님 말">
+    <ul class="steps" id="itSteps"></ul>
+    <div class="kv" id="itKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="slots">
+  <h2><span class="hc">D34-3</span>슬롯 보드: 다섯 칸을 채우는 대화</h2>
+  <p class="lead">"다음 턴"을 누르면 손님 말이 들어오고, 칸이 채워지며 칸마다 확인 방법(암시적 · 명시적)이 붙습니다.</p>
+  <div class="stage">
+    <div class="row" id="slChips"></div>
+    <div class="row" style="margin:8px 0"><button class="btn primary" id="slNext">다음 턴</button><button class="btn" id="slReset">처음부터</button></div>
+    <div class="slots" id="slBoard"></div>
+    <div class="chat" id="slChat"></div>
+  </div>
+</section>
+
+<section class="panel" id="confirm">
+  <h2><span class="hc">D34-4</span>확인 전략: 대화 길이 vs 틀린 예약</h2>
+  <p class="lead">예약 1,000건을 흉내 냅니다. 슬롯마다 '잘못 들을 확률'이 있고, 명시적으로 확인한 슬롯은 틀려도 바로 고쳐집니다. 정책과 문턱을 바꿔 보세요(숫자는 설명용 모형).</p>
+  <div class="stage">
+    <div class="row" id="cfChips"></div>
+    <label class="sl">확신 문턱 CONF_TH<input type="range" id="cfTh" min="0.5" max="1" step="0.05" value="0.8"><output id="cfTho"></output></label>
+    <label class="sl">받아쓰기 정확도 (조용 ↔ 시끄러운 곳)<input type="range" id="cfAcc" min="0.7" max="0.99" step="0.01" value="0.92"><output id="cfAcco"></output></label>
+    <canvas class="cv" id="cfCv" height="260"></canvas>
+    <div class="kv" id="cfKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="repair">
+  <h2><span class="hc">D34-5</span>오류 복구 사다리</h2>
+  <p class="lead">손님 반응 버튼을 눌러 보세요. 못 알아들음이 쌓일수록 비서의 말이 바뀌고, 한도에 닿으면 상담원으로 넘깁니다. 값을 알아들으면 횟수가 0으로 돌아갑니다.</p>
+  <div class="stage">
+    <label class="sl">MAX_MISS<input type="range" id="rpMax" min="2" max="5" step="1" value="3"><output id="rpMaxo"></output></label>
+    <div class="row" style="margin:8px 0"><button class="btn" id="rpMiss">😶 알아듣기 어려운 말</button><button class="btn" id="rpSil">🤐 침묵</button><button class="btn" id="rpOk">🗣️ "다음 주 수요일이요"</button><button class="btn" id="rpReset">처음부터</button></div>
+    <canvas class="cv" id="rpCv" height="150"></canvas>
+    <div class="chat" id="rpChat"></div>
+    <div class="kv" id="rpKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="silence">
+  <h2><span class="hc">D34-6</span>침묵과 맞장구: 시간 위에서 보기</h2>
+  <p class="lead">손님이 번호를 세 덩어리로 끊어 말합니다. 덩어리 사이 쉼이 '끝점 판단'보다 길면 비서가 턴을 잡습니다. 그때 '네,'(맞장구)로 받으면 손님이 이어 말하고, 쉼이 '자리 비움 시간'을 넘으면 재질문 → 종료로 갑니다.</p>
+  <div class="stage">
+    <label class="sl">덩어리 사이 쉼<input type="range" id="siGap" min="0.3" max="12" step="0.1" value="1.2"><output id="siGapo"></output></label>
+    <label class="sl">자리 비움 시간 (user_away_timeout)<input type="range" id="siAway" min="3" max="15" step="0.5" value="8"><output id="siAwayo"></output></label>
+    <div class="row" id="siChips" style="margin:6px 0"></div>
+    <canvas class="cv" id="siCv" height="220"></canvas>
+    <div class="kv" id="siKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="states">
+  <h2><span class="hc">D34-7</span>상태 머신 따라가기: 시나리오 10개</h2>
+  <p class="lead">노트북 4-1의 시나리오를 실제 상태 머신으로 돌린 기록입니다(⑧의 LLM 답만 예시 문장). 시나리오를 고르고 한 턴씩 넘기며 상태와 슬롯이 어떻게 바뀌는지 보세요.</p>
+  <div class="stage">
+    <select id="stSel" class="txt" aria-label="시나리오"></select>
+    <div class="row" style="margin:8px 0"><button class="btn primary" id="stNext">다음 턴</button><button class="btn" id="stAll">끝까지</button><button class="btn" id="stReset">처음부터</button></div>
+    <canvas class="cv" id="stCv" height="230"></canvas>
+    <div class="chat" id="stChat"></div>
+    <div class="kv" id="stKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="hybrid">
+  <h2><span class="hc">D34-8</span>규칙 + LLM: 말마다 누가 받나</h2>
+  <p class="lead">손님 말을 고르면 llm_node 안에서 상태 머신이 먼저 판단하고, 예약 밖 질문만 LLM으로 보냅니다.</p>
+  <div class="stage">
+    <div class="row" id="hyChips"></div>
+    <div class="route">
+      <div class="lane" id="hyRule" style="--c:var(--asr)"><h4>상태 머신 (정해진 문장)</h4><div id="hyRuleT">—</div></div>
+      <div class="lane" id="hyLlm" style="--c:var(--tts)"><h4>LLM (자유 답) + 하던 질문</h4><div id="hyLlmT">—</div></div>
+    </div>
+    <div class="kv" id="hyKv"></div>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2><span class="hc">D34-9</span>정리 퀴즈: 이 상황에서 무엇을 고칠까?</h2>
+  <p class="lead">음성 예약 서비스를 운영하며 실제로 만나는 문제입니다.</p>
+  <div class="stage" id="rcList2"></div>
+</section>
+<footer>음성 AI 전문가 과정 · D34 음성 대화 설계 · 한빛치과와 이름 · 번호는 모두 가상입니다. 확인 전략 탭의 숫자는 설명용 모형입니다.</footer>
+</div>
+<script>
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const FONT='"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+function fit(cv,h){const r=devicePixelRatio||1,w=cv.clientWidth||cv.parentElement.clientWidth||600;h=h||+cv.getAttribute('height')||150;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);return {c,w,h};}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(ids,fmt,cb){ids.forEach(id=>{const el=$(id);const o=$(id+'o');const up=()=>{if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;cb();};el.addEventListener('input',up);if(o)o.textContent=fmt[id]?fmt[id](+el.value):el.value;});}
+const hero=$('hero');let heroT=0;
+(function heroLoop(){heroT+=0.012;const {c,w,h}=fit(hero,34);c.clearRect(0,0,w,h);c.lineWidth=2;
+  [['--asr',0],['--tts',0.5]].forEach(([col,ph],k)=>{c.strokeStyle=css(col);c.beginPath();for(let x=0;x<=w;x+=4){const gate=Math.sin(x/w*Math.PI*3+heroT*2+ph)>0?1:0.15;const y=h/2+(h/2-5)*gate*Math.sin(x/9+heroT*6+k)*0.8;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();});
+  if(!RM)requestAnimationFrame(heroLoop);})();
+const tabs=[...document.querySelectorAll('nav.tabs button')];const REDRAW={};
+function openTab(id,noHash){if(!$(id))return;tabs.forEach(x=>x.setAttribute('aria-selected',x.dataset.t===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  (REDRAW[id]||(()=>{}))();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>{const a=document.querySelector('section.panel.active');if(a)(REDRAW[a.id]||(()=>{}))();});
+const sleep=ms=>new Promise(r=>setTimeout(r,RM?0:ms));
+const s2=v=>v.toFixed(2)+'초';
+function lanes(el,rows,lo,hi,marks){const P=t=>((t-lo)/(hi-lo)*100).toFixed(2)+'%';
+  el.innerHTML=rows.map(([lab,col,segs])=>`<div class="tlrow"><div class="lab" style="--c:var(${col})">${esc(lab)}</div><div class="tl">${segs.map(([a,b,t,c2])=>`<div class="seg" style="--c:var(${c2||col});left:${P(a)};width:calc(${P(b)} - ${P(a)})">${esc(t||'')}</div>`).join('')}${(marks||[]).map(([t,c3])=>`<div class="mk" style="--c:var(${c3});left:${P(t)}"></div>`).join('')}</div></div>`).join('');}
+
+/* ===== flow ===== */
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--net',go:'flow',items:['LiveKit Agents 1.8 · Whisper · Edge TTS','LLM 고르기 (키 없으면 로컬 Qwen3)','오늘 = 2026-11-12(목) 고정'],q:'(빈칸 없음)'},
+ {p:'Part 1',t:'한국어 ITN',c:'--llm',go:'itn',items:['공일공 → 010 · 이십일 → 21','오후 두 시 반 → 14:30 · 다음 주 수요일 → 11-18','번호 fullmatch · 이름 한 글자씩'],q:'🧩 빈칸 1 ~ 5: join, 1, 12, weekday, fullmatch'},
+ {p:'Part 2',t:'슬롯 · 확인',c:'--asr',go:'slots',items:['다섯 칸: 진료 · 날짜 · 시간 · 성함 · 번호','암시적 vs 명시적 확인','말하기 좋은 값 (번호는 묶어서)'],q:'🧩 빈칸 6: CRITICAL',more:[['confirm','확인 전략']]},
+ {p:'Part 3',t:'상태 머신 · 복구',c:'--s2s',go:'repair',items:['collect → confirm → final → done','다시 → 예시 → 상담원 (MAX_MISS)','침묵 2번 종료 · 맞장구'],q:'🧩 빈칸 7: MAX_MISS',more:[['silence','침묵과 맞장구'],['states','상태 머신']]},
+ {p:'Part 4',t:'규칙 + LLM',c:'--tts',go:'hybrid',items:['llm_node 바꿔 쓰기','예약 밖 질문만 LLM → 하던 질문으로','시나리오 10개 session.run 시험'],q:'🧩 빈칸 8 · 9: default, is_message'},
+ {p:'Part 5',t:'정리',c:'--bad',go:'recap',items:['오늘 만든 것 표','어디까지 LLM에 맡길까','D35: 화자 임베딩'],q:'워크시트 4교시'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row" style="margin:10px 0 0"><button class="btn primary" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ===== ITN (노트북과 같은 규칙의 JS 판) ===== */
+const TODAY=new Date(2026,10,12);const WK='월화수목금토일';
+const DIG={'공':'0','영':'0','빵':'0','일':'1','이':'2','삼':'3','사':'4','오':'5','육':'6','륙':'6','칠':'7','팔':'8','구':'9'};
+const DV={'일':1,'이':2,'삼':3,'사':4,'오':5,'육':6,'륙':6,'칠':7,'팔':8,'구':9};const SM={'십':10,'백':100,'천':1000};
+function sino(s){if(/^\d+$/.test(s))return +s;let t=0,n=0;for(const ch of s){if(ch in DV)n=DV[ch];else if(ch in SM){t+=(n||1)*SM[ch];n=0;}}return t+n;}
+function spoken(s){return [...s].filter(c=>c in DIG||/\d/.test(c)).map(c=>DIG[c]||c).join('');}
+const NH={'열두':12,'열한':11,'열':10,'아홉':9,'여덟':8,'일곱':7,'여섯':6,'다섯':5,'네':4,'세':3,'두':2,'한':1};
+const TRE=new RegExp('(오전|오후|아침|낮|저녁|밤)?\\s*(\\d{1,2}|'+Object.keys(NH).join('|')+')\\s*시\\s*(반|(\\d{1,2}|[일이삼사오육칠팔구십]+)\\s*분)?');
+function timeItn(t,log){const m=t.match(TRE);if(!m)return null;let h=/\d/.test(m[2])?+m[2]:NH[m[2]];let mm=m[3]==='반'?30:(m[4]?sino(m[4]):0);let conf=1;
+  log.push(['시간',`'${m[0].trim()}' → 시 '${m[2]}' = ${h}${m[3]?`, 분 '${m[3]}' = ${mm}`:''}`]);
+  if(['오후','저녁','밤'].includes(m[1])&&h<12){h+=12;log.push(['시간',`'${m[1]}'이라 +12 → ${h}시`]);}
+  else if(!m[1]&&h>=1&&h<=7){h+=12;conf=0.6;log.push(['시간',`오전 · 오후가 없고 1 ~ 7시 → 오후로 짐작, 확신 0.6`]);}else if(!m[1])conf=0.8;
+  return [String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'),conf];}
+const fmtD=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const addD=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+function dateItn(t,log){const rel={'오늘':0,'내일':1,'모레':2,'글피':3};for(const w in rel)if(t.includes(w)){log.push(['날짜',`'${w}' = 오늘 + ${rel[w]}일`]);return [addD(TODAY,rel[w]),1];}
+  let m=t.match(/(?:(이번|다음|다다음)\s*주\s*)?([월화수목금토일])요일/);
+  if(m){const wd=(TODAY.getDay()+6)%7;const mon=addD(TODAY,-wd);const wk={'이번':0,'다음':1,'다다음':2}[m[1]]||0;let d=addD(mon,wk*7+WK.indexOf(m[2]));
+    log.push(['날짜',`이번 주 월요일 = 오늘 − weekday(${wd}) = ${fmtD(mon)}, + ${wk}주 + ${WK.indexOf(m[2])}일`]);
+    if(!m[1]&&d<=TODAY){d=addD(d,7);log.push(['날짜','앞말이 없고 이미 지났거나 오늘 → 다음 주로']);}return [d,m[1]?1:0.8];}
+  m=t.match(/(\d{1,2}|[일이삼사오육칠팔구십]+)\s*월\s*(\d{1,2}|[일이삼사오육칠팔구십]+)\s*일/);
+  if(m){const d=new Date(2026,sino(m[1])-1,sino(m[2]));log.push(['날짜',`한자어 수: '${m[1]}' = ${sino(m[1])}월, '${m[2]}' = ${sino(m[2])}일`]);return [d<TODAY?new Date(2027,sino(m[1])-1,sino(m[2])):d,1];}
+  return null;}
+const PRE=/^01[016789]-\d{3,4}-\d{4}$/;
+const fmtP=d=>d.length===11?`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`:d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:d;
+function phoneItn(t,log){const s=t.replace(/(입니다|에요|예요|고요|구요|요)(?=\s|$|[.?!,])/g,' ').replace(/에 /g,' ');
+  const runs=s.match(/[0-9공영빵일이삼사오육륙칠팔구][0-9공영빵일이삼사오육륙칠팔구\s\-]*/g)||[];let best='';for(const r of runs)if(spoken(r).length>best.length)best=spoken(r);
+  if(best.length<9)return null;log.push(['번호',`숫자로 읽힌 부분 → '${best}' (${best.length}자리)`]);
+  if(!PRE.test(fmtP(best))&&best.endsWith('2')&&PRE.test(fmtP(best.slice(0,-1)))){best=best.slice(0,-1);log.push(['번호',"끝의 '이'는 조사로 봄 (길이로 판단)"]);}
+  const p=fmtP(best);log.push(['번호',`형식 ${p} → fullmatch ${PRE.test(p)?'통과':'실패 (다시 묻기)'}`]);return [p,PRE.test(p)?1:0.3];}
+const SV={'스케일링':['스케일링','치석','잇몸 청소'],'충치 치료':['충치','때우','레진'],'정기 검진':['검진','정기','검사'],'교정 상담':['교정'],'임플란트 상담':['임플란트'],'사랑니 발치':['사랑니','발치']};
+function svcItn(t,log){for(const k in SV)if(SV[k].some(w=>t.includes(w))){log.push(['진료',`'${SV[k].find(w=>t.includes(w))}' → ${k}`]);return [k,t.includes(k)?1:0.9];}return null;}
+const IT_EX=[['다음 주 수요일 오후 두 시 반에 스케일링이요','예약 한 번에'],['제 번호는 공일공 일이삼사 오육칠팔이에요','번호 + 조사'],['공일공에 구팔칠육에 오사삼이요','에로 끊어 말함'],['십일월 이십일일 오전 열한 시요','한자어 날짜'],['수요일 세 시요','짐작한 값'],['치석 제거하고 싶어요','비슷한 말'],['공일공 일이삼 사오육','자릿수 틀림']];
+chipRow($('itChips'),'data-ix',IT_EX.map(([t,l],i)=>[String(i),l]),'0','--llm',v=>{$('itIn').value=IT_EX[+v][0];runItn();});
+function runItn(){const t=$('itIn').value;const log=[];const r={날짜:dateItn(t,log),시간:timeItn(t,log),번호:phoneItn(t,log),진료:svcItn(t,log)};
+  const col={'날짜':'--asr','시간':'--s2s','번호':'--llm','진료':'--tts'};
+  $('itSteps').innerHTML=log.length?log.map(([k,s])=>`<li style="--c:var(${col[k]});border-color:var(${col[k]})"><b>${k}</b> · ${esc(s)}</li>`).join(''):'<li>찾은 값이 없습니다 → 상태 머신은 \'못 알아들음\'으로 처리</li>';
+  $('itKv').innerHTML=Object.entries(r).map(([k,v])=>`<div><span>${k}</span><b>${v?(v[0] instanceof Date?fmtD(v[0]):v[0])+` (확신 ${v[1]})`:'-'}</b></div>`).join('');}
+$('itIn').addEventListener('input',runItn);runItn();
+
+/* ===== 시나리오 기록 (노트북 DialogManager로 생성) ===== */
+const SCEN=[{"name": "① 한 번에 다 말함", "steps": [{"u": "다음 주 수요일 오후 두 시에 스케일링 예약하고 싶어요", "a": "네, 11월 18일 수요일 오후 2시 스케일링으로 할게요. 예약하시는 분 성함을 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "스케일링", "date": "11월 18일 수요일", "time": "오후 2시"}, "miss": 0, "sil": 0}, {"u": "김민준이요", "a": "김, 민, 준. 성함이 김민준 님 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "스케일링", "date": "11월 18일 수요일", "time": "오후 2시", "name": "김민준 님"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 연락받으실 휴대폰 번호를 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "스케일링", "date": "11월 18일 수요일", "time": "오후 2시", "name": "김민준 님"}, "miss": 0, "sil": 0}, {"u": "공일공 일이삼사 오육칠팔", "a": "번호 공일공, 일이삼사, 오육칠팔 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "스케일링", "date": "11월 18일 수요일", "time": "오후 2시", "name": "김민준 님", "phone": "010-1234-5678"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 정리하면 11월 18일 수요일 오후 2시, 스케일링, 김민준 님, 번호 공일공, 일이삼사, 오육칠팔. 이대로 예약할까요?", "kind": "say", "state": "final", "slots": {"service": "스케일링", "date": "11월 18일 수요일", "time": "오후 2시", "name": "김민준 님", "phone": "010-1234-5678"}, "miss": 0, "sil": 0}, {"u": "네", "a": "예약됐습니다. 하루 전에 문자로 다시 알려 드릴게요. 감사합니다.", "kind": "end", "state": "done", "slots": {"service": "스케일링", "date": "11월 18일 수요일", "time": "오후 2시", "name": "김민준 님", "phone": "010-1234-5678"}, "miss": 0, "sil": 0}]}, {"name": "② 하나씩 + 번호 끊어 말함(맞장구)", "steps": [{"u": "예약하려고요", "a": "네, 예약 도와드릴게요. 어떤 진료로 예약해 드릴까요? 스케일링, 충치 치료, 정기 검진처럼 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {}, "miss": 0, "sil": 0}, {"u": "충치 치료요", "a": "네, 충치 치료로 할게요. 며칠에 오시겠어요?", "kind": "say", "state": "collect", "slots": {"service": "충치 치료"}, "miss": 0, "sil": 0}, {"u": "내일이요", "a": "네, 11월 13일 금요일로 할게요. 몇 시가 편하세요?", "kind": "say", "state": "collect", "slots": {"service": "충치 치료", "date": "11월 13일 금요일"}, "miss": 0, "sil": 0}, {"u": "오후 세 시 반", "a": "네, 오후 3시 반으로 할게요. 예약하시는 분 성함을 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "충치 치료", "date": "11월 13일 금요일", "time": "오후 3시 반"}, "miss": 0, "sil": 0}, {"u": "이서연입니다", "a": "이, 서, 연. 성함이 이서연 님 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "충치 치료", "date": "11월 13일 금요일", "time": "오후 3시 반", "name": "이서연 님"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 연락받으실 휴대폰 번호를 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "충치 치료", "date": "11월 13일 금요일", "time": "오후 3시 반", "name": "이서연 님"}, "miss": 0, "sil": 0}, {"u": "공일공", "a": "네,", "kind": "say", "state": "collect", "slots": {"service": "충치 치료", "date": "11월 13일 금요일", "time": "오후 3시 반", "name": "이서연 님"}, "miss": 0, "sil": 0}, {"u": "구팔칠육", "a": "네,", "kind": "say", "state": "collect", "slots": {"service": "충치 치료", "date": "11월 13일 금요일", "time": "오후 3시 반", "name": "이서연 님"}, "miss": 0, "sil": 0}, {"u": "오사삼이", "a": "번호 공일공, 구팔칠육, 오사삼이 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "충치 치료", "date": "11월 13일 금요일", "time": "오후 3시 반", "name": "이서연 님", "phone": "010-9876-5432"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 정리하면 11월 13일 금요일 오후 3시 반, 충치 치료, 이서연 님, 번호 공일공, 구팔칠육, 오사삼이. 이대로 예약할까요?", "kind": "say", "state": "final", "slots": {"service": "충치 치료", "date": "11월 13일 금요일", "time": "오후 3시 반", "name": "이서연 님", "phone": "010-9876-5432"}, "miss": 0, "sil": 0}, {"u": "네", "a": "예약됐습니다. 하루 전에 문자로 다시 알려 드릴게요. 감사합니다.", "kind": "end", "state": "done", "slots": {"service": "충치 치료", "date": "11월 13일 금요일", "time": "오후 3시 반", "name": "이서연 님", "phone": "010-9876-5432"}, "miss": 0, "sil": 0}]}, {"name": "③ 말 바꾸기 (수 → 목)", "steps": [{"u": "다음 주 수요일 오후 두 시 스케일링이요", "a": "네, 11월 18일 수요일 오후 2시 스케일링으로 할게요. 예약하시는 분 성함을 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "스케일링", "date": "11월 18일 수요일", "time": "오후 2시"}, "miss": 0, "sil": 0}, {"u": "아 잠깐만요, 목요일로 할게요", "a": "11월 19일 목요일로 바꿀게요. 예약하시는 분 성함을 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "스케일링", "date": "11월 19일 목요일", "time": "오후 2시"}, "miss": 0, "sil": 0}, {"u": "박지호요", "a": "박, 지, 호. 성함이 박지호 님 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "스케일링", "date": "11월 19일 목요일", "time": "오후 2시", "name": "박지호 님"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 연락받으실 휴대폰 번호를 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "스케일링", "date": "11월 19일 목요일", "time": "오후 2시", "name": "박지호 님"}, "miss": 0, "sil": 0}, {"u": "공일공 이이이이 삼삼삼삼", "a": "번호 공일공, 이이이이, 삼삼삼삼 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "스케일링", "date": "11월 19일 목요일", "time": "오후 2시", "name": "박지호 님", "phone": "010-2222-3333"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 정리하면 11월 19일 목요일 오후 2시, 스케일링, 박지호 님, 번호 공일공, 이이이이, 삼삼삼삼. 이대로 예약할까요?", "kind": "say", "state": "final", "slots": {"service": "스케일링", "date": "11월 19일 목요일", "time": "오후 2시", "name": "박지호 님", "phone": "010-2222-3333"}, "miss": 0, "sil": 0}, {"u": "네", "a": "예약됐습니다. 하루 전에 문자로 다시 알려 드릴게요. 감사합니다.", "kind": "end", "state": "done", "slots": {"service": "스케일링", "date": "11월 19일 목요일", "time": "오후 2시", "name": "박지호 님", "phone": "010-2222-3333"}, "miss": 0, "sil": 0}]}, {"name": "④ 침묵 두 번", "steps": [{"u": "(침묵)", "a": "여보세요, 제 말 들리세요? 어떤 진료로 예약해 드릴까요? 스케일링, 충치 치료, 정기 검진처럼 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {}, "miss": 0, "sil": 1}, {"u": "(침묵)", "a": "말씀이 없으셔서 전화를 마칠게요. 필요하시면 언제든 다시 전화 주세요.", "kind": "end", "state": "end", "slots": {}, "miss": 0, "sil": 2}]}, {"name": "⑤ 번호 자릿수 틀림", "steps": [{"u": "다음 주 금요일 오전 열 시 정기 검진", "a": "네, 11월 20일 금요일 오전 10시 정기 검진으로 할게요. 예약하시는 분 성함을 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "정기 검진", "date": "11월 20일 금요일", "time": "오전 10시"}, "miss": 0, "sil": 0}, {"u": "최유나요", "a": "최, 유, 나. 성함이 최유나 님 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "정기 검진", "date": "11월 20일 금요일", "time": "오전 10시", "name": "최유나 님"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 연락받으실 휴대폰 번호를 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "정기 검진", "date": "11월 20일 금요일", "time": "오전 10시", "name": "최유나 님"}, "miss": 0, "sil": 0}, {"u": "공일공 일이삼 사오육", "a": "죄송해요, 번호가 9자리로 들렸어요. 연락받으실 휴대폰 번호를 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "정기 검진", "date": "11월 20일 금요일", "time": "오전 10시", "name": "최유나 님"}, "miss": 1, "sil": 0}, {"u": "공일공 일이삼사 오육칠팔", "a": "번호 공일공, 일이삼사, 오육칠팔 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "정기 검진", "date": "11월 20일 금요일", "time": "오전 10시", "name": "최유나 님", "phone": "010-1234-5678"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 정리하면 11월 20일 금요일 오전 10시, 정기 검진, 최유나 님, 번호 공일공, 일이삼사, 오육칠팔. 이대로 예약할까요?", "kind": "say", "state": "final", "slots": {"service": "정기 검진", "date": "11월 20일 금요일", "time": "오전 10시", "name": "최유나 님", "phone": "010-1234-5678"}, "miss": 0, "sil": 0}, {"u": "네", "a": "예약됐습니다. 하루 전에 문자로 다시 알려 드릴게요. 감사합니다.", "kind": "end", "state": "done", "slots": {"service": "정기 검진", "date": "11월 20일 금요일", "time": "오전 10시", "name": "최유나 님", "phone": "010-1234-5678"}, "miss": 0, "sil": 0}]}, {"name": "⑥ 계속 못 알아들음", "steps": [{"u": "어... 그게...", "a": "죄송해요, 잘 못 알아들었어요. 어떤 진료로 예약해 드릴까요? 스케일링, 충치 치료, 정기 검진처럼 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {}, "miss": 1, "sil": 0}, {"u": "음 뭐더라", "a": "죄송해요, 잘 못 알아들었어요. 예를 들어 '스케일링'이나 '충치 치료'처럼요.", "kind": "say", "state": "collect", "slots": {}, "miss": 2, "sil": 0}, {"u": "아 몰라요", "a": "제가 계속 잘 못 알아들어서 죄송해요. 상담원에게 연결해 드릴게요.", "kind": "handoff", "state": "handoff", "slots": {}, "miss": 3, "sil": 0}]}, {"name": "⑦ 상담원 요청", "steps": [{"u": "그냥 상담원 연결해 주세요", "a": "네, 상담원에게 연결해 드릴게요. 잠시만 기다려 주세요.", "kind": "handoff", "state": "handoff", "slots": {}, "miss": 0, "sil": 0}]}, {"name": "⑧ 중간에 주차 질문 (LLM)", "steps": [{"u": "다음 주 화요일 오후 네 시 교정 상담", "a": "네, 11월 17일 화요일 오후 4시 교정 상담으로 할게요. 예약하시는 분 성함을 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "교정 상담", "date": "11월 17일 화요일", "time": "오후 4시"}, "miss": 0, "sil": 0}, {"u": "주차는 되나요?", "a": "(LLM) 건물 지하 주차장을 2시간 무료로 쓰실 수 있어요. 그럼 이어서, 예약하시는 분 성함을 말씀해 주세요.", "kind": "free", "state": "collect", "slots": {"service": "교정 상담", "date": "11월 17일 화요일", "time": "오후 4시"}, "miss": 0, "sil": 0}, {"u": "정하늘이요", "a": "정, 하, 늘. 성함이 정하늘 님 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "교정 상담", "date": "11월 17일 화요일", "time": "오후 4시", "name": "정하늘 님"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 연락받으실 휴대폰 번호를 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "교정 상담", "date": "11월 17일 화요일", "time": "오후 4시", "name": "정하늘 님"}, "miss": 0, "sil": 0}, {"u": "공일공 오오오오 육육육육", "a": "번호 공일공, 오오오오, 육육육육 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "교정 상담", "date": "11월 17일 화요일", "time": "오후 4시", "name": "정하늘 님", "phone": "010-5555-6666"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 정리하면 11월 17일 화요일 오후 4시, 교정 상담, 정하늘 님, 번호 공일공, 오오오오, 육육육육. 이대로 예약할까요?", "kind": "say", "state": "final", "slots": {"service": "교정 상담", "date": "11월 17일 화요일", "time": "오후 4시", "name": "정하늘 님", "phone": "010-5555-6666"}, "miss": 0, "sil": 0}, {"u": "네", "a": "예약됐습니다. 하루 전에 문자로 다시 알려 드릴게요. 감사합니다.", "kind": "end", "state": "done", "slots": {"service": "교정 상담", "date": "11월 17일 화요일", "time": "오후 4시", "name": "정하늘 님", "phone": "010-5555-6666"}, "miss": 0, "sil": 0}]}, {"name": "⑨ 마지막 확인에서 '아니요'", "steps": [{"u": "다음 주 월요일 오전 열한 시 충치 치료", "a": "네, 11월 16일 월요일 오전 11시 충치 치료로 할게요. 예약하시는 분 성함을 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "충치 치료", "date": "11월 16일 월요일", "time": "오전 11시"}, "miss": 0, "sil": 0}, {"u": "강도윤입니다", "a": "강, 도, 윤. 성함이 강도윤 님 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "충치 치료", "date": "11월 16일 월요일", "time": "오전 11시", "name": "강도윤 님"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 연락받으실 휴대폰 번호를 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "충치 치료", "date": "11월 16일 월요일", "time": "오전 11시", "name": "강도윤 님"}, "miss": 0, "sil": 0}, {"u": "공일공 일일일일 이이이이", "a": "번호 공일공, 일일일일, 이이이이 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "충치 치료", "date": "11월 16일 월요일", "time": "오전 11시", "name": "강도윤 님", "phone": "010-1111-2222"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 정리하면 11월 16일 월요일 오전 11시, 충치 치료, 강도윤 님, 번호 공일공, 일일일일, 이이이이. 이대로 예약할까요?", "kind": "say", "state": "final", "slots": {"service": "충치 치료", "date": "11월 16일 월요일", "time": "오전 11시", "name": "강도윤 님", "phone": "010-1111-2222"}, "miss": 0, "sil": 0}, {"u": "아니요 오후 세 시로 해 주세요", "a": "오후 3시로 바꿀게요. 정리하면 11월 16일 월요일 오후 3시, 충치 치료, 강도윤 님, 번호 공일공, 일일일일, 이이이이. 이대로 예약할까요?", "kind": "say", "state": "final", "slots": {"service": "충치 치료", "date": "11월 16일 월요일", "time": "오후 3시", "name": "강도윤 님", "phone": "010-1111-2222"}, "miss": 0, "sil": 0}, {"u": "네", "a": "예약됐습니다. 하루 전에 문자로 다시 알려 드릴게요. 감사합니다.", "kind": "end", "state": "done", "slots": {"service": "충치 치료", "date": "11월 16일 월요일", "time": "오후 3시", "name": "강도윤 님", "phone": "010-1111-2222"}, "miss": 0, "sil": 0}]}, {"name": "⑩ 진료 시간 밖 (일요일)", "steps": [{"u": "이번 주 일요일 오후 두 시 스케일링", "a": "일요일은 쉬어요. 며칠에 오시겠어요?", "kind": "say", "state": "collect", "slots": {"service": "스케일링", "time": "오후 2시"}, "miss": 0, "sil": 0}, {"u": "토요일 오전 열 시로 할게요", "a": "네, 11월 14일 토요일로 할게요. 오전 10시로 바꿀게요. 예약하시는 분 성함을 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "스케일링", "time": "오전 10시", "date": "11월 14일 토요일"}, "miss": 0, "sil": 0}, {"u": "윤서준이요", "a": "윤, 서, 준. 성함이 윤서준 님 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "스케일링", "time": "오전 10시", "date": "11월 14일 토요일", "name": "윤서준 님"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 연락받으실 휴대폰 번호를 말씀해 주세요.", "kind": "say", "state": "collect", "slots": {"service": "스케일링", "time": "오전 10시", "date": "11월 14일 토요일", "name": "윤서준 님"}, "miss": 0, "sil": 0}, {"u": "공일공 삼삼삼삼 사사사사", "a": "번호 공일공, 삼삼삼삼, 사사사사 맞으세요?", "kind": "say", "state": "confirm", "slots": {"service": "스케일링", "time": "오전 10시", "date": "11월 14일 토요일", "name": "윤서준 님", "phone": "010-3333-4444"}, "miss": 0, "sil": 0}, {"u": "네", "a": "네, 확인했습니다. 정리하면 11월 14일 토요일 오전 10시, 스케일링, 윤서준 님, 번호 공일공, 삼삼삼삼, 사사사사. 이대로 예약할까요?", "kind": "say", "state": "final", "slots": {"service": "스케일링", "time": "오전 10시", "date": "11월 14일 토요일", "name": "윤서준 님", "phone": "010-3333-4444"}, "miss": 0, "sil": 0}, {"u": "네", "a": "예약됐습니다. 하루 전에 문자로 다시 알려 드릴게요. 감사합니다.", "kind": "end", "state": "done", "slots": {"service": "스케일링", "time": "오전 10시", "date": "11월 14일 토요일", "name": "윤서준 님", "phone": "010-3333-4444"}, "miss": 0, "sil": 0}]}];
+const SLOTN=[['service','진료'],['date','날짜'],['time','시간'],['name','성함'],['phone','번호']];const CRIT=['name','phone'];
+function bubbles(el,steps,n){el.innerHTML=steps.slice(0,n).map(s=>`<div class="bub u">${esc(s.u)}</div><div class="bub a ${s.kind}">${esc(s.a)}</div>`).join('');el.scrollTop=el.scrollHeight;}
+
+/* ===== slots ===== */
+let slS=0,slN=0;
+chipRow($('slChips'),'data-sl',[['0','① 한 번에 다 말함'],['1','② 하나씩 + 맞장구'],['2','③ 말 바꾸기']],'0','--asr',v=>{slS=+v;slN=0;drawSlots();});
+function drawSlots(){const st=SCEN[slS].steps;const cur=slN?st[slN-1].slots:{};const prev=slN>1?st[slN-2].slots:{};
+  $('slBoard').innerHTML=SLOTN.map(([k,l])=>{const v=cur[k];const isNew=v&&prev[k]!==v;const ex=CRIT.includes(k)||(k==='time'&&v&&!/오전|오후/.test(st[slN-1].u)&&false);
+    return `<div class="slot ${v?'filled':''} ${isNew?'new':''}"><h4>${l}</h4><div class="v">${v?esc(v):'—'}</div>${v?`<span class="badge" style="--c:var(${CRIT.includes(k)?'--bad':'--ok'})">${CRIT.includes(k)?'명시적 확인':'암시적 확인'}</span>`:''}</div>`;}).join('');
+  bubbles($('slChat'),st,slN);$('slNext').disabled=slN>=st.length;}
+$('slNext').onclick=()=>{slN++;drawSlots();};$('slReset').onclick=()=>{slN=0;drawSlots();};drawSlots();REDRAW.slots=drawSlots;
+
+/* ===== confirm ===== */
+let cfPol='mix';
+chipRow($('cfChips'),'data-cp',[['imp','모두 암시적'],['mix','혼합 (오늘)'],['exp','모두 명시적']],'mix','--asr',v=>{cfPol=v;drawCf();});
+function drawCf(){const th=+$('cfTh').value,acc=+$('cfAcc').value;
+  const S=[['진료',1.0,1],['날짜',0.9,1],['시간',0.8,1],['성함',0.7,3],['번호',0.95,2]];  // [이름, 평균 확신, 틀릴 때 위험 가중]
+  let turns=0,wrong=0;const N=1000;let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  for(let i=0;i<N;i++){let t=6,bad=false;for(const [nm,conf,rk] of S){const pErr=(1-acc)*(1.6-conf)*rk;const err=rnd()<Math.min(0.9,pErr);
+      const exp=cfPol==='exp'||(cfPol==='mix'&&(nm==='성함'||nm==='번호'||conf<th));
+      if(exp){t+=1;if(err)t+=2;}else if(err){if(rnd()<0.5)t+=2;else bad=true;}}
+    t+=1;if(bad&&rnd()<0.5)bad=false;turns+=t;if(bad)wrong++;}
+  const avgT=turns/N,wr=wrong/N*100;
+  const cv=$('cfCv');const {c,w,h}=fit(cv,260);c.clearRect(0,0,w,h);
+  const bars=[['평균 턴 수',avgT,16,'--asr'],['틀린 예약 / 100건',wr,15,'--bad']];
+  bars.forEach(([l,v,mx,col],i)=>{const y=40+i*100;c.fillStyle=css('--muted');c.font=`13px ${FONT}`;c.fillText(l,16,y-8);
+    c.fillStyle=css('--line');c.fillRect(16,y,w-120,34);c.fillStyle=css(col);c.fillRect(16,y,(w-120)*Math.min(1,v/mx),34);
+    c.fillStyle=css('--ink');c.font=`bold 16px ${FONT}`;c.fillText(v.toFixed(1),w-96,y+23);});
+  $('cfKv').innerHTML=`<div><span>정책</span><b>${{imp:'모두 암시적',mix:'혼합',exp:'모두 명시적'}[cfPol]}</b></div><div><span>평균 턴</span><b>${avgT.toFixed(1)}</b></div><div><span>틀린 예약</span><b style="color:var(${wr>3?'--bad':'--ok'})">${wr.toFixed(1)} / 100건</b></div><div><span>명시적으로 묻는 슬롯</span><b>${cfPol==='exp'?'다섯 칸 모두':cfPol==='imp'?'없음':['성함','번호'].concat(S.filter(s=>s[1]<th&&!['성함','번호'].includes(s[0])).map(s=>s[0])).join(' · ')}</b></div>`;}
+bindSl(['cfTh','cfAcc'],{cfTh:v=>v.toFixed(2),cfAcc:v=>Math.round(v*100)+'%'},drawCf);drawCf();REDRAW.confirm=drawCf;
+
+/* ===== repair ===== */
+let rp={miss:0,sil:0,state:'collect',log:[]};
+const ASKD='며칠에 오시겠어요?',HINTD="'다음 주 수요일'이나 '11월 20일'처럼 말씀해 주세요.";
+function rpSay(u,a,k){rp.log.push({u,a,kind:k||'say'});}
+function rpDraw(){const M=+$('rpMax').value;const cv=$('rpCv');const {c,w,h}=fit(cv,150);c.clearRect(0,0,w,h);
+  const lab=['1번째: 다시 묻기','2번째: 예시 들어','…','한도: 상담원'];const n=M;const bw=(w-40)/n;
+  for(let i=0;i<n;i++){const x=20+i*bw;const on=i<rp.miss;c.fillStyle=css(i===n-1?'--bad':i===0?'--asr':'--s2s');c.globalAlpha=on?1:0.22;c.fillRect(x,40,bw-8,50);c.globalAlpha=1;
+    c.fillStyle=css('--ink');c.font=`12px ${FONT}`;c.fillText(i===n-1?'상담원 연결':i===0?'다시 묻기':'예시 들어 다시',x+6,70);}
+  c.fillStyle=css('--muted');c.font=`12px ${FONT}`;c.fillText(`못 알아들음 ${rp.miss} / ${M} · 침묵 ${rp.sil} / 2`,20,24);
+  bubbles($('rpChat'),rp.log,rp.log.length);
+  $('rpKv').innerHTML=`<div><span>상태</span><b style="color:var(${rp.state==='collect'?'--ok':'--bad'})">${rp.state}</b></div><div><span>못 알아들음</span><b>${rp.miss}</b></div><div><span>침묵</span><b>${rp.sil}</b></div>`;
+  ['rpMiss','rpSil','rpOk'].forEach(id=>$(id).disabled=rp.state!=='collect');}
+$('rpMiss').onclick=()=>{const M=+$('rpMax').value;rp.sil=0;rp.miss++;if(rp.miss>=M){rp.state='handoff';rpSay('음… 그게…','제가 계속 잘 못 알아들어서 죄송해요. 상담원에게 연결해 드릴게요.','handoff');}
+  else rpSay('음… 그게…','죄송해요, 잘 못 알아들었어요. '+(rp.miss===1?ASKD:HINTD));rpDraw();};
+$('rpSil').onclick=()=>{rp.sil++;if(rp.sil>=2){rp.state='end';rpSay('(침묵)','말씀이 없으셔서 전화를 마칠게요. 필요하시면 다시 전화 주세요.','end');}else rpSay('(침묵)','여보세요, 제 말 들리세요? '+ASKD);rpDraw();};
+$('rpOk').onclick=()=>{rp.miss=0;rp.sil=0;rpSay('다음 주 수요일이요','네, 11월 18일 수요일로 할게요. 몇 시가 편하세요?');rpDraw();};
+$('rpReset').onclick=()=>{rp={miss:0,sil:0,state:'collect',log:[]};rpDraw();};
+bindSl(['rpMax'],{rpMax:v=>v+'번'},rpDraw);rpDraw();REDRAW.repair=rpDraw;
+
+/* ===== silence ===== */
+let siEnd='0.8';
+chipRow($('siChips'),'data-se',[['0.5','끝점 0.5초 (빠름)'],['0.8','끝점 0.8초 (전화, 오늘)'],['1.5','끝점 1.5초 (느림)']],'0.8','--s2s',v=>{siEnd=v;drawSi();});
+function drawSi(){const gap=+$('siGap').value,away=+$('siAway').value,ep=+siEnd;const cv=$('siCv');const {c,w,h}=fit(cv,220);c.clearRect(0,0,w,h);
+  const chunks=['공일공','구팔칠육','오사삼이'];const dur=1.0;const ev=[];let t=0.3;const T=Math.max(12,3*dur+2*gap+away*2+2);const X=s=>30+s/T*(w-50);
+  let ended=false,silCount=0;
+  for(let i=0;i<3&&!ended;i++){ev.push(['u',t,t+dur,chunks[i]]);t+=dur;
+    if(i<2){if(gap>=away){ev.push(['a',t+away,t+away+1.2,'여보세요?']);silCount=1;
+        if(gap>=away*2+1.2){ev.push(['a',t+away*2+1.2,t+away*2+3,'전화를 마칠게요']);ended=true;break;}}
+      else if(gap>ep){ev.push(['a',t+ep,t+ep+0.4,'네,']);}
+      t+=gap;}}
+  if(!ended)ev.push(['a',t+ep,t+ep+2.5,'번호 공일공… 맞으세요?']);
+  c.strokeStyle=css('--line');c.beginPath();c.moveTo(30,70);c.lineTo(w-20,70);c.moveTo(30,150);c.lineTo(w-20,150);c.stroke();
+  c.fillStyle=css('--muted');c.font=`12px ${FONT}`;c.fillText('손님',4,64);c.fillText('하나',4,144);
+  ev.forEach(([who,a,b,txt])=>{const y=who==='u'?48:128;c.fillStyle=css(who==='u'?'--asr':(txt==='네,'?'--ok':txt.startsWith('전화')?'--bad':'--tts'));c.fillRect(X(a),y,Math.max(4,X(b)-X(a)),22);
+    c.fillStyle=css('--ink');c.font=`12px ${FONT}`;c.fillText(txt,X(a),y-4);});
+  for(let s=0;s<=T;s+=2){c.fillStyle=css('--muted');c.fillText(s+'s',X(s)-6,h-8);}
+  const back=ev.filter(e=>e[3]==='네,').length;
+  $('siKv').innerHTML=`<div><span>맞장구 '네,'</span><b>${back}번</b></div><div><span>결과</span><b style="color:var(${ended?'--bad':'--ok'})">${ended?'침묵 2번 → 종료':silCount?'재질문 후 이어 말함':gap<=ep?'쉼이 짧아 한 번에 들음':'맞장구로 이어 받음'}</b></div><div><span>쉼 vs 끝점</span><b>${gap.toFixed(1)}초 ${gap>ep?'>':'≤'} ${ep}초</b></div>`;}
+bindSl(['siGap','siAway'],{siGap:v=>v.toFixed(1)+'초',siAway:v=>v.toFixed(1)+'초'},drawSi);drawSi();REDRAW.silence=drawSi;
+
+/* ===== states ===== */
+$('stSel').innerHTML=SCEN.map((s,i)=>`<option value="${i}">${esc(s.name)}</option>`).join('');let stN=0;
+const SPOS={collect:[0.08,0.45],confirm:[0.33,0.15],final:[0.58,0.45],done:[0.86,0.15],handoff:[0.86,0.75],end:[0.33,0.78]};
+function drawSt(){const sc=SCEN[+$('stSel').value];const cur=stN?sc.steps[stN-1].state:'collect';const cv=$('stCv');const {c,w,h}=fit(cv,230);c.clearRect(0,0,w,h);
+  const P=k=>[SPOS[k][0]*w,SPOS[k][1]*h];
+  [['collect','confirm'],['confirm','final'],['collect','final'],['final','done'],['final','handoff'],['collect','end'],['collect','handoff']].forEach(([a,b])=>{const [x1,y1]=P(a),[x2,y2]=P(b);c.strokeStyle=css('--line');c.lineWidth=1.5;c.beginPath();c.moveTo(x1+55,y1+16);c.lineTo(x2+55,y2+16);c.stroke();});
+  Object.keys(SPOS).forEach(k=>{const [x,y]=P(k);const on=k===cur;c.fillStyle=on?css({collect:'--asr',confirm:'--llm',final:'--s2s',done:'--ok',handoff:'--bad',end:'--net'}[k]):css('--panel');c.strokeStyle=css('--line');c.lineWidth=2;
+    c.beginPath();c.roundRect?c.roundRect(x,y,110,34,10):c.rect(x,y,110,34);c.fill();c.stroke();c.fillStyle=on?'#fff':css('--ink');c.font=`bold 13px ${FONT}`;c.fillText(k,x+30,y+22);});
+  bubbles($('stChat'),sc.steps,stN);const s=stN?sc.steps[stN-1]:null;
+  $('stKv').innerHTML=`<div><span>턴</span><b>${stN} / ${sc.steps.length}</b></div><div><span>상태</span><b>${cur}</b></div><div><span>슬롯</span><b>${s?Object.values(s.slots).map(esc).join(' · ')||'-':'-'}</b></div><div><span>못 알아들음 · 침묵</span><b>${s?s.miss+' · '+s.sil:'0 · 0'}</b></div>`;
+  $('stNext').disabled=stN>=sc.steps.length;}
+$('stSel').onchange=()=>{stN=0;drawSt();};$('stNext').onclick=()=>{stN++;drawSt();};$('stAll').onclick=()=>{stN=SCEN[+$('stSel').value].steps.length;drawSt();};$('stReset').onclick=()=>{stN=0;drawSt();};drawSt();REDRAW.states=drawSt;
+
+/* ===== hybrid ===== */
+const HY=[['다음 주 수요일 오후 두 시 스케일링','rule','네, 11월 18일 수요일 오후 2시 스케일링으로 할게요. 예약하시는 분 성함을 말씀해 주세요.','슬롯 세 개를 찾음 → 정해진 문장'],
+ ['주차는 되나요?','llm','(LLM) 건물 지하 주차장을 2시간 무료로 쓰실 수 있어요. 그럼 이어서, 예약하시는 분 성함을 말씀해 주세요.','슬롯 없음 + 자주 묻는 질문 단어(주차) → free'],
+ ['몇 시까지 진료해요?','llm','(LLM) 평일은 오후 6시 반까지 진료해요. 그럼 이어서, …','\'몇 시까지\' → free (시간 슬롯과 헷갈리지 않게 슬롯을 먼저 찾음)'],
+ ['상담원 바꿔 주세요','rule','네, 상담원에게 연결해 드릴게요. 잠시만 기다려 주세요.','상담원 요청은 LLM에 묻지 않고 바로 handoff'],
+ ['어… 그게…','rule','죄송해요, 잘 못 알아들었어요. 어떤 진료로 예약해 드릴까요?','값도 질문도 아님 → 못 알아들음 (LLM에 맡기지 않음)'],
+ ['일요일 오후는 돼요?','rule','일요일은 쉬어요. 며칠에 오시겠어요?','날짜 슬롯 + 진료 규칙 위반 → 규칙이 답함 (LLM이 \'네\'라고 할 위험 차단)']];
+chipRow($('hyChips'),'data-hy',HY.map((x,i)=>[String(i),x[0]]),'0','--tts',v=>drawHy(+v));
+function drawHy(i){const [u,who,a,why]=HY[i];$('hyRule').classList.toggle('on',who==='rule');$('hyLlm').classList.toggle('on',who==='llm');
+  $('hyRuleT').textContent=who==='rule'?a:'—';$('hyLlmT').textContent=who==='llm'?a:'—';
+  $('hyKv').innerHTML=`<div><span>손님 말</span><b>${esc(u)}</b></div><div><span>판단</span><b>${esc(why)}</b></div>`;}
+drawHy(0);
+
+/* ===== recap ===== */
+const RC=[
+ ['"공일공 일이삼사 오육칠팔이에요"가 010-1234-56782로 저장됐다.',['끝의 \'이\'를 조사로 보고 길이로 판단하기','번호 칸을 숫자 12자리까지 늘려 받기','받아쓰기 모델을 더 큰 것으로만 바꾸기'],0,'ITN: 숫자처럼 들리는 조사를 길이 · 형식으로 판단합니다.'],
+ ['손님이 "세 시요"라고 했는데 오전 3시로 예약됐다.',['오전 · 오후가 없으면 짐작하고 확신 낮춰 확인','시간은 항상 오전으로 저장하도록 고정','시간 칸을 아예 묻지 않고 비워 두기'],0,'짐작한 값은 확신을 낮춰 명시적으로 확인합니다.'],
+ ['모든 값을 "맞으세요?"로 물었더니 통화가 너무 길다.',['중요 · 불확실한 값만 명시적, 나머지 암시적','확인을 모두 없애고 마지막 요약도 빼기','손님에게 모든 값을 한 번에 말하라고 하기'],0,'혼합 정책 + 마지막 요약 한 번.'],
+ ['못 알아들으면 같은 질문을 계속 반복해 손님이 화를 냈다.',['두 번째는 예시를 들고, 한도에서 상담원 연결','같은 질문을 더 크고 천천히만 반복','못 알아들으면 바로 통화를 끊어 버리기'],0,'오류 복구 사다리와 MAX_MISS.'],
+ ['번호를 끊어 말하는 손님에게 매번 "번호를 말씀해 주세요"가 나간다.',['덩어리를 받으면 \'네,\'로 맞장구하고 이어 듣기','끝점 판단 시간을 5초로 크게 늘리기','번호는 문자로만 받도록 전화를 끊기'],0,'짧은 맞장구로 턴을 돌려줍니다.'],
+ ['LLM이 "일요일에도 진료해요"라고 답해 일요일 예약이 들어왔다.',['진료 규칙은 상태 머신이 검사하고 LLM은 안내만','LLM 지시문에 \'정확히 답하라\'를 한 줄 더 쓰기','LLM의 온도를 0으로 낮추면 해결된다고 보기'],0,'틀리면 비용이 큰 규칙은 코드로 고정합니다.']];
+RC.forEach((it,i)=>{const r=i%3;it[1]=it[1].slice(r).concat(it[1].slice(0,r));it[2]=(3-r)%3;});
+$('rcList2').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}" style="--c:var(--s2s)"><div class="q">${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList2').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{const a=RC[+s.dataset.i][2];s.querySelectorAll('button').forEach(x=>x.className='');b.className=(+b.dataset.j===a)?'right':'wrong';if(+b.dataset.j!==a)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');}));
+
+const h0=location.hash.slice(1);openTab($(h0)?h0:'flow',true);
+})();
+</script>
+</body>
+</html>
