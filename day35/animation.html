@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D35 화자 임베딩: 인터랙티브 수업 자료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#E9EDF4;--panel:#FFFFFF;--ink:#0F1B3D;--muted:#55607E;--line:#CCD4E3;--soft:#DFE5F0;
+  --a1:#0E9C8A;--a2:#C97A00;--a3:#D23B7C;--a4:#6A4FCF;--a5:#2B78D6;--ok:#1E9A55;--bad:#D0453B;
+  --scope:#0A1024;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}}
+:root[data-theme="dark"]{
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;line-height:1.6;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+button,input,select{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid var(--a4);outline-offset:2px}
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+/* 왼쪽 정거장 목록 */
+.rail{position:sticky;top:0;align-self:start;height:100vh;padding:26px 14px 18px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
+.rail h1{font-size:1.5rem;font-weight:900;line-height:1.15;letter-spacing:-.03em;margin:0}
+.rail h1 small{display:block;font-size:.84rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:6px}
+nav.tabs{display:flex;flex-direction:column;gap:2px;position:relative}
+nav.tabs::before{content:"";position:absolute;left:14px;top:14px;bottom:14px;width:2px;background:var(--line)}
+nav.tabs button{position:relative;display:grid;grid-template-columns:30px 1fr;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:7px 8px 7px 0;border-radius:10px;cursor:pointer;color:var(--muted);font-size:.95rem}
+nav.tabs button .tc{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--page);border:2px solid var(--line);font-weight:700;font-size:.82rem;font-variant-numeric:tabular-nums;transition:background .2s,border-color .2s,color .2s}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-selected="true"] .tc{background:var(--ink);border-color:var(--ink);color:var(--page)}
+nav.tabs button.seen .tc{border-color:var(--a1)}
+.railfoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--muted)}
+.railfoot button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem;text-align:left}
+main{padding:30px clamp(16px,3vw,40px) 60px;max-width:1120px;width:100%;min-width:0}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:clamp(1.45rem,2.6vw,2.05rem);font-weight:900;letter-spacing:-.03em;line-height:1.2;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 18px;max-width:68ch}
+/* 측정 화면: 테마와 상관없이 늘 어두운 계측기 화면 */
+.scope{position:relative;background:var(--scope);border-radius:16px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 18px 40px -24px rgba(10,16,36,.7)}
+.scope canvas{display:block;width:100%;touch-action:none}
+.scope .tag{position:absolute;left:14px;top:10px;color:#8794B8;font-size:.78rem;pointer-events:none}
+.cap{min-height:1.7em;margin:10px 2px 0;font-weight:700;color:var(--a4);font-size:1rem}
+.cap:empty::before{content:"\00a0"}
+.deck{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:6px;align-items:start}
+@media (max-width:900px){.deck{grid-template-columns:1fr}}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.ctl h3,.read h3{margin:0 0 8px;font-size:.9rem;color:var(--muted);font-weight:700}
+label.sl{display:grid;grid-template-columns:minmax(96px,150px) 1fr 76px;gap:10px;align-items:center;margin:9px 0;font-size:.93rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--a4);height:22px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 15px;border-radius:999px;cursor:pointer;font-size:.92rem;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.go{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:700}
+.btn.tour{border-color:var(--a4);color:var(--a4);font-weight:700}
+.btn.tour[aria-pressed="true"]{background:var(--a4);color:#fff}
+.chip{border:2px solid var(--c,var(--a4));background:transparent;padding:6px 13px;border-radius:999px;cursor:pointer;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--c,var(--a4));color:#fff;font-weight:700}
+:root[data-theme="dark"] .chip[aria-pressed="true"],:root[data-theme="dark"] .btn.tour[aria-pressed="true"]{color:#0A1024}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"],:root:not([data-theme="light"]) .btn.tour[aria-pressed="true"]{color:#0A1024}}
+.read{display:grid;gap:8px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.kv div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 13px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.22rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.3}
+.kv b.s{font-size:.98rem;font-weight:700}
+.note{font-size:.86rem;color:var(--muted);margin:10px 2px 0}
+/* 흐름 */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px}
+.road button{text-align:left;border:0;border-top:4px solid var(--c);background:var(--panel);border-radius:0 0 12px 12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:78px}
+.road button b{color:var(--c);font-size:.82rem}
+.road button span{font-weight:700;line-height:1.3}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:760px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.roaddetail h3{margin:0 0 6px;font-size:1.1rem}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+/* 퀴즈 */
+.qbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-weight:700}
+.qbar .track{flex:1;height:10px;background:var(--soft);border-radius:99px;overflow:hidden}
+.qbar .track i{display:block;height:100%;width:0;background:var(--a1);border-radius:99px;transition:width .35s}
+.scen{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.scen .q{font-weight:700;margin-bottom:8px}
+.scen .opts{display:grid;gap:6px}
+.scen .opts button{text-align:left;border:1px solid var(--line);background:transparent;border-radius:10px;padding:9px 12px;cursor:pointer;transition:transform .12s}
+.scen .opts button:hover{border-color:var(--ink)}
+.scen .opts button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent);font-weight:700}
+.scen .opts button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.scen .fb{display:none;margin-top:8px;color:var(--muted);font-size:.92rem;border-left:3px solid var(--a1);padding-left:10px}
+.scen.done .fb{display:block}
+footer{margin-top:36px;color:var(--muted);font-size:.84rem}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{min-width:0;position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px 16px 10px;gap:10px}
+  nav.tabs{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:6px}
+  nav.tabs::before{display:none}
+  nav.tabs button{flex:0 0 auto;grid-template-columns:26px auto;gap:6px;padding:4px 10px 4px 0;font-size:.88rem;white-space:nowrap}
+  nav.tabs button .tc{width:26px;height:26px}
+  .railfoot{flex-direction:row;margin-top:0;align-items:center}
+  .railfoot span{display:none}
+  main{padding-top:18px}
+  label.sl{grid-template-columns:96px 1fr 66px;font-size:.88rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="rail">
+  <h1><small>음성 AI 전문가 과정 Day 35</small>화자 임베딩</h1>
+  <nav class="tabs" role="tablist" aria-label="애니메이션 목록">
+    <button role="tab" aria-selected="true" data-t="flow"><span class="tc">1</span>오늘의 흐름</button>
+    <button role="tab" aria-selected="false" data-t="space"><span class="tc">2</span>임베딩 공간</button>
+    <button role="tab" aria-selected="false" data-t="cosine"><span class="tc">3</span>코사인 유사도</button>
+    <button role="tab" aria-selected="false" data-t="eer"><span class="tc">4</span>FAR · FRR · EER</button>
+    <button role="tab" aria-selected="false" data-t="oppoint"><span class="tc">5</span>문턱 고르기</button>
+    <button role="tab" aria-selected="false" data-t="enroll"><span class="tc">6</span>등록과 길이</button>
+    <button role="tab" aria-selected="false" data-t="ident"><span class="tc">7</span>1:N 식별</button>
+    <button role="tab" aria-selected="false" data-t="spoof"><span class="tc">8</span>공격과 방어</button>
+    <button role="tab" aria-selected="false" data-t="recap"><span class="tc">9</span>정리 퀴즈</button>
+  </nav>
+  <div class="railfoot">
+    <button id="themeBtn" type="button">화면 밝기 바꾸기</button>
+    <span>번호는 노트북의 🎬 D35-1 ~ 9와 같습니다. 키보드 ← → 로 넘길 수 있습니다.</span>
+  </div>
+</aside>
+<main>
+
+<section class="panel active" id="flow">
+  <h2>전화 한 통이 본인 확인을 지나는 길</h2>
+  <p class="lead">목소리가 숫자 묶음(임베딩)이 되고, 등록해 둔 템플릿과의 코사인 점수가 문턱을 넘으면 받아들입니다. 네 사람이 차례로 전화를 겁니다. 마지막 사람을 눈여겨보세요.</p>
+  <div class="scope"><canvas id="flCv" data-h="270"></canvas></div>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="space">
+  <h2>같은 사람은 모이고, 다른 사람은 떨어진다</h2>
+  <p class="lead">점 하나가 문장 하나입니다. 화자 5명이 8문장씩 말했습니다. 잡음이 많거나 말이 짧으면 점이 퍼지고, 다른 사람 무리로 넘어간 점이 오류가 됩니다.</p>
+  <div class="scope"><span class="tag">임베딩 공간 (192차원을 평면에 그린 설명용 그림)</span><canvas id="spCv" data-h="380"></canvas></div>
+  <p class="cap" id="cap-space"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">잡음 (SNR)<input type="range" id="spN" min="0" max="30" step="1" value="25"><output id="spNo"></output></label>
+      <label class="sl">말 길이<input type="range" id="spL" min="0.5" max="8" step="0.5" value="4"><output id="spLo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="space" aria-pressed="false">▶ 시연 보기</button><button class="btn" id="spRe">새 문장 뽑기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="spKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="cosine">
+  <h2>코사인 유사도는 방향만 본다</h2>
+  <p class="lead">분홍 화살표 끝을 잡아 끌어 보세요. 각도가 벌어지면 점수가 떨어지고, 길이(목소리 크기)만 바꾸면 코사인은 그대로인데 유클리드 거리만 변합니다.</p>
+  <div class="scope"><span class="tag">a = 등록 템플릿 · b = 오늘 전화 (실제는 192차원)</span><canvas id="coCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-cosine"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">두 화살표 사이 각도<input type="range" id="coA" min="0" max="180" step="1" value="40"><output id="coAo"></output></label>
+      <label class="sl">b의 길이<input type="range" id="coL" min="0.3" max="2" step="0.05" value="1"><output id="coLo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="cosine" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="coKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="eer">
+  <h2>문턱 하나가 두 실수를 맞바꾼다</h2>
+  <p class="lead">점수가 비처럼 떨어집니다. 초록은 본인 시도, 분홍은 타인 시도입니다. 노란 문턱선을 끌어 보세요. 문턱 오른쪽에 떨어진 타인(오수락)과 왼쪽에 떨어진 본인(오거절)이 번쩍입니다.</p>
+  <div class="scope"><canvas id="eeCv" data-h="420"></canvas></div>
+  <p class="cap" id="cap-eer"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">문턱 θ<input type="range" id="eeT" min="-0.2" max="1" step="0.01" value="0.35"><output id="eeTo"></output></label>
+      <label class="sl">두 분포 사이 거리<input type="range" id="eeD" min="0.1" max="0.8" step="0.01" value="0.45"><output id="eeDo"></output></label>
+      <label class="sl">분포의 퍼짐<input type="range" id="eeS" min="0.05" max="0.25" step="0.005" value="0.12"><output id="eeSo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="eer" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="eeKv"></div></div>
+  </div>
+  <p class="note">거리는 모델 성능(멀수록 좋은 모델), 퍼짐은 잡음 · 짧은 말을 뜻합니다. '방금 떨어진 점수'의 비율은 표본이라 이론값 주변에서 흔들립니다.</p>
+</section>
+
+<section class="panel" id="oppoint">
+  <h2>무서운 실수부터 정하고 문턱을 찾는다</h2>
+  <p class="lead">목표 FAR을 고르면 타인 점수의 (1 − 목표) 분위수가 문턱이 됩니다. 같은 실험을 20번 되풀이한 문턱이 주황 점으로 떨어집니다. 타인 시도 수가 적으면 점이 넓게 흩어집니다.</p>
+  <div class="scope"><canvas id="opCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-oppoint"></p>
+  <div class="deck">
+    <div class="ctl">
+      <div class="row" id="opChips" style="margin-top:0"></div>
+      <label class="sl">타인 시도 수<input type="range" id="opN" min="2" max="5" step="0.1" value="3.6"><output id="opNo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="oppoint" aria-pressed="false">▶ 시연 보기</button><button class="btn" id="opRe">실험 다시 하기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="opKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="enroll">
+  <h2>등록 문장이 많을수록, 말이 길수록</h2>
+  <p class="lead">왼쪽은 한 사람의 문장들입니다. 주황이 등록 문장, ★이 그 평균인 템플릿, ✚가 진짜 중심입니다. 오른쪽은 시험 말 길이에 따른 EER입니다(설명용 모형).</p>
+  <div class="scope"><canvas id="enCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-enroll"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">등록 문장 수<input type="range" id="enN" min="1" max="10" step="1" value="3"><output id="enNo"></output></label>
+      <label class="sl">시험 말 길이<input type="range" id="enL" min="0.5" max="8" step="0.5" value="3"><output id="enLo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="enroll" aria-pressed="false">▶ 시연 보기</button><button class="btn" id="enRe">등록 다시 하기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="enKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="ident">
+  <h2>등록 인원이 늘면 모르는 사람도 누군가가 된다</h2>
+  <p class="lead">모르는 사람 100명이 차례로 전화합니다. 등록된 N명 각각과 비교해 한 명이라도 문턱을 넘으면 그 사람으로 잘못 받아들입니다(분홍). 인원을 늘리고 다시 걸어 보세요.</p>
+  <div class="scope"><canvas id="idCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-ident"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">등록 인원 N<input type="range" id="idN" min="1" max="200" step="1" value="5"><output id="idNo"></output></label>
+      <label class="sl">1:1 FAR<input type="range" id="idF" min="0.1" max="5" step="0.1" value="1"><output id="idFo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="ident" aria-pressed="false">▶ 시연 보기</button><button class="btn go" id="idGo">100명 전화 걸기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="idKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="spoof">
+  <h2>공격 하나에 관문 하나, 그래서 겹쳐 막는다</h2>
+  <p class="lead">전화 건 쪽을 고르고 켤 관문을 정한 뒤 전화를 걸어 보세요. 관문마다 통과 확률은 노트북 4-2의 전형적인 결과를 흉내 낸 값입니다.</p>
+  <div class="scope"><canvas id="sfCv" data-h="300"></canvas></div>
+  <p class="cap" id="cap-spoof"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>전화 건 쪽</h3>
+      <div class="row" id="sfChips" style="margin-top:0"></div>
+      <h3 style="margin-top:14px">켤 관문</h3>
+      <div class="row" id="sfGates" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="spoof" aria-pressed="false">▶ 시연 보기</button><button class="btn go" id="sfGo">전화 걸기</button><button class="btn" id="sf100">100통 걸기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="sfKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2>이 상황에서 무엇을 고칠까</h2>
+  <p class="lead">목소리 인증을 운영하며 실제로 만나는 문제 여섯 가지입니다.</p>
+  <div class="qbar"><span id="rcScore">0 / 6</span><div class="track"><i id="rcBar"></i></div></div>
+  <div id="rcList2"></div>
+</section>
+
+<footer>그림 속 점수와 비율은 설명용 시뮬레이션입니다. 실제 값은 노트북 실행 결과를 보세요. 이름은 모두 가상입니다.</footer>
+</main>
+</div>
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const FONT='"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+/* 계측기 화면 색 (테마와 무관) */
+const K={tx:'#DCE3F5',mu:'#8794B8',grid:'rgba(150,170,255,.08)',line:'rgba(150,170,255,.22)',
+  sp:['#35D0BA','#FFB23E','#FF6FA9','#A58BFF','#6FB6FF'],ok:'#57E08A',bad:'#FF6B5E',th:'#FFE066',tgt:'#57E08A',non:'#FF6FA9'};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const pct=(v,d=1)=>(v*100).toFixed(d)+'%';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=(cur,tg,dt,k=9)=>cur+(tg-cur)*(1-Math.exp(-k*dt));
+function rnd(s){let x=(s>>>0)||1;return()=>{x=(x*16807)%2147483647;return x/2147483647;};}
+function gauss(r){let u=0;while(u===0)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r());}
+function Phi(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+function invPhi(p){let lo=-9,hi=9;for(let i=0;i<60;i++){const m=(lo+hi)/2;if(Phi(m)<p)lo=m;else hi=m;}return (lo+hi)/2;}
+function fit(cv){const r=Math.min(2,devicePixelRatio||1),w=cv.clientWidth||cv.parentElement.clientWidth||640,h=+cv.dataset.h||300;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+function grid(c,w,h,step=40){c.strokeStyle=K.grid;c.lineWidth=1;c.beginPath();for(let x=step;x<w;x+=step){c.moveTo(x+.5,0);c.lineTo(x+.5,h);}for(let y=step;y<h;y+=step){c.moveTo(0,y+.5);c.lineTo(w,y+.5);}c.stroke();}
+function dot(c,x,y,r,col,glow=0){c.save();if(glow){c.shadowColor=col;c.shadowBlur=glow;}c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.restore();}
+function txt(c,s,x,y,col=K.tx,size=13,bold=false,align='left'){c.fillStyle=col;c.font=`${bold?'700 ':''}${size}px ${FONT}`;c.textAlign=align;c.fillText(s,x,y);c.textAlign='left';}
+const kvCache={};
+function setKv(id,html){if(kvCache[id]!==html){kvCache[id]=html;$(id).innerHTML=html;}}
+const kv=(k,v,col,small)=>`<div><span>${k}</span><b${small?' class="s"':''}${col?` style="color:var(${col})"`:''}>${v}</b></div>`;
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(fmt){Object.keys(fmt).forEach(id=>{const el=$(id),o=$(id+'o');const up=()=>{o.textContent=fmt[id](+el.value);kick();};el.addEventListener('input',up);o.textContent=fmt[id](+el.value);});}
+const val=id=>+$(id).value;
+function setSl(id,v){const el=$(id);el.value=v;el.dispatchEvent(new Event('input'));}
+
+/* ── 탭 · 프레임 루프 ── */
+const STG={};let active='flow',lastTs=0;
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function openTab(id,noHash){if(!$(id)||!STG[id])return;stopTour();active=id;
+  tabs.forEach(x=>{const on=x.dataset.t===id;x.setAttribute('aria-selected',on);if(on)x.classList.add('seen');});
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  if(STG[id].enter)STG[id].enter();kick();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>kick());
+addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  const i=tabs.findIndex(b=>b.dataset.t===active);if(e.key==='ArrowRight'&&i<tabs.length-1)openTab(tabs[i+1].dataset.t);if(e.key==='ArrowLeft'&&i>0)openTab(tabs[i-1].dataset.t);});
+function kick(){if(RM){const s=STG[active];if(s&&s.draw)s.draw(1,performance.now()/1000);}}
+function frame(ts){const dt=clamp((ts-lastTs)/1000||0.016,0.001,0.05);lastTs=ts;const s=STG[active];if(s&&s.draw)s.draw(dt,ts/1000);requestAnimationFrame(frame);}
+$('themeBtn').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';};
+
+/* ── 시연(자동 조작 + 자막) ── */
+let tourTok=null;const TOURS={};
+const wait=ms=>new Promise(r=>setTimeout(r,RM?Math.min(ms,30):ms));
+function stopTour(){if(tourTok){tourTok.stop=true;tourTok=null;}document.querySelectorAll('.btn.tour').forEach(b=>{b.setAttribute('aria-pressed','false');b.textContent='▶ 시연 보기';});
+  document.querySelectorAll('.cap').forEach(c=>c.textContent='');}
+async function runTour(id){const tok={stop:false};tourTok=tok;const btn=document.querySelector(`[data-tour="${id}"]`);btn.setAttribute('aria-pressed','true');btn.textContent='■ 시연 멈추기';const cap=$('cap-'+id);
+  for(const st of TOURS[id]){if(tok.stop)return;cap.textContent=st.say;if(st.do)st.do();
+    const moves=Object.entries(st.set||{}).map(([sid,to])=>[sid,val(sid),to]);const T=st.t||1300,t0=performance.now();
+    if(moves.length){while(!tok.stop){const p=RM?1:clamp((performance.now()-t0)/T,0,1),e=p<.5?2*p*p:1-2*(1-p)*(1-p);moves.forEach(([sid,a,b])=>setSl(sid,a+(b-a)*e));if(p>=1)break;await wait(16);}}
+    await wait(st.hold||1700);}
+  if(!tok.stop)stopTour();}
+document.querySelectorAll('.btn.tour').forEach(b=>b.onclick=()=>{const on=b.getAttribute('aria-pressed')==='true';stopTour();if(!on)runTour(b.dataset.tour);});
+
+/* ═══ 1. 흐름 ═══ */
+const CALLERS=[{n:'본인 (김하늘 님)',col:K.sp[0],score:0.72,seed:3,kind:'ok'},{n:'다른 사람이 사칭',col:K.sp[2],score:0.17,seed:9,kind:'no'},
+  {n:'본인, "네" 한마디',col:K.sp[0],score:0.39,seed:3,kind:'frr'},{n:'복제한 목소리',col:K.sp[3],score:0.63,seed:4,kind:'spoof'}];
+const FL={t:0,i:0,needle:-0.2};
+STG.flow={draw(dt,now){const {c,w,h}=fit($('flCv'));grid(c,w,h);FL.t+=dt;const CY=5.2;if(FL.t>CY){FL.t=0;FL.i=(FL.i+1)%CALLERS.length;FL.needle=-0.2;}
+  const p=RM?0.95:FL.t/CY,cl=CALLERS[FL.i],TH=0.45,cy=h*0.5,small=w<620;
+  const X=[0.11,0.36,0.64,0.89].map(v=>v*w);const lab=['목소리','임베딩 (숫자 192개)','코사인 점수와 문턱 θ','판정'];
+  txt(c,'전화 건 사람: '+cl.n,14,24,cl.col,14,true);
+  lab.forEach((l,i)=>txt(c,small&&i===1?'임베딩':small&&i===2?'점수 vs θ':l,X[i],h-14,p>i*0.22?K.tx:K.mu,12.5,false,'center'));
+  /* 이동하는 입자 */
+  for(let s=0;s<3;s++){const a=clamp((p-0.14-s*0.22)/0.16,0,1);if(a>0&&a<1){const x=X[s]+(X[s+1]-X[s])*a;for(let k=0;k<5;k++)dot(c,x-k*9,cy+Math.sin(now*9+k)*3,3.2-k*0.5,cl.col,10);}
+    c.strokeStyle=K.line;c.setLineDash([3,6]);c.beginPath();c.moveTo(X[s]+w*0.085,cy);c.lineTo(X[s+1]-w*0.085,cy);c.stroke();c.setLineDash([]);}
+  /* 파형 */
+  const r0=rnd(cl.seed),amp=clamp(p/0.12,0,1);c.strokeStyle=cl.col;c.lineWidth=2;c.shadowColor=cl.col;c.shadowBlur=8;c.beginPath();
+  for(let i=0;i<=44;i++){const x=X[0]-w*0.075+i/44*w*0.15,env=Math.sin(i/44*Math.PI)*(0.45+0.55*Math.abs(Math.sin(i*0.37+cl.seed)));const y=cy+Math.sin(i*1.3+now*14)*env*46*amp*(0.6+0.4*r0());i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();c.shadowBlur=0;
+  /* 임베딩 막대 */
+  const r1=rnd(cl.seed*31),a1=clamp((p-0.26)/0.1,0,1);for(let i=0;i<22;i++){const v=(r1()*2-1)*(cl.kind==='spoof'?0.92:1),x=X[1]-w*0.07+i*(w*0.14/22),hh=v*52*a1;c.fillStyle=cl.col;c.globalAlpha=0.35+0.65*a1;c.fillRect(x,cy-Math.max(0,hh),w*0.14/22-2,Math.abs(hh));}c.globalAlpha=1;
+  /* 점수 게이지 */
+  const a2=clamp((p-0.5)/0.12,0,1);if(a2>0)FL.needle=ease(FL.needle,cl.score,dt,5);const gx=X[2],gy=cy+38,R=Math.min(74,w*0.1);const ang=v=>Math.PI*(1-(v+0.2)/1.2);
+  c.lineWidth=9;c.strokeStyle='rgba(255,111,169,.35)';c.beginPath();c.arc(gx,gy,R,Math.PI,-ang(TH)+0,false);c.stroke();
+  c.strokeStyle='rgba(87,224,138,.4)';c.beginPath();c.arc(gx,gy,R,-ang(TH),0,false);c.stroke();
+  const ta=ang(TH);c.strokeStyle=K.th;c.lineWidth=3;c.beginPath();c.moveTo(gx+Math.cos(ta)*(R-12),gy-Math.sin(ta)*(R-12));c.lineTo(gx+Math.cos(ta)*(R+12),gy-Math.sin(ta)*(R+12));c.stroke();
+  txt(c,'θ 0.45',gx+Math.cos(ta)*(R+16)-4,gy-Math.sin(ta)*(R+16)-6,K.th,11.5,true,'center');
+  const na=ang(FL.needle);c.strokeStyle=K.tx;c.lineWidth=3;c.beginPath();c.moveTo(gx,gy);c.lineTo(gx+Math.cos(na)*(R-6),gy-Math.sin(na)*(R-6));c.stroke();dot(c,gx,gy,5,K.tx);
+  if(a2>0)txt(c,FL.needle.toFixed(2),gx,gy+26,K.tx,18,true,'center');
+  /* 판정 */
+  const a3=clamp((p-0.76)/0.08,0,1),pass=cl.score>=TH;const col=cl.kind==='spoof'?K.sp[1]:(pass?K.ok:K.bad);
+  c.strokeStyle=a3?col:K.line;c.lineWidth=3;c.beginPath();c.arc(X[3],cy,34,0,7);c.stroke();
+  if(a3){dot(c,X[3],cy,26+Math.sin(now*6)*2,col,24);txt(c,pass?'수락':'거절',X[3],cy+5,'#0A1024',15,true,'center');
+    const msg={ok:'본인을 받아들임',no:'남을 막음',frr:'본인을 거절 (오거절)',spoof:'위조를 받아들임 (Part 4)'}[cl.kind];txt(c,msg,X[3],cy+60,col,12.5,true,'center');}
+}};
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--a5',go:'flow',items:['speechbrain · Zeroth Korean (실제 한국어 화자)','하나의 대답 두 가지 (Edge TTS)','화자별 등록 5문장 · 나머지 시험'],q:'준비만 하는 단계입니다'},
+ {p:'Part 1',t:'화자 임베딩',c:'--a2',go:'space',items:['ECAPA 192개 · WavLM 512개','길이 1로 → 내적 = 코사인','본인 · 타인 점수 분포'],q:'⭐ encode_batch · norm ／ ✍️ 직접 작성 1: 코사인 함수',more:[['cosine','코사인 유사도']]},
+ {p:'Part 2',t:'문턱 정하기',c:'--a1',go:'eer',items:['FAR = mean(non ≥ θ) · FRR = mean(tgt < θ)','EER = argmin |FAR − FRR|','목표 FAR → quantile · 조건별 EER'],q:'⭐ far_frr · argmin · quantile ／ ✍️ 직접 작성 2: FRR 목표 문턱',more:[['oppoint','문턱 고르기'],['enroll','등록과 길이']]},
+ {p:'Part 3',t:'검증 · 식별',c:'--a4',go:'ident',items:['verify 1:1 · identify 1:N','모르는 사람 거절 · 인원 N의 함정','동의 · 암호화 · 삭제'],q:'⭐ max(key=scores.get) · encrypt ／ ✍️ 직접 작성 3: 1:N 오수락 확률'},
+ {p:'Part 4',t:'위조 공격 · 방어',c:'--a3',go:'spoof',items:['사칭 · TTS · 재생 · 복제(kNN-VC)','LFCC + 로지스틱 회귀','화자 + 무작위 문장 + 위조 탐지'],q:'⭐ dct · predict_proba ／ ✍️ 직접 작성 4: 관문 판정'},
+ {p:'Part 5',t:'정리',c:'--bad',go:'recap',items:['오늘 만든 것 표','위험에 맞춘 관문 수','D36: 준언어 · 소리 이벤트'],q:'📝 워크시트 25문항 (하루 한 장)'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row"><button class="btn go" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ═══ 2. 임베딩 공간 ═══ */
+const SP={seed:11,pts:[],sig:0.2,ripple:1};
+const SPC_=[0,1,2,3,4].map(k=>{const a=k*2*Math.PI/5+0.3;return [Math.cos(a),Math.sin(a)];});
+function spSeed(){const r=rnd(SP.seed);SP.pts=[];SPC_.forEach((ct,k)=>{for(let i=0;i<8;i++)SP.pts.push({k,gx:gauss(r),gy:gauss(r),x:0,y:0,d:i*0.03+k*0.05});});SP.ripple=0;SP.age=0;}
+spSeed();SP.pts.forEach(p=>{p.d=0;});
+STG.space={draw(dt,now){const snr=val('spN'),L=val('spL'),tg=0.07+0.22*Math.exp(-L/1.6)+0.28*Math.exp(-snr/7);SP.sig=ease(SP.sig,tg,dt,7);SP.age=(SP.age||0)+dt;SP.ripple=Math.min(1,SP.ripple+dt*1.4);
+  const {c,w,h}=fit($('spCv'));grid(c,w,h);const cx=w/2,cy=h/2+8,R=Math.min(w*0.34,h*0.36);
+  c.strokeStyle=K.line;c.setLineDash([4,5]);c.beginPath();c.arc(cx,cy,R,0,7);c.stroke();c.setLineDash([]);
+  if(SP.ripple<1&&!RM){c.strokeStyle=`rgba(220,227,245,${0.5*(1-SP.ripple)})`;c.lineWidth=2;c.beginPath();c.arc(cx,cy,R*1.25*SP.ripple,0,7);c.stroke();}
+  SPC_.forEach((ct,k)=>{const x=cx+ct[0]*R,y=cy-ct[1]*R;const g=c.createRadialGradient(x,y,0,x,y,Math.max(8,SP.sig*R*2.2));g.addColorStop(0,K.sp[k]+'55');g.addColorStop(1,K.sp[k]+'00');c.fillStyle=g;c.beginPath();c.arc(x,y,Math.max(8,SP.sig*R*2.2),0,7);c.fill();
+    c.strokeStyle=K.sp[k];c.lineWidth=1;c.globalAlpha=.5;c.beginPath();c.moveTo(cx,cy);c.lineTo(x,y);c.stroke();c.globalAlpha=1;
+    txt(c,'화자 '+'ABCDE'[k],cx+ct[0]*R*1.27,cy-ct[1]*R*1.27+4,K.sp[k],13,true,'center');});
+  let err=0;const same=[],diff=[];
+  SP.pts.forEach(p=>{const tx=SPC_[p.k][0]+SP.sig*p.gx,ty=SPC_[p.k][1]+SP.sig*p.gy;if(SP.age>=p.d){p.x=ease(p.x,tx,dt,6);p.y=ease(p.y,ty,dt,6);}
+    const n=Math.hypot(tx,ty)||1,cs=SPC_.map(q=>(q[0]*tx+q[1]*ty)/n),best=cs.indexOf(Math.max(...cs));same.push(cs[p.k]);cs.forEach((v,j)=>{if(j!==p.k)diff.push(v);});
+    const px=cx+p.x*R,py=cy-p.y*R;
+    if(best!==p.k){err++;c.strokeStyle=K.bad;c.lineWidth=1;c.globalAlpha=.55;c.setLineDash([2,4]);c.beginPath();c.moveTo(px,py);c.lineTo(cx+SPC_[best][0]*R,cy-SPC_[best][1]*R);c.stroke();c.setLineDash([]);c.globalAlpha=1;
+      c.strokeStyle=K.bad;c.lineWidth=2;c.beginPath();c.arc(px,py,10+Math.sin(now*6)*2,0,7);c.stroke();}
+    dot(c,px,py,best===p.k?4.6:6,K.sp[p.k],best===p.k?8:14);});
+  txt(c,'빨간 고리 = 다른 사람의 템플릿과 더 가까워진 문장',14,h-12,K.mu,12);
+  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  setKv('spKv',kv('점의 퍼짐',SP.sig.toFixed(2))+kv('같은 사람 평균 유사도',avg(same).toFixed(2))+kv('다른 사람 평균 유사도',avg(diff).toFixed(2))+kv('잘못 묶인 문장',`${err} / 40`,err?'--bad':'--ok'));}};
+$('spRe').onclick=()=>{SP.seed+=7;spSeed();kick();};
+bindSl({spN:v=>v+' dB',spL:v=>v.toFixed(1)+'초'});
+TOURS.space=[{say:'조용한 곳에서 4초씩 말했습니다. 다섯 사람이 또렷하게 나뉩니다.',set:{spN:25,spL:4}},
+ {say:'잡음을 키우면(SNR 5 dB) 점이 퍼지기 시작합니다.',set:{spN:5},t:1800},
+ {say:'여기에 말까지 1초로 짧아지면 다른 사람 무리로 넘어가는 문장이 생깁니다.',set:{spL:1},t:1800,hold:2400},
+ {say:'잡음을 줄이고 8초로 길게 말하면 다시 단단하게 모입니다.',set:{spN:30,spL:8},t:2000},
+ {say:'새 문장을 뽑아도 무리의 위치는 그대로입니다. 문장 내용이 아니라 목소리를 담기 때문입니다.',do:()=>$('spRe').click(),hold:2400}];
+
+/* ═══ 3. 코사인 ═══ */
+const CO={A:40,L:1,drag:false};
+STG.cosine={draw(dt,now){CO.A=ease(CO.A,val('coA'),dt,12);CO.L=ease(CO.L,val('coL'),dt,12);const A=CO.A*Math.PI/180,L=CO.L;
+  const {c,w,h}=fit($('coCv'));grid(c,w,h);const wide=w>=560,ox=wide?w*0.3:w*0.5,oy=h*0.74,R=Math.min(wide?w*0.2:w*0.22,h*0.34),a0=0.2;CO.geo={ox,oy,R,a0};
+  const a=[Math.cos(a0),Math.sin(a0)],b=[L*Math.cos(a0+A),L*Math.sin(a0+A)],cos=Math.cos(A),eu=Math.hypot(a[0]-b[0],a[1]-b[1]);
+  c.strokeStyle=K.line;c.lineWidth=1;c.beginPath();c.arc(ox,oy,R,0,7);c.stroke();
+  /* b를 a 위에 내린 그림자 = 코사인 */
+  const ub=[Math.cos(a0+A),Math.sin(a0+A)];const pr=[a[0]*cos,a[1]*cos];c.strokeStyle=K.th;c.setLineDash([3,4]);c.beginPath();c.moveTo(ox+ub[0]*R,oy-ub[1]*R);c.lineTo(ox+pr[0]*R,oy-pr[1]*R);c.stroke();c.setLineDash([]);
+  c.strokeStyle=K.th;c.lineWidth=5;c.globalAlpha=.8;c.beginPath();c.moveTo(ox,oy);c.lineTo(ox+pr[0]*R,oy-pr[1]*R);c.stroke();c.globalAlpha=1;
+  c.fillStyle='rgba(165,139,255,.22)';c.beginPath();c.moveTo(ox,oy);c.arc(ox,oy,R*0.32,-a0,-(a0+A),true);c.fill();
+  txt(c,Math.round(CO.A)+'°',ox+Math.cos(a0+A/2)*R*0.44,oy-Math.sin(a0+A/2)*R*0.44+4,K.sp[3],13,true,'center');
+  function arr(v,col,lab,grab){const x=ox+v[0]*R,y=oy-v[1]*R;c.save();c.strokeStyle=col;c.fillStyle=col;c.lineWidth=3.5;c.shadowColor=col;c.shadowBlur=10;c.beginPath();c.moveTo(ox,oy);c.lineTo(x,y);c.stroke();
+    const an=Math.atan2(oy-y,x-ox);c.beginPath();c.moveTo(x,y);c.lineTo(x-13*Math.cos(an-0.4),y+13*Math.sin(an-0.4));c.lineTo(x-13*Math.cos(an+0.4),y+13*Math.sin(an+0.4));c.fill();c.restore();
+    if(grab){c.strokeStyle=col;c.lineWidth=2;c.beginPath();c.arc(x,y,11+(CO.drag?3:Math.sin(now*4)*1.5),0,7);c.stroke();}
+    txt(c,lab,x+14,y-10,col,13,true);}
+  c.strokeStyle=K.mu;c.setLineDash([5,4]);c.lineWidth=1.5;c.beginPath();c.moveTo(ox+a[0]*R,oy-a[1]*R);c.lineTo(ox+b[0]*R,oy-b[1]*R);c.stroke();c.setLineDash([]);
+  arr(a,K.sp[0],'a');arr(b,K.sp[2],'b',true);
+  if(wide){const bx=w*0.6,bw=w-bx-24;
+    txt(c,'코사인 유사도 (노란 그림자의 길이)',bx,70,K.mu,12.5);const mid=bx+bw/2;c.fillStyle='rgba(150,170,255,.14)';c.fillRect(bx,80,bw,16);c.fillStyle=cos>=0.5?K.ok:K.th;c.fillRect(Math.min(mid,mid+cos*bw/2),80,Math.abs(cos)*bw/2,16);
+    c.strokeStyle=K.tx;c.beginPath();c.moveTo(mid,76);c.lineTo(mid,100);c.stroke();const tx=mid+0.5*bw/2;c.strokeStyle=K.th;c.setLineDash([2,3]);c.beginPath();c.moveTo(tx,74);c.lineTo(tx,102);c.stroke();c.setLineDash([]);txt(c,'문턱 0.5',tx,116,K.th,11,false,'center');
+    txt(c,cos.toFixed(3),bx,146,K.tx,26,true);
+    txt(c,'유클리드 거리 (점선의 길이)',bx,190,K.mu,12.5);c.fillStyle='rgba(150,170,255,.14)';c.fillRect(bx,200,bw,16);c.fillStyle=K.sp[4];c.fillRect(bx,200,clamp(eu/3,0,1)*bw,16);txt(c,eu.toFixed(3),bx,252,K.tx,26,true);
+    txt(c,'‖b‖ = '+L.toFixed(2),bx,290,K.mu,12.5);}
+  const ok=cos>=0.5;setKv('coKv',kv('각도',Math.round(CO.A)+'°')+kv('코사인 점수',cos.toFixed(3))+kv('유클리드 거리',eu.toFixed(3))+kv('문턱 0.5로 판정',ok?'같은 사람':'다른 사람',ok?'--ok':'--bad'));}};
+(function(){const cv=$('coCv');const mv=e=>{if(!CO.drag||!CO.geo)return;const r=cv.getBoundingClientRect(),g=CO.geo,dx=e.clientX-r.left-g.ox,dy=g.oy-(e.clientY-r.top);
+    let ang=(Math.atan2(dy,dx)-g.a0)*180/Math.PI;if(ang<-90)ang+=360;setSl('coA',clamp(Math.round(ang),0,180));setSl('coL',clamp(Math.round(Math.hypot(dx,dy)/g.R*20)/20,0.3,2));};
+  cv.addEventListener('pointerdown',e=>{stopTour();CO.drag=true;cv.setPointerCapture(e.pointerId);mv(e);});cv.addEventListener('pointermove',mv);
+  ['pointerup','pointercancel'].forEach(n=>cv.addEventListener(n,()=>{CO.drag=false;}));})();
+bindSl({coA:v=>Math.round(v)+'°',coL:v=>'× '+v.toFixed(2)});
+TOURS.cosine=[{say:'같은 사람의 두 문장은 방향이 비슷합니다. 각도 25°, 코사인 0.91.',set:{coA:25,coL:1}},
+ {say:'각도가 60°를 넘으면 코사인이 0.5 아래로 떨어져 다른 사람으로 판정합니다.',set:{coA:75},t:2200,hold:2000},
+ {say:'90°면 0, 반대 방향이면 −1입니다.',set:{coA:180},t:2200},
+ {say:'다시 30°로. 이제 b만 두 배로 크게 말해 봅니다.',set:{coA:30},t:1500},
+ {say:'길이를 바꿔도 코사인은 그대로이고, 유클리드 거리만 커집니다. 그래서 코사인을 씁니다.',set:{coL:2},t:2200,hold:2600},
+ {say:'작게 말해도 마찬가지입니다.',set:{coL:0.4},t:2000}];
+
+/* ═══ 4. FAR · FRR · EER ═══ */
+const EE={th:0.35,D:0.45,S:0.12,drops:[],buf:[],flash:[],acc:0,r:rnd(77),drag:false,key:''};
+STG.eer={draw(dt,now){EE.th=ease(EE.th,val('eeT'),dt,14);EE.D=ease(EE.D,val('eeD'),dt,10);EE.S=ease(EE.S,val('eeS'),dt,10);const th=EE.th,D=EE.D,S=EE.S,mn=0.1,mt=0.1+D;
+  const key=val('eeT')+'|'+val('eeD')+'|'+val('eeS');if(key!==EE.key){EE.key=key;EE.buf=[];}
+  const {c,w,h}=fit($('eeCv'));grid(c,w,h);const L=46,X=v=>L+(v+0.3)/1.4*(w-L-14),top=30,mid=h*0.5;EE.geo={L,w};
+  const pdf=(v,m)=>Math.exp(-((v-m)**2)/(2*S*S)),H=mid-top-14;
+  [[K.non,mn,v=>v>=th,'타인 시도'],[K.tgt,mt,v=>v<th,'본인 시도']].forEach(([col,m,sh,lab])=>{
+    c.fillStyle=col;c.globalAlpha=0.42;c.beginPath();c.moveTo(X(-0.3),mid);for(let i=0;i<=280;i++){const v=-0.3+i/280*1.4;c.lineTo(X(v),mid-(sh(v)?pdf(v,m):0)*H);}c.lineTo(X(1.1),mid);c.fill();c.globalAlpha=1;
+    c.strokeStyle=col;c.lineWidth=2;c.beginPath();for(let i=0;i<=280;i++){const v=-0.3+i/280*1.4,y=mid-pdf(v,m)*H;i?c.lineTo(X(v),y):c.moveTo(X(v),y);}c.stroke();
+    txt(c,lab,X(m),top-8,col,13,true,'center');});
+  /* 떨어지는 점수 */
+  if(!RM){EE.acc+=dt*70;while(EE.acc>=1){EE.acc-=1;const isT=EE.r()<0.5;EE.drops.push({isT,v:(isT?mt:mn)+S*gauss(EE.r),y:top-6,vy:60+EE.r()*40});}}
+  EE.drops=EE.drops.filter(d=>{d.vy+=420*dt;d.y+=d.vy*dt;const floor=mid-2;if(d.y>=floor){const er=d.isT?d.v<th:d.v>=th;EE.buf.push([d.isT,er]);if(EE.buf.length>700)EE.buf.shift();if(er)EE.flash.push({x:X(d.v),t:0,isT:d.isT});return false;}
+    if(d.v>-0.3&&d.v<1.1)dot(c,X(d.v),d.y,2.4,d.isT?K.tgt:K.non);return true;});
+  EE.flash=EE.flash.filter(f=>{f.t+=dt;if(f.t>0.6)return false;const a=1-f.t/0.6;c.strokeStyle=`rgba(255,107,94,${a})`;c.lineWidth=2;c.beginPath();c.arc(f.x,mid-3,4+f.t*26,Math.PI,0);c.stroke();return true;});
+  c.strokeStyle=K.line;c.beginPath();c.moveTo(L,mid);c.lineTo(w-14,mid);c.stroke();
+  /* 아래: FAR · FRR 곡선 */
+  const b0=h-34,b1=mid+34,Y=v=>b0-v*(b0-b1);c.strokeStyle=K.line;c.beginPath();c.moveTo(L,b0);c.lineTo(w-14,b0);c.moveTo(L,b0);c.lineTo(L,b1);c.stroke();
+  txt(c,'100%',L-6,b1+4,K.mu,11,false,'right');txt(c,'0%',L-6,b0+4,K.mu,11,false,'right');
+  const far=1-Phi((th-mn)/S),frr=Phi((th-mt)/S),eT=(mn+mt)/2,eer=1-Phi(D/(2*S));
+  [[K.non,v=>1-Phi((v-mn)/S),'FAR 오수락',far],[K.tgt,v=>Phi((v-mt)/S),'FRR 오거절',frr]].forEach(([col,f,lab,cur],k)=>{c.strokeStyle=col;c.lineWidth=2.5;c.beginPath();for(let i=0;i<=200;i++){const v=-0.3+i/200*1.4;i?c.lineTo(X(v),Y(f(v))):c.moveTo(X(v),Y(f(v)));}c.stroke();
+    dot(c,X(th),Y(cur),5.5,col,12);txt(c,lab,k?w-18:L+8,b1-12,col,12.5,true,k?'right':'left');});
+  dot(c,X(eT),Y(eer),4,K.tx);txt(c,'EER '+pct(eer),X(eT),Y(eer)-10,K.tx,12,true,'center');
+  /* 문턱선 */
+  c.save();c.strokeStyle=K.th;c.lineWidth=2.5;c.shadowColor=K.th;c.shadowBlur=EE.drag?16:8;c.beginPath();c.moveTo(X(th),top-4);c.lineTo(X(th),b0);c.stroke();c.restore();
+  c.fillStyle=K.th;c.beginPath();c.moveTo(X(th)-9,top-14);c.lineTo(X(th)+9,top-14);c.lineTo(X(th),top-2);c.fill();txt(c,'θ '+th.toFixed(2),X(th),h-12,K.th,13,true,'center');
+  txt(c,'← 거절',X(th)-12,mid+18,K.mu,12,false,'right');txt(c,'수락 →',X(th)+12,mid+18,K.mu,12);
+  const nn=EE.buf.filter(b=>!b[0]),tt=EE.buf.filter(b=>b[0]);const eF=nn.length?nn.filter(b=>b[1]).length/nn.length:0,eR=tt.length?tt.filter(b=>b[1]).length/tt.length:0;
+  setKv('eeKv',kv('FAR (남을 받아들임)',pct(far,2),'--a3')+kv('FRR (본인을 거절)',pct(frr,2),'--ok')+kv('EER (두 곡선이 만나는 곳)',pct(eer,2))+kv('EER 문턱',eT.toFixed(2))+
+    (RM?'':kv('방금 떨어진 점수의 FAR',nn.length>40?pct(eF,1):'모으는 중',null,true)+kv('방금 떨어진 점수의 FRR',tt.length>40?pct(eR,1):'모으는 중',null,true)));}};
+(function(){const cv=$('eeCv');const mv=e=>{if(!EE.drag||!EE.geo)return;const r=cv.getBoundingClientRect(),g=EE.geo;const v=(e.clientX-r.left-g.L)/(g.w-g.L-14)*1.4-0.3;setSl('eeT',clamp(Math.round(v*100)/100,-0.2,1));};
+  cv.addEventListener('pointerdown',e=>{stopTour();EE.drag=true;cv.setPointerCapture(e.pointerId);mv(e);});cv.addEventListener('pointermove',mv);
+  ['pointerup','pointercancel'].forEach(n=>cv.addEventListener(n,()=>{EE.drag=false;}));})();
+bindSl({eeT:v=>v.toFixed(2),eeD:v=>v.toFixed(2),eeS:v=>v.toFixed(3)});
+TOURS.eer=[{say:'문턱 0.35에서 시작합니다. 두 실수가 조금씩 있습니다.',set:{eeT:0.35,eeD:0.45,eeS:0.12}},
+ {say:'문턱을 올리면 남을 받아들이는 실수(FAR)는 사라지지만 본인이 거절됩니다(FRR ↑).',set:{eeT:0.62},t:2400,hold:2200},
+ {say:'문턱을 내리면 본인은 편해지지만 남이 통과합니다(FAR ↑).',set:{eeT:0.14},t:2600,hold:2200},
+ {say:'두 곡선이 만나는 곳이 EER입니다. 모델끼리 비교할 때 쓰는 숫자입니다.',set:{eeT:0.325},t:1800,hold:2200},
+ {say:'잡음이 많거나 말이 짧으면 분포가 퍼져 EER이 커집니다.',set:{eeS:0.22},t:2200,hold:2200},
+ {say:'좋은 모델은 두 분포를 멀리 떼어 놓습니다. EER이 0에 가까워집니다.',set:{eeS:0.09,eeD:0.75,eeT:0.475},t:2600,hold:2400}];
+
+/* ═══ 5. 문턱 고르기 ═══ */
+const OP={goal:'0.01',ths:[],shown:0,key:'',seed:42,timer:0};
+chipRow($('opChips'),'data-og',[['0.05','편의 우선 FAR 5%'],['0.01','보안 FAR 1%'],['0.001','은행급 FAR 0.1%']],OP.goal,'--a4',v=>{OP.goal=v;kick();});
+function opCompute(){const f=+OP.goal,n=Math.round(10**val('opN')),nn=Math.min(n,60000),r=rnd(OP.seed+n);OP.ths=[];
+  for(let e=0;e<20;e++){const a=new Float64Array(nn);for(let i=0;i<nn;i++)a[i]=0.1+0.12*gauss(r);a.sort();const q=(nn-1)*(1-f),lo=Math.floor(q);OP.ths.push(a[lo]+(a[Math.min(nn-1,lo+1)]-a[lo])*(q-lo));}OP.shown=RM?20:0;}
+STG.oppoint={draw(dt,now){const f=+OP.goal,n=Math.round(10**val('opN')),mn=0.1,mt=0.58,S=0.12,thTrue=mn+S*invPhi(1-f);
+  const key=OP.goal+'|'+val('opN')+'|'+OP.seed;if(key!==OP.key){OP.key=key;OP.timer=0.12;OP.pending=true;}
+  if(OP.pending){OP.timer-=dt;if(OP.timer<=0||RM){OP.pending=false;opCompute();}}
+  OP.shown=Math.min(20,OP.shown+dt*14);OP.tx=ease(OP.tx===undefined?thTrue:OP.tx,thTrue,dt,8);
+  const {c,w,h}=fit($('opCv'));grid(c,w,h);const L=24,X=v=>L+(v+0.2)/1.2*(w-L-14),base=h*0.56,pdf=(v,m)=>Math.exp(-((v-m)**2)/(2*S*S));
+  [[K.non,mn,'타인 시도'],[K.tgt,mt,'본인 시도']].forEach(([col,m,lab])=>{if(m===mn){c.fillStyle=col;c.globalAlpha=.45;c.beginPath();c.moveTo(X(OP.tx),base);for(let i=0;i<=120;i++){const v=OP.tx+i/120*(1-OP.tx);c.lineTo(X(v),base-pdf(v,m)*(base-40));}c.lineTo(X(1),base);c.fill();c.globalAlpha=1;}
+    c.strokeStyle=col;c.lineWidth=2;c.beginPath();for(let i=0;i<=220;i++){const v=-0.2+i/220*1.2,y=base-pdf(v,m)*(base-40);i?c.lineTo(X(v),y):c.moveTo(X(v),y);}c.stroke();txt(c,lab,X(m),28,col,13,true,'center');});
+  c.strokeStyle=K.line;c.beginPath();c.moveTo(L,base);c.lineTo(w-14,base);c.stroke();
+  c.save();c.strokeStyle=K.th;c.lineWidth=2.5;c.shadowColor=K.th;c.shadowBlur=8;c.beginPath();c.moveTo(X(OP.tx),20);c.lineTo(X(OP.tx),h-22);c.stroke();c.restore();txt(c,'참 문턱 '+thTrue.toFixed(3),X(OP.tx)+8,50,K.th,12.5,true);
+  const ns=Math.floor(OP.shown);let lo=9,hi=-9;OP.ths.slice(0,ns).forEach((t,i)=>{lo=Math.min(lo,t);hi=Math.max(hi,t);const fall=clamp(OP.shown-i,0,1),y=base+26+(i%5)*13;dot(c,X(t),base+(y-base)*fall,5,K.sp[1],10);});
+  if(ns>=2){c.strokeStyle=K.sp[1];c.lineWidth=2;const y=h-30;c.beginPath();c.moveTo(X(lo),y-6);c.lineTo(X(lo),y);c.lineTo(X(hi),y);c.lineTo(X(hi),y-6);c.stroke();}
+  txt(c,`실험 ${ns} / 20번에서 찾은 문턱`,L+4,h-10,K.sp[1],12.5,true);
+  const frr=Phi((thTrue-mt)/S),errs=n*f,sp=ns>=2?hi-lo:0;
+  setKv('opKv',kv('목표 FAR',pct(f,1))+kv('문턱 (참값)',thTrue.toFixed(3))+kv('그때 FRR (본인 거절)',pct(frr,1))+kv('실험마다 문턱 흔들림',ns>=20?sp.toFixed(3):'실험 중',null,ns<20)+
+    kv('관찰되는 실수 (시도 수 × FAR)',(errs<10?errs.toFixed(1):Math.round(errs))+'번'+(errs<30?' · 30번 미만이라 믿기 어려움':''),errs<30?'--bad':'--ok',true));}};
+$('opRe').onclick=()=>{OP.seed+=1;kick();};
+bindSl({opN:v=>Math.round(10**v).toLocaleString()+'번'});
+TOURS.oppoint=[{say:'보안 목표 FAR 1%, 타인 시도 4,000번. 분홍 넓이가 1%가 되는 곳이 문턱입니다.',do:()=>document.querySelector('[data-og="0.01"]').click(),set:{opN:3.6}},
+ {say:'타인 시도가 300번뿐이면 실수는 3번꼴. 실험마다 문턱이 크게 흔들립니다.',set:{opN:2.5},t:1600,hold:3000},
+ {say:'10만 번이면 문턱이 한곳에 모입니다. 실수를 30번은 관찰해야 믿을 수 있습니다.',set:{opN:5},t:1800,hold:3000},
+ {say:'은행급(FAR 0.1%)은 문턱이 더 오른쪽입니다. 본인 거절(FRR)이 얼마나 커지는지 보세요.',do:()=>document.querySelector('[data-og="0.001"]').click(),hold:3200},
+ {say:'편의 우선(FAR 5%)이면 본인은 거의 거절되지 않습니다. 서비스가 정할 문제입니다.',do:()=>document.querySelector('[data-og="0.05"]').click(),hold:3000}];
+
+/* ═══ 6. 등록과 길이 ═══ */
+const EN={seed:3,pts:[],mx:0,my:0,L:3,born:[]};
+function enSeed(){const r=rnd(EN.seed);EN.pts=[];for(let i=0;i<14;i++)EN.pts.push([0.35*gauss(r),0.35*gauss(r)]);EN.born=EN.pts.map(()=>-1);}
+enSeed();
+const eerOf=(n,l)=>{const s=0.05+0.1/Math.sqrt(l),t=0.12/Math.sqrt(n);return 1-Phi(0.42/(2*Math.sqrt(s*s+t*t+0.002)));};
+STG.enroll={draw(dt,now){const N=val('enN');EN.L=ease(EN.L,val('enL'),dt,10);const L=EN.L;const en=EN.pts.slice(0,N),tx=en.reduce((p,q)=>p+q[0],0)/N,ty=en.reduce((p,q)=>p+q[1],0)/N;EN.mx=ease(EN.mx,tx,dt,6);EN.my=ease(EN.my,ty,dt,6);
+  const {c,w,h}=fit($('enCv'));grid(c,w,h);const wide=w>=560,half=wide?w*0.44:w,cx=half/2,cy=wide?h/2:h*0.5,R=Math.min(half*0.42,h*0.4);
+  c.strokeStyle=K.line;c.setLineDash([4,5]);c.beginPath();c.arc(cx,cy,R,0,7);c.stroke();c.setLineDash([]);
+  EN.pts.forEach((p,i)=>{const on=i<N;if(on&&EN.born[i]<0)EN.born[i]=now;if(!on)EN.born[i]=-1;const x=cx+p[0]*R,y=cy-p[1]*R;
+    if(on){const age=now-EN.born[i];if(age<0.6&&!RM){c.strokeStyle=`rgba(255,178,62,${1-age/0.6})`;c.lineWidth=2;c.beginPath();c.arc(x,y,6+age*40,0,7);c.stroke();}
+      c.strokeStyle='rgba(255,178,62,.3)';c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(cx+EN.mx*R,cy-EN.my*R);c.stroke();dot(c,x,y,5.5,K.sp[1],10);}
+    else dot(c,x,y,3.5,'rgba(135,148,184,.6)');});
+  c.strokeStyle=K.tx;c.lineWidth=2.5;c.beginPath();c.moveTo(cx-9,cy);c.lineTo(cx+9,cy);c.moveTo(cx,cy-9);c.lineTo(cx,cy+9);c.stroke();
+  const sx=cx+EN.mx*R,sy=cy-EN.my*R;c.strokeStyle=K.sp[2];c.lineWidth=2;c.setLineDash([3,3]);c.beginPath();c.moveTo(cx,cy);c.lineTo(sx,sy);c.stroke();c.setLineDash([]);
+  c.save();c.shadowColor=K.sp[2];c.shadowBlur=16;txt(c,'★',sx,sy+8,K.sp[2],24,true,'center');c.restore();
+  txt(c,'주황 = 등록 문장 · ★ 템플릿 · ✚ 진짜 중심',12,h-12,K.mu,12);
+  const e=eerOf(N,L);
+  if(wide){const x0=half+56,X=l=>x0+(l-0.5)/7.5*(w-x0-20),Y=v=>h-44-v/0.3*(h-90);
+    c.strokeStyle=K.line;c.lineWidth=1;c.beginPath();c.moveTo(x0,h-44);c.lineTo(w-16,h-44);c.moveTo(x0,h-44);c.lineTo(x0,32);c.stroke();
+    [0.1,0.2,0.3].forEach(v=>{txt(c,(v*100)+'%',x0-6,Y(v)+4,K.mu,11,false,'right');c.strokeStyle=K.grid;c.beginPath();c.moveTo(x0,Y(v));c.lineTo(w-16,Y(v));c.stroke();});
+    [1,2,4,6,8].forEach(l=>txt(c,l+'초',X(l),h-26,K.mu,11,false,'center'));
+    [[1,'rgba(135,148,184,.8)',1.5],[N,K.sp[0],3]].forEach(([n,col,lw])=>{c.strokeStyle=col;c.lineWidth=lw;c.beginPath();for(let i=0;i<=60;i++){const l=0.5+i/60*7.5,v=Math.min(0.3,eerOf(n,l));i?c.lineTo(X(l),Y(v)):c.moveTo(X(l),Y(v));}c.stroke();});
+    const my=Y(Math.min(0.3,e));c.strokeStyle=K.sp[0];c.setLineDash([2,4]);c.lineWidth=1;c.beginPath();c.moveTo(X(L),h-44);c.lineTo(X(L),my);c.stroke();c.setLineDash([]);dot(c,X(L),my,7,K.sp[0],16);
+    txt(c,'EER '+pct(e,1),X(L)+12,my-10,K.sp[0],14,true);txt(c,'EER과 시험 말 길이',x0+6,24,K.mu,12.5);txt(c,'회색 = 등록 1문장일 때',w-18,48,'rgba(135,148,184,.9)',11.5,false,'right');}
+  setKv('enKv',kv('템플릿 오차 (★ ↔ ✚)',Math.hypot(EN.mx,EN.my).toFixed(2))+kv('예상 EER',pct(e,1))+kv('등록 1문장이었다면',pct(eerOf(1,L),1)));}};
+$('enRe').onclick=()=>{EN.seed+=13;enSeed();kick();};
+bindSl({enN:v=>v+'문장',enL:v=>v.toFixed(1)+'초'});
+TOURS.enroll=[{say:'한 문장만 등록하면 템플릿(★)이 그 문장 자리에 놓입니다. 진짜 중심(✚)과 멀 수 있습니다.',set:{enN:1,enL:3}},
+ {say:'등록 문장을 하나씩 늘리면 ★이 ✚ 쪽으로 다가갑니다.',set:{enN:10},t:5000,hold:2200},
+ {say:'이제 시험 말을 0.5초로 줄여 봅니다. EER이 크게 나빠집니다.',set:{enL:0.5},t:2400,hold:2400},
+ {say:'3초를 넘기면 나아지는 폭이 줄어듭니다. "3초 이상 말하게 하기"가 실무 기준인 까닭입니다.',set:{enL:8},t:3600,hold:2400},
+ {say:'같은 사람도 어떤 문장으로 등록하느냐에 따라 템플릿이 달라집니다.',do:()=>{setSl('enN',2);$('enRe').click();},hold:2600}];
+
+/* ═══ 7. 1:N 식별 ═══ */
+const ID={seed:1,res:[],shown:100,key:''};
+function idCompute(){const N=val('idN'),p=val('idF')/100,r=rnd(ID.seed*97+N);ID.res=[];for(let i=0;i<100;i++){let acc=-1;for(let k=0;k<N;k++){if(r()<p){acc=k;break;}}ID.res.push(acc);}}
+STG.ident={draw(dt,now){const N=val('idN'),p=val('idF')/100;const key=N+'|'+p+'|'+ID.seed;if(key!==ID.key){const run=ID.run;ID.key=key;idCompute();ID.shown=run&&!RM?0:100;ID.run=false;}
+  ID.shown=Math.min(100,ID.shown+dt*34);const ns=Math.floor(ID.shown);ID.pN=ease(ID.pN||N,N,dt,8);
+  const {c,w,h}=fit($('idCv'));grid(c,w,h);const wide=w>=560,gw=wide?w*0.4:w*0.9,g=Math.min(26,(gw-20)/10,(h-110)/10),gx=22,gy=52;
+  txt(c,'모르는 사람 100명',gx,30,K.tx,13,true);
+  for(let i=0;i<100;i++){const x=gx+(i%10)*g+g/2,y=gy+Math.floor(i/10)*g+g/2;if(i<ns){const bad=ID.res[i]>=0;dot(c,x,y,g*0.34,bad?K.non:K.ok,bad?12:0);}
+    else if(i===ns){dot(c,x,y,g*0.34+Math.sin(now*20)*2,K.th,14);}else{c.strokeStyle=K.line;c.lineWidth=1;c.beginPath();c.arc(x,y,g*0.3,0,7);c.stroke();}}
+  /* 등록 템플릿 띠: 지금 전화와 차례로 비교 */
+  const sy=gy+10*g+16,M=Math.min(N,40),sw=Math.min(g*10,gw-10)/M;txt(c,`등록 ${N}명과 차례로 비교`,gx,sy-2,K.mu,12);
+  for(let k=0;k<M;k++){const scan=ns<100&&Math.floor((now*60)%M)===k;c.fillStyle=scan?K.th:'rgba(165,139,255,.5)';c.fillRect(gx+k*sw,sy+6,Math.max(1.5,sw-1.5),12);}
+  const th=1-(1-p)**ID.pN,bad=ID.res.slice(0,ns).filter(a=>a>=0).length;
+  if(wide){const x0=w*0.5,X=n=>x0+Math.log10(n)/Math.log10(200)*(w-x0-22),Y=v=>h-44-v*(h-96);
+    c.strokeStyle=K.line;c.lineWidth=1;c.beginPath();c.moveTo(x0,h-44);c.lineTo(w-16,h-44);c.moveTo(x0,h-44);c.lineTo(x0,40);c.stroke();
+    [0.25,0.5,0.75,1].forEach(v=>{txt(c,(v*100)+'%',x0-6,Y(v)+4,K.mu,11,false,'right');c.strokeStyle=K.grid;c.beginPath();c.moveTo(x0,Y(v));c.lineTo(w-16,Y(v));c.stroke();});
+    [1,5,20,100,200].forEach(n=>txt(c,n+'명',X(n),h-26,K.mu,11,false,'center'));
+    c.strokeStyle=K.non;c.lineWidth=3;c.beginPath();for(let i=0;i<=100;i++){const n=10**(i/100*Math.log10(200)),v=1-(1-p)**n;i?c.lineTo(X(n),Y(v)):c.moveTo(X(n),Y(v));}c.stroke();
+    c.strokeStyle=K.sp[4];c.setLineDash([4,4]);c.lineWidth=1.5;c.beginPath();c.moveTo(x0,Y(p));c.lineTo(w-16,Y(p));c.stroke();c.setLineDash([]);txt(c,'1:1 검증 '+pct(p,1),w-18,Y(p)-6,K.sp[4],12,true,'right');
+    dot(c,X(ID.pN),Y(th),7,K.non,16);txt(c,pct(th,1),X(ID.pN)+(ID.pN>60?-12:12),Y(th)-10,K.non,15,true,ID.pN>60?'right':'left');
+    txt(c,'모르는 사람이 누군가로 받아들여질 확률 = 1 − (1 − FAR)ᴺ',x0+6,26,K.mu,12.5);}
+  setKv('idKv',kv(`지금까지 ${ns}명 중 잘못 받아들임`,bad+'명',bad?'--a3':'--ok')+kv('이론값',pct(1-(1-p)**N,1))+kv('1:1 검증이었다면',pct(p,1))+kv('권장',N>20?'후보를 줄인 뒤 1:1 검증':'작은 집단이라 식별 가능',null,true));}};
+$('idGo').onclick=()=>{ID.seed++;ID.run=true;kick();};
+bindSl({idN:v=>v+'명',idF:v=>v.toFixed(1)+'%'});
+TOURS.ident=[{say:'가족 5명이 등록한 집. 모르는 사람 100명이 전화하면 몇 명이 통과할까요?',set:{idN:5,idF:1},do:()=>{},hold:600},{say:'5명과만 비교하니 잘못 받아들이는 일이 드뭅니다(이론값 약 5%).',do:()=>$('idGo').click(),hold:4200},
+ {say:'같은 문턱으로 100명이 등록한 병원에 쓰면?',set:{idN:100},t:2200,hold:900},{say:'모르는 사람의 60% 이상이 누군가로 받아들여집니다. 비교 횟수만큼 기회가 늘기 때문입니다.',do:()=>$('idGo').click(),hold:4600},
+ {say:'그래서 번호 · 이름으로 후보를 한 명으로 줄인 뒤 1:1로 검증합니다.',set:{idN:1},t:2400,hold:1000},{say:'1명과만 비교하면 오수락은 다시 1:1 FAR 그대로입니다.',do:()=>$('idGo').click(),hold:4000}];
+
+/* ═══ 8. 공격과 방어 ═══ */
+const SFA=[['gen','본인'],['imp','사칭 (다른 사람)'],['tts','TTS'],['rep','재생 (유출 녹음)'],['vcn','복제 (처음 보는 모델)'],['vck','복제 (학습한 모델)']];
+const SFP={gen:[0.93,0.9,0.95,0.99],imp:[0.01,0.95,0.97,0],tts:[0.05,0.95,0.15,0],rep:[0.85,0.05,0.6,0],vcn:[0.7,0.9,0.55,0],vck:[0.7,0.9,0.1,0]};
+const SFG=[['① 화자 검증','템플릿과 닮았나','--a1',K.sp[0]],['② 무작위 문장','요청 문장을 읽었나','--a4',K.sp[3]],['③ 위조 탐지','합성 · 변환 흔적','--a3',K.sp[2]],['④ 문자 인증','본인 휴대폰 번호','--a2',K.sp[1]]];
+const SF={a:'vcn',on:[true,true,true,false],r:rnd(5),x:0.05,st:'idle',gate:-1,t:0,res:[null,null,null,null],parts:[],verdict:'',stat:''};
+chipRow($('sfChips'),'data-sa',SFA,SF.a,'--a3',v=>{SF.a=v;sfReset();});
+$('sfGates').innerHTML=SFG.map((g,i)=>`<button class="chip" style="--c:var(${g[2]})" data-sg="${i}" aria-pressed="${SF.on[i]}">${esc(g[0])}</button>`).join('');
+$('sfGates').querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{const i=+b.dataset.sg;SF.on[i]=!SF.on[i];b.setAttribute('aria-pressed',SF.on[i]);sfReset();});
+function sfReset(){SF.x=0.05;SF.st='idle';SF.gate=-1;SF.res=[null,null,null,null];SF.parts=[];SF.verdict='';SF.stat='';kick();}
+const GX=[0.26,0.44,0.62,0.8];
+function sfFinish(ok){const gen=SF.a==='gen';SF.verdict=ok?(gen?'본인 확인 완료':'공격이 통과했습니다'):(gen?'본인인데 막힘 → 다른 방법으로 확인':'공격을 막았습니다');SF.vok=ok===gen;SF.st=ok?'done':'dead';}
+function sfInstant(){SF.res=[null,null,null,null];let ok=true;for(let i=0;i<4;i++){if(!SF.on[i])continue;const pass=SF.r()<SFP[SF.a][i];SF.res[i]=pass;if(!pass){ok=false;SF.x=GX[i]-0.03;break;}}if(ok)SF.x=0.94;sfFinish(ok);}
+STG.spoof={draw(dt,now){const P=SFP[SF.a],gen=SF.a==='gen',pc=gen?K.sp[0]:K.non;
+  const {c,w,h}=fit($('sfCv'));grid(c,w,h);const cy=h*0.48,small=w<600;
+  c.strokeStyle=K.line;c.lineWidth=2;c.setLineDash([2,8]);c.beginPath();c.moveTo(w*0.04,cy);c.lineTo(w*0.96,cy);c.stroke();c.setLineDash([]);
+  txt(c,'전화: '+SFA.find(a=>a[0]===SF.a)[1],14,26,pc,14,true);if(!small)txt(c,'예약 변경 허용',w*0.97,cy+34,K.mu,12,false,'right');
+  /* 상태 진행 */
+  if(SF.st==='move'){const next=[0,1,2,3].find(i=>i>SF.gate&&SF.on[i]);const tgX=next===undefined?0.94:GX[next]-0.035;SF.x+=dt*0.22;if(SF.x>=tgX){SF.x=tgX;if(next===undefined)sfFinish(true);else{SF.gate=next;SF.st='check';SF.t=0;}}}
+  else if(SF.st==='check'){SF.t+=dt;if(SF.t>0.75){const pass=SF.r()<P[SF.gate];SF.res[SF.gate]=pass;if(pass)SF.st='move';else{for(let k=0;k<26;k++){const a=k/26*6.283;SF.parts.push({x:SF.x*w,y:cy,vx:Math.cos(a)*(60+k*5),vy:Math.sin(a)*(60+k*5),t:0});}sfFinish(false);}}}
+  GX.forEach((gx,i)=>{const x=gx*w,on=SF.on[i],res=SF.res[i],col=res===true?K.ok:res===false?K.bad:SFG[i][3],chk=SF.st==='check'&&SF.gate===i;
+    c.globalAlpha=on?1:0.25;c.strokeStyle=col;c.lineWidth=res===null?3:5;c.save();if(res!==null||chk){c.shadowColor=col;c.shadowBlur=18;}
+    const gap=on?(res===true?34:(chk?10+Math.sin(now*18)*4:6)):40;c.beginPath();c.moveTo(x,cy-74);c.lineTo(x,cy-gap);c.moveTo(x,cy+gap);c.lineTo(x,cy+74);c.stroke();c.restore();
+    if(chk){c.strokeStyle=K.th;c.lineWidth=2;c.beginPath();c.arc(SF.x*w,cy,22,now*8,now*8+4.2);c.stroke();}
+    txt(c,small?SFG[i][0].slice(0,1):SFG[i][0],x,cy+98,col,small?16:13,true,'center');if(!small)txt(c,SFG[i][1],x,cy+116,K.mu,11.5,false,'center');
+    txt(c,on?(res===true?'통과':res===false?'막힘':(small?'':'통과 확률 ')+pct(P[i],0)):'꺼짐',x,cy-86,res===null?K.mu:col,12,res!==null,'center');c.globalAlpha=1;});
+  SF.parts=SF.parts.filter(p=>{p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=160*dt;if(p.t>0.9)return false;dot(c,p.x,p.y,3*(1-p.t/0.9)+0.5,pc,8);return true;});
+  if(SF.st!=='dead'){for(let k=1;k<=5&&SF.st==='move';k++)dot(c,SF.x*w-k*10,cy,7-k,pc+'88');dot(c,SF.x*w,cy,12+(SF.st==='idle'?Math.sin(now*4)*1.5:0),pc,20);}
+  else{c.strokeStyle=K.bad;c.lineWidth=4;const x=SF.x*w;c.beginPath();c.moveTo(x-11,cy-11);c.lineTo(x+11,cy+11);c.moveTo(x+11,cy-11);c.lineTo(x-11,cy+11);c.stroke();}
+  if(SF.verdict)txt(c,SF.verdict,w/2,h-16,SF.vok?K.ok:K.bad,15,true,'center');
+  let exp=1;SF.on.forEach((o,i)=>{if(o)exp*=P[i];});
+  setKv('sfKv',kv(gen?'본인이 통과할 확률':'공격이 통과할 확률',pct(exp,1),gen?(exp>0.8?'--ok':'--a2'):(exp>0.05?'--bad':'--ok'))+(SF.verdict?kv('이번 전화',SF.verdict,SF.vok?'--ok':'--bad',true):'')+(SF.stat?kv('100통을 걸면',SF.stat,null,true):''));}};
+$('sfGo').onclick=()=>{const keep=SF.stat;sfReset();SF.stat=keep;if(RM){sfInstant();kick();}else SF.st='move';};
+$('sf100').onclick=()=>{let n=0;for(let k=0;k<100;k++){let ok=true;for(let i=0;i<4;i++)if(SF.on[i]&&SF.r()>=SFP[SF.a][i]){ok=false;break;}if(ok)n++;}SF.stat=`${n}통 통과 · ${100-n}통 막힘`;kick();};
+const sfSet=(a,on)=>{document.querySelector(`[data-sa="${a}"]`).click();on.forEach((v,i)=>{if(SF.on[i]!==v)document.querySelector(`[data-sg="${i}"]`).click();});};
+TOURS.spoof=[{say:'화자 검증만 켰습니다. 유출된 본인 녹음을 틀면(재생 공격)?',do:()=>{sfSet('rep',[true,false,false,false]);$('sf100').click();$('sfGo').click();},hold:4200},
+ {say:'목소리는 진짜 본인이라 대부분 통과합니다. 무작위 문장 관문을 더합니다.',do:()=>{sfSet('rep',[true,true,false,false]);$('sf100').click();$('sfGo').click();},hold:4600},
+ {say:'녹음은 방금 요청한 문장을 읽을 수 없습니다. 이번엔 처음 보는 복제 모델로 공격합니다.',do:()=>{sfSet('vcn',[true,true,false,false]);$('sf100').click();$('sfGo').click();},hold:4800},
+ {say:'복제는 문장도 읽습니다. 위조 탐지를 더해도 처음 보는 공격은 절반쯤 지나갑니다.',do:()=>{sfSet('vcn',[true,true,true,false]);$('sf100').click();$('sfGo').click();},hold:5200},
+ {say:'목소리가 아닌 요소(문자 인증)를 더하면 목소리만으로 하는 공격은 모두 막힙니다.',do:()=>{sfSet('vcn',[true,true,true,true]);$('sf100').click();$('sfGo').click();},hold:5200},
+ {say:'대신 본인도 관문마다 조금씩 떨어집니다. 그래서 위험한 행동에만 관문을 더합니다.',do:()=>{sfSet('gen',[true,true,true,true]);$('sf100').click();$('sfGo').click();},hold:5600}];
+
+/* ═══ 9. 정리 퀴즈 ═══ */
+const RC=[
+ ['앱에서 등록한 사람들이 전화로 확인할 때만 자주 거절된다.',['전화 음질로도 등록받거나 채널별로 문턱 다시 정하기','모든 사람의 문턱을 한꺼번에 크게 낮추기','등록 문장 수를 1문장으로 줄여 빨리 끝내기'],0,'채널 불일치: 등록과 시험의 녹음 조건을 맞춥니다.'],
+ ['"네" 한마디로 본인 확인을 했더니 EER이 매우 나쁘다.',['3초 이상 문장을 읽게 해 말 길이를 늘리기','임베딩 길이를 192에서 16으로 줄이기','코사인 대신 두 벡터의 길이 차이를 쓰기'],0,'짧은 말은 임베딩이 크게 흔들립니다.'],
+ ['가족 5명용 식별 기능을 환자 1만 명 전체에 그대로 쓰려 한다.',['번호 · 이름으로 후보를 줄인 뒤 1:1 검증','1만 명의 템플릿 중 가장 높은 사람 고르기','문턱을 없애고 항상 가장 비슷한 사람으로'],0,'N이 크면 모르는 사람도 거의 항상 누군가가 됩니다.'],
+ ['SNS 영상에서 딴 본인 녹음을 틀어 인증을 통과한 사고가 났다.',['전화마다 다른 문장을 읽게 하는 무작위 문장','화자 검증의 문턱을 EER 문턱으로 낮추기','등록 템플릿을 매일 자동으로 다시 만들기'],0,'미리 녹음한 소리는 그때 요청한 문장을 읽을 수 없습니다.'],
+ ['새로 나온 복제 모델이 TTS만 배운 위조 탐지기를 통과했다.',['새 공격 수집 · 재학습 + 문자 인증 같은 다른 요소','위조 탐지 문턱을 0.99로 올려 덜 잡게 하기','화자 검증을 끄고 위조 탐지만 남겨 두기'],0,'탐지기는 처음 보는 공격에 약합니다. 겹겹이 막습니다.'],
+ ['임베딩이 평문으로 저장돼 있고, 한 환자가 동의를 철회했다.',['암호화 보관으로 바꾸고 그 환자 템플릿 즉시 삭제','숫자일 뿐이라 그대로 두고 철회만 기록하기','원본 녹음을 대신 보관해 두고 템플릿만 지우기'],0,'특징정보는 민감정보입니다. 철회하면 지웁니다.']];
+RC.forEach((it,i)=>{const r=i%3;it[1]=it[1].slice(r).concat(it[1].slice(0,r));it[2]=(3-r)%3;});
+let rcRight=0,rcDone=0;
+$('rcList2').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}"><div class="q">${i+1}. ${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList2').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(s.classList.contains('done'))return;const a=RC[+s.dataset.i][2],ok=+b.dataset.j===a;
+  b.className=ok?'right':'wrong';if(!ok)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');rcDone++;if(ok)rcRight++;
+  $('rcScore').textContent=`${rcRight} / 6`+(rcDone===6?(rcRight===6?' · 모두 맞혔습니다':' · 틀린 문제의 해설을 다시 읽어 보세요'):'');$('rcBar').style.width=(rcDone/6*100)+'%';}));
+STG.recap={};
+
+const h0=location.hash.slice(1);openTab(STG[h0]?h0:'flow',true);
+if(!RM)requestAnimationFrame(frame);else kick();
+window.__D35={STG,SF,ID,OP,EE};
+})();
+</script>
+</body>
+</html>
