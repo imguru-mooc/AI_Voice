@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D37 Audio LLM · Full-duplex: 인터랙티브 수업 자료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#E9EDF4;--panel:#FFFFFF;--ink:#0F1B3D;--muted:#55607E;--line:#CCD4E3;--soft:#DFE5F0;
+  --a1:#0E9C8A;--a2:#C97A00;--a3:#D23B7C;--a4:#6A4FCF;--a5:#2B78D6;--ok:#1E9A55;--bad:#D0453B;
+  --scope:#0A1024;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}}
+:root[data-theme="dark"]{
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;line-height:1.6;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+button,input,select{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid var(--a4);outline-offset:2px}
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+/* 왼쪽 정거장 목록 */
+.rail{position:sticky;top:0;align-self:start;height:100vh;padding:26px 14px 18px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
+.rail h1{font-size:1.5rem;font-weight:900;line-height:1.15;letter-spacing:-.03em;margin:0}
+.rail h1 small{display:block;font-size:.84rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:6px}
+nav.tabs{display:flex;flex-direction:column;gap:2px;position:relative}
+nav.tabs::before{content:"";position:absolute;left:14px;top:14px;bottom:14px;width:2px;background:var(--line)}
+nav.tabs button{position:relative;display:grid;grid-template-columns:30px 1fr;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:7px 8px 7px 0;border-radius:10px;cursor:pointer;color:var(--muted);font-size:.95rem}
+nav.tabs button .tc{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--page);border:2px solid var(--line);font-weight:700;font-size:.82rem;font-variant-numeric:tabular-nums;transition:background .2s,border-color .2s,color .2s}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-selected="true"] .tc{background:var(--ink);border-color:var(--ink);color:var(--page)}
+nav.tabs button.seen .tc{border-color:var(--a1)}
+.railfoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--muted)}
+.railfoot button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem;text-align:left}
+main{padding:30px clamp(16px,3vw,40px) 60px;max-width:1120px;width:100%;min-width:0}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:clamp(1.45rem,2.6vw,2.05rem);font-weight:900;letter-spacing:-.03em;line-height:1.2;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 18px;max-width:68ch}
+/* 측정 화면: 테마와 상관없이 늘 어두운 계측기 화면 */
+.scope{position:relative;background:var(--scope);border-radius:16px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 18px 40px -24px rgba(10,16,36,.7)}
+.scope canvas{display:block;width:100%;touch-action:none}
+.scope .tag{position:absolute;left:14px;top:10px;color:#8794B8;font-size:.78rem;pointer-events:none}
+.cap{min-height:1.7em;margin:10px 2px 0;font-weight:700;color:var(--a4);font-size:1rem}
+.cap:empty::before{content:"\00a0"}
+.deck{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:6px;align-items:start}
+@media (max-width:900px){.deck{grid-template-columns:1fr}}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.ctl h3,.read h3{margin:0 0 8px;font-size:.9rem;color:var(--muted);font-weight:700}
+label.sl{display:grid;grid-template-columns:minmax(96px,150px) 1fr 76px;gap:10px;align-items:center;margin:9px 0;font-size:.93rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--a4);height:22px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 15px;border-radius:999px;cursor:pointer;font-size:.92rem;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.go{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:700}
+.btn.tour{border-color:var(--a4);color:var(--a4);font-weight:700}
+.btn.tour[aria-pressed="true"]{background:var(--a4);color:#fff}
+.chip{border:2px solid var(--c,var(--a4));background:transparent;padding:6px 13px;border-radius:999px;cursor:pointer;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--c,var(--a4));color:#fff;font-weight:700}
+:root[data-theme="dark"] .chip[aria-pressed="true"],:root[data-theme="dark"] .btn.tour[aria-pressed="true"]{color:#0A1024}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"],:root:not([data-theme="light"]) .btn.tour[aria-pressed="true"]{color:#0A1024}}
+.read{display:grid;gap:8px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.kv div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 13px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.22rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.3}
+.kv b.s{font-size:.98rem;font-weight:700}
+.note{font-size:.86rem;color:var(--muted);margin:10px 2px 0}
+/* 흐름 */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px}
+.road button{text-align:left;border:0;border-top:4px solid var(--c);background:var(--panel);border-radius:0 0 12px 12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:78px}
+.road button b{color:var(--c);font-size:.82rem}
+.road button span{font-weight:700;line-height:1.3}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:760px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.roaddetail h3{margin:0 0 6px;font-size:1.1rem}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+/* 퀴즈 */
+.qbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-weight:700}
+.qbar .track{flex:1;height:10px;background:var(--soft);border-radius:99px;overflow:hidden}
+.qbar .track i{display:block;height:100%;width:0;background:var(--a1);border-radius:99px;transition:width .35s}
+.scen{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.scen .q{font-weight:700;margin-bottom:8px}
+.scen .opts{display:grid;gap:6px}
+.scen .opts button{text-align:left;border:1px solid var(--line);background:transparent;border-radius:10px;padding:9px 12px;cursor:pointer;transition:transform .12s}
+.scen .opts button:hover{border-color:var(--ink)}
+.scen .opts button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent);font-weight:700}
+.scen .opts button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.scen .fb{display:none;margin-top:8px;color:var(--muted);font-size:.92rem;border-left:3px solid var(--a1);padding-left:10px}
+.scen.done .fb{display:block}
+footer{margin-top:36px;color:var(--muted);font-size:.84rem}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{min-width:0;position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px 16px 10px;gap:10px}
+  nav.tabs{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:6px}
+  nav.tabs::before{display:none}
+  nav.tabs button{flex:0 0 auto;grid-template-columns:26px auto;gap:6px;padding:4px 10px 4px 0;font-size:.88rem;white-space:nowrap}
+  nav.tabs button .tc{width:26px;height:26px}
+  .railfoot{flex-direction:row;margin-top:0;align-items:center}
+  .railfoot span{display:none}
+  main{padding-top:18px}
+  label.sl{grid-template-columns:96px 1fr 66px;font-size:.88rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="rail">
+  <h1><small>음성 AI 전문가 과정 Day 37</small>듣는 LLM, 동시 대화</h1>
+  <nav class="tabs" role="tablist" aria-label="애니메이션 목록">
+    <button role="tab" aria-selected="true" data-t="flow"><span class="tc">1</span>오늘의 흐름</button>
+    <button role="tab" aria-selected="false" data-t="bottleneck"><span class="tc">2</span>글자 병목</button>
+    <button role="tab" aria-selected="false" data-t="tokens"><span class="tc">3</span>오디오 토큰</button>
+    <button role="tab" aria-selected="false" data-t="arch"><span class="tc">4</span>Audio LLM 구조</button>
+    <button role="tab" aria-selected="false" data-t="compare"><span class="tc">5</span>세 시스템 비교</button>
+    <button role="tab" aria-selected="false" data-t="trap"><span class="tc">6</span>함정 질문</button>
+    <button role="tab" aria-selected="false" data-t="duplex"><span class="tc">7</span>턴 기반 vs Full-duplex</button>
+    <button role="tab" aria-selected="false" data-t="streams"><span class="tc">8</span>두 흐름과 프레임</button>
+    <button role="tab" aria-selected="false" data-t="recap"><span class="tc">9</span>정리 퀴즈</button>
+  </nav>
+  <div class="railfoot">
+    <button id="themeBtn" type="button">화면 밝기 바꾸기</button>
+    <span>번호는 노트북의 🎬 D37-1 ~ 9와 같습니다. 키보드 ← → 로 넘길 수 있습니다.</span>
+  </div>
+</aside>
+<main>
+
+<section class="panel active" id="flow">
+  <h2>같은 통화, 두 가지 길</h2>
+  <p class="lead">통화 소리에는 네 가지 정보가 들어 있습니다. 위쪽 길(Cascade)에서는 받아쓰기를 지나며 글자만 남고, 아래쪽 길(Audio LLM)에서는 모두 LLM까지 갑니다. 대신 아래쪽은 토큰이 훨씬 많습니다.</p>
+  <div class="scope"><canvas id="flCv" data-h="330"></canvas></div>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="bottleneck">
+  <h2>받아쓰면 무엇이 남고 무엇이 사라지나</h2>
+  <p class="lead">손님의 말을 고르세요. 왼쪽 파형은 서로 다르지만, 받아쓰기 문을 지난 글자는 거의 같습니다. 오른쪽 표에서 글자만으로 답할 수 있는 질문을 확인하세요.</p>
+  <div class="scope"><canvas id="bnCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-bottleneck"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>손님의 말</h3>
+      <div class="row" id="bnChips" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="bottleneck" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="bnKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="tokens">
+  <h2>소리 토큰 = 길이 × 1초당 토큰 수</h2>
+  <p class="lead">네모 하나가 토큰 100개입니다. 통화 길이와 모델을 바꿔 소리로 넣을 때와 받아쓴 글로 넣을 때의 토큰 수를 비교하세요.</p>
+  <div class="scope"><canvas id="tkCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-tokens"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">통화 길이<input type="range" id="tkL" min="10" max="600" step="10" value="60"><output id="tkLo"></output></label>
+      <h3 style="margin-top:14px">소리를 토큰으로 바꾸는 모델</h3>
+      <div class="row" id="tkChips" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="tokens" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="tkKv"></div></div>
+  </div>
+  <p class="note">글자 토큰은 "1초에 약 5음절, 통화의 60%가 말, 한 음절이 약 1토큰"이라는 가정으로 어림한 값입니다.</p>
+</section>
+
+<section class="panel" id="arch">
+  <h2>소리가 LLM의 토큰 줄에 끼어드는 과정</h2>
+  <p class="lead">소리가 오디오 인코더에서 1초에 50개의 벡터가 되고, 어댑터가 이웃한 벡터를 묶어 개수를 줄인 뒤 글자 토큰과 한 줄로 LLM에 들어갑니다. 묶는 개수를 바꿔 보세요.</p>
+  <div class="scope"><canvas id="arCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-arch"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">묶는 개수<input type="range" id="arK" min="1" max="4" step="1" value="2"><output id="arKo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="arch" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="arKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="compare">
+  <h2>같은 LLM, 같은 질문, 다른 입력</h2>
+  <p class="lead">질문을 고르면 세 시스템이 각자 받은 자료를 훑어 답합니다. 글자만 받은 ①, 말투 주석이 붙은 글자를 받은 ②, 소리를 받은 ③의 답이 어디서 갈리는지 보세요. 답은 설명용 예시입니다.</p>
+  <div class="scope"><canvas id="cpCv" data-h="380"></canvas></div>
+  <p class="cap" id="cap-compare"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>질문</h3>
+      <div class="row" id="cpChips" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="compare" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="cpKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="trap">
+  <h2>없는 소리를 물으면</h2>
+  <p class="lead">통화에 개 짖는 소리는 없습니다. 그런데 질문을 계속 던지면 일부 답은 소리를 지어냅니다(분홍). 질문을 얼마나 유도하는지, 프롬프트에 "알 수 없으면 알 수 없음"을 넣었는지에 따라 지어낸 답의 비율이 달라집니다.</p>
+  <div class="scope"><canvas id="trCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-trap"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>질문하는 방식</h3>
+      <div class="row" id="trQ" style="margin-top:0"></div>
+      <h3 style="margin-top:14px">LLM이 받은 자료</h3>
+      <div class="row" id="trS" style="margin-top:0"></div>
+      <div class="row" id="trG"></div>
+      <div class="row"><button class="btn tour" data-tour="trap" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="trKv"></div></div>
+  </div>
+  <p class="note">비율은 설명용 모형입니다. 실제 값은 모델 · 녹음 · 질문에 따라 다르므로 노트북 3교시처럼 직접 시험합니다.</p>
+</section>
+
+<section class="panel" id="duplex">
+  <h2>침묵을 기다릴 것인가, 프레임마다 정할 것인가</h2>
+  <p class="lead">손님(파랑)이 "김민준이고요, 날짜는 …" 하고 말 중간에 쉬었다가 이어 말하고, 안내가 길어지면 끼어듭니다. 턴 기반 에이전트는 침묵 문턱으로, Full-duplex는 프레임마다 말할 때를 정합니다. 빨강은 겹쳐 말한 구간입니다.</p>
+  <div class="scope"><canvas id="dxCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-duplex"></p>
+  <div class="deck">
+    <div class="ctl">
+      <div class="row" id="dxChips" style="margin-top:0"></div>
+      <label class="sl">침묵 문턱<input type="range" id="dxE" min="0.3" max="2.5" step="0.1" value="0.7"><output id="dxEo"></output></label>
+      <label class="sl">생각 시간<input type="range" id="dxT" min="0.2" max="1.5" step="0.1" value="0.9"><output id="dxTo"></output></label>
+      <label class="sl">말 중간의 쉼<input type="range" id="dxP" min="0.4" max="2.4" step="0.1" value="1.8"><output id="dxPo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="duplex" aria-pressed="false">▶ 시연 보기</button><button class="btn go" id="dxGo">다시 재생</button></div>
+    </div>
+    <div class="read"><div class="kv" id="dxKv"></div></div>
+  </div>
+  <p class="note">Full-duplex는 "말이 끝났는지에 대한 판단이 맞았다"고 가정한 이상적인 경우입니다. 침묵 문턱 · 생각 시간은 턴 기반에만 적용됩니다.</p>
+</section>
+
+<section class="panel" id="streams">
+  <h2>80 ms마다 듣는 토큰 8개, 속말 하나, 말하는 토큰 8개</h2>
+  <p class="lead">세로 한 칸이 프레임 하나(80 ms)입니다. 위는 상대의 소리, 가운데는 모델의 속말(글자), 아래는 모델이 내는 소리입니다. 모델은 듣는 동안에도 매 프레임 '조용함'을 내고 있습니다.</p>
+  <div class="scope"><canvas id="stCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-streams"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">재생 속도<input type="range" id="stV" min="0.25" max="2" step="0.25" value="1"><output id="stVo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="streams" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="stKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2>이 상황에서 무엇을 고를까</h2>
+  <p class="lead">Audio LLM과 Full-duplex를 서비스에 넣을 때 만나는 문제 여섯 가지입니다.</p>
+  <div class="qbar"><span id="rcScore">0 / 6</span><div class="track"><i id="rcBar"></i></div></div>
+  <div id="rcList2"></div>
+</section>
+
+<footer>그림 속 숫자와 답은 설명용 시뮬레이션입니다. 실제 값은 노트북 실행 결과를 보세요. 통화 내용과 이름은 모두 가상입니다.</footer>
+</main>
+</div>
+
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const FONT='"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+/* 계측기 화면 색 (테마와 무관) */
+const K={tx:'#DCE3F5',mu:'#8794B8',grid:'rgba(150,170,255,.08)',line:'rgba(150,170,255,.22)',
+  sp:['#35D0BA','#FFB23E','#FF6FA9','#A58BFF','#6FB6FF'],ok:'#57E08A',bad:'#FF6B5E',th:'#FFE066',tgt:'#57E08A',non:'#FF6FA9'};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const pct=(v,d=1)=>(v*100).toFixed(d)+'%';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=(cur,tg,dt,k=9)=>cur+(tg-cur)*(1-Math.exp(-k*dt));
+function rnd(s){let x=(s>>>0)||1;const f=()=>{x=(x*16807)%2147483647;return x/2147483647;};f();f();f();return f;}
+function gauss(r){let u=0;while(u===0)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r());}
+function Phi(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+function invPhi(p){let lo=-9,hi=9;for(let i=0;i<60;i++){const m=(lo+hi)/2;if(Phi(m)<p)lo=m;else hi=m;}return (lo+hi)/2;}
+function fit(cv){const r=Math.min(2,devicePixelRatio||1),w=cv.clientWidth||cv.parentElement.clientWidth||640,h=+cv.dataset.h||300;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+function grid(c,w,h,step=40){c.strokeStyle=K.grid;c.lineWidth=1;c.beginPath();for(let x=step;x<w;x+=step){c.moveTo(x+.5,0);c.lineTo(x+.5,h);}for(let y=step;y<h;y+=step){c.moveTo(0,y+.5);c.lineTo(w,y+.5);}c.stroke();}
+function dot(c,x,y,r,col,glow=0){c.save();if(glow){c.shadowColor=col;c.shadowBlur=glow;}c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.restore();}
+function txt(c,s,x,y,col=K.tx,size=13,bold=false,align='left'){c.fillStyle=col;c.font=`${bold?'700 ':''}${size}px ${FONT}`;c.textAlign=align;c.fillText(s,x,y);c.textAlign='left';}
+const kvCache={};
+function setKv(id,html){if(kvCache[id]!==html){kvCache[id]=html;$(id).innerHTML=html;}}
+const kv=(k,v,col,small)=>`<div><span>${k}</span><b${small?' class="s"':''}${col?` style="color:var(${col})"`:''}>${v}</b></div>`;
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(fmt){Object.keys(fmt).forEach(id=>{const el=$(id),o=$(id+'o');const up=()=>{o.textContent=fmt[id](+el.value);kick();};el.addEventListener('input',up);o.textContent=fmt[id](+el.value);});}
+const val=id=>+$(id).value;
+function setSl(id,v){const el=$(id);el.value=v;el.dispatchEvent(new Event('input'));}
+
+/* ── 탭 · 프레임 루프 ── */
+const STG={};let active='flow',lastTs=0;
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function openTab(id,noHash){if(!$(id)||!STG[id])return;stopTour();active=id;
+  tabs.forEach(x=>{const on=x.dataset.t===id;x.setAttribute('aria-selected',on);if(on)x.classList.add('seen');});
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  if(STG[id].enter)STG[id].enter();kick();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>kick());
+addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  const i=tabs.findIndex(b=>b.dataset.t===active);if(e.key==='ArrowRight'&&i<tabs.length-1)openTab(tabs[i+1].dataset.t);if(e.key==='ArrowLeft'&&i>0)openTab(tabs[i-1].dataset.t);});
+function kick(){if(RM){const s=STG[active];if(s&&s.draw)s.draw(1,performance.now()/1000);}}
+function frame(ts){const dt=clamp((ts-lastTs)/1000||0.016,0.001,0.05);lastTs=ts;const s=STG[active];if(s&&s.draw)s.draw(dt,ts/1000);requestAnimationFrame(frame);}
+$('themeBtn').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';};
+
+/* ── 시연(자동 조작 + 자막) ── */
+let tourTok=null;const TOURS={};
+const wait=ms=>new Promise(r=>setTimeout(r,RM?Math.min(ms,30):ms));
+function stopTour(){if(tourTok){tourTok.stop=true;tourTok=null;}document.querySelectorAll('.btn.tour').forEach(b=>{b.setAttribute('aria-pressed','false');b.textContent='▶ 시연 보기';});
+  document.querySelectorAll('.cap').forEach(c=>c.textContent='');}
+async function runTour(id){const tok={stop:false};tourTok=tok;const btn=document.querySelector(`[data-tour="${id}"]`);btn.setAttribute('aria-pressed','true');btn.textContent='■ 시연 멈추기';const cap=$('cap-'+id);
+  for(const st of TOURS[id]){if(tok.stop)return;cap.textContent=st.say;if(st.do)st.do();
+    const moves=Object.entries(st.set||{}).map(([sid,to])=>[sid,val(sid),to]);const T=st.t||1300,t0=performance.now();
+    if(moves.length){while(!tok.stop){const p=RM?1:clamp((performance.now()-t0)/T,0,1),e=p<.5?2*p*p:1-2*(1-p)*(1-p);moves.forEach(([sid,a,b])=>setSl(sid,a+(b-a)*e));if(p>=1)break;await wait(16);}}
+    await wait(st.hold||1700);}
+  if(!tok.stop)stopTour();}
+document.querySelectorAll('.btn.tour').forEach(b=>b.onclick=()=>{const on=b.getAttribute('aria-pressed')==='true';stopTour();if(!on)runTour(b.dataset.tour);});
+
+/* ═══ 1. 흐름 ═══ */
+const INFO=[['내용',K.sp[0]],['말투',K.sp[1]],['쉼',K.sp[3]],['주변 소리',K.sp[2]]];
+function rr(c,x,y,w,h,col,fill){c.strokeStyle=col;c.lineWidth=1.8;c.beginPath();c.roundRect(x,y,w,h,8);if(fill){c.fillStyle=fill;c.fill();}c.stroke();}
+function wave(c,x0,x1,y,amp,now,col,gaps){c.strokeStyle=col;c.lineWidth=1.5;c.beginPath();for(let x=x0;x<x1;x+=3){const u=(x-x0)/(x1-x0);if(gaps&&gaps.some(([a,b])=>u>a&&u<b))continue;
+  const a=amp*(0.35+0.65*Math.abs(Math.sin(u*23+now*2.2)))*Math.sin(Math.PI*Math.min(1,u*6)*0.5);c.moveTo(x,y-a);c.lineTo(x,y+a);}c.stroke();}
+
+const FL={p:[]};
+STG.flow={draw(dt,now){const {c,w,h}=fit($('flCv'));grid(c,w,h);const wide=w>=640,x0=wide?120:70,x1=w-(wide?120:56),gx=x0+(x1-x0)*0.42;
+  const lanes=[[90,'Cascade','글자만 통과'],[230,'Audio LLM','모두 통과']];
+  lanes.forEach(([y,l,s],k)=>{txt(c,l,12,y-34,K.tx,wide?14:12.5,true);c.strokeStyle=K.line;c.lineWidth=1;c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.stroke();
+    rr(c,gx-34,y-30,68,60,k?K.sp[1]:K.sp[4],'rgba(10,16,36,.9)');txt(c,k?'인코더':'STT',gx,y-4,K.tx,13,true,'center');txt(c,k?'+ 어댑터':'받아쓰기',gx,y+14,K.mu,11.5,false,'center');
+    rr(c,x1-4,y-30,wide?96:52,60,K.sp[3],'rgba(10,16,36,.9)');txt(c,'LLM',x1-4+(wide?48:26),y+5,K.tx,13,true,'center');wave(c,12,x0-8,y,wide?16:10,now,K.sp[4]);});
+  if(!RM&&Math.random()<dt*9){const k=Math.floor(Math.random()*4),lane=Math.random()<.5?0:1;FL.p.push({k,lane,x:x0,y:0,vy:0,off:(Math.random()-.5)*26,dead:false});}
+  if(RM&&!FL.p.length)for(let i=0;i<40;i++)FL.p.push({k:i%4,lane:i%2,x:x0+(x1-x0)*(i/40),y:(i%4&&i%2===0&&i/40>0.42)?40:0,vy:0,off:((i*37)%26)-13,dead:false});
+  FL.p=FL.p.filter(p=>{const base=lanes[p.lane][0];if(!RM){p.x+=dt*(x1-x0)/3.4;if(p.lane===0&&p.k>0&&p.x>gx-34&&!p.dead){p.dead=true;p.vy=30;}if(p.dead){p.vy+=260*dt;p.y+=p.vy*dt;p.x-=dt*(x1-x0)/4.2;}}
+    if(p.x>x1-6||p.y>70)return false;const after=p.x>gx+34;dot(c,p.x,base+(after&&p.lane===1?p.off*0.5:p.off)+p.y,p.lane===1&&after?3:4.5,INFO[p.k][1],p.dead?0:6);
+    if(p.lane===1&&after&&!RM)dot(c,p.x-9,base-p.off*0.5,3,INFO[p.k][1]);return true;});
+  INFO.forEach(([l,col],i)=>{const x=wide?x0+i*118:12+(i%2)*((w-24)/2),y=wide?h-18:h-34+Math.floor(i/2)*18;dot(c,x,y-4,5,col);txt(c,l,x+12,y,K.tx,12.5);});
+  txt(c,'말투 · 쉼 · 주변 소리는 여기서 떨어짐',gx,lanes[0][0]+62,K.bad,wide?12.5:11,false,'center');txt(c,'토큰이 훨씬 많아짐',wide?gx+150:gx+70,lanes[1][0]+50,K.sp[1],wide?12.5:11,false,'center');}};
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--a5',go:'flow',items:['오늘의 머리: Gemini · OpenAI · 로컬 Qwen2.5-Omni','키는 Colab 보안 비밀에, 출력하지 않기','Whisper · Edge TTS'],q:'같은 LLM에 글자와 소리를 번갈아 넣습니다'},
+ {p:'Part 1',t:'글자 병목',c:'--a2',go:'bottleneck',items:['가상의 통화: 머뭇거림 · 큰 소리 · 아기 울음 · 기침','턴마다 받아쓰기 → 글자만 남음','소리 토큰 = 길이 × 1초당 토큰 수'],q:'⭐ transcribe_call ／ ✍️ 직접 작성 1: 오디오 토큰 수',more:[['tokens','오디오 토큰'],['arch','Audio LLM 구조']]},
+ {p:'Part 2',t:'소리로 묻기',c:'--a1',go:'arch',items:['소리는 메시지의 한 조각 (input_audio)','글자로 묻기 · 소리로 묻기','JSON 리포트와 unsure 칸'],q:'⭐ chat · ask_audio · listen_report ／ ✍️ 직접 작성 2: 소리가 든 메시지'},
+ {p:'Part 3',t:'세 시스템 비교',c:'--a4',go:'compare',items:['① 글자만 ② 글자 + 말투 주석 ③ 소리','질문 네 갈래: 내용 · 말투 · 주변 소리 · 함정','낱말 채점과 그 한계'],q:'⭐ voice_note · SYSTEMS ／ ✍️ 직접 작성 3: 채점 함수',more:[['trap','함정 질문']]},
+ {p:'Part 4',t:'Full-duplex',c:'--a3',go:'duplex',items:['Mimi: 80 ms 프레임 · 토큰 8개','턴 기반과 Full-duplex 모의실험','구조 고르기 표'],q:'⭐ Mimi · simulate ／ ✍️ 직접 작성 4: 겹쳐 말한 시간',more:[['streams','두 흐름과 프레임']]},
+ {p:'Part 5',t:'정리',c:'--bad',go:'recap',items:['오늘의 세 문장','서비스에 맞는 구조 고르기','D38: 음성 번역'],q:'📝 워크시트 25문항 (하루 한 장)'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row"><button class="btn go" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ═══ 2. 글자 병목 ═══ */
+const BNS={calm:{n:'평소 말투',amp:13,gaps:null,txt:'"네 시로 바꿀 수 있을까요?"',has:[1,0,0,0],d:'차분하게 한 번에 말함'},
+  hes:{n:'머뭇거림',amp:10,gaps:[[.12,.3],[.42,.6]],txt:'"저기 그게요 네 시로 바꿀 수 있을까요?"',has:[1,0,1,0],d:'토막 사이에 긴 쉼'},
+  loud:{n:'빠르고 큰 소리',amp:24,gaps:null,txt:'"네, 알겠습니다. 괜찮습니다."',has:[1,1,0,0],d:'글자는 공손, 소리는 빠르고 큼'},
+  baby:{n:'뒤에서 아기 울음',amp:13,gaps:null,txt:'"네 시로 바꿀 수 있을까요?"',has:[1,0,0,1],d:'말 뒤로 아기 울음이 섞임'}};
+const BN={k:'calm',t:0};
+chipRow($('bnChips'),'data-bn',Object.entries(BNS).map(([k,v])=>[k,v.n]),'calm','--a2',v=>{BN.k=v;BN.t=0;});
+STG.bottleneck={draw(dt,now){const {c,w,h}=fit($('bnCv'));grid(c,w,h);const S=BNS[BN.k],wide=w>=640;BN.t+=dt;const gx=wide?w*0.46:w*0.5,y=wide?120:96;
+  txt(c,'손님의 소리',14,34,K.mu,12.5,true);wave(c,14,gx-56,y,S.amp,now*(BN.k==='loud'?1.8:1),K.sp[4],S.gaps);
+  if(BN.k==='baby'){c.strokeStyle=K.sp[2];c.lineWidth=1.5;c.beginPath();for(let x=14;x<gx-56;x+=2){const yy=y+44+Math.sin(x*0.09+now*6)*8*Math.abs(Math.sin(x*0.02+now));x===14?c.moveTo(x,yy):c.lineTo(x,yy);}c.stroke();txt(c,'아기 울음',14,y+72,K.sp[2],11.5);}
+  if(S.gaps)S.gaps.forEach(([a,b])=>{const xa=14+(gx-70)*a,xb=14+(gx-70)*b;c.strokeStyle=K.sp[3];c.setLineDash([3,3]);c.beginPath();c.moveTo(xa,y+26);c.lineTo(xb,y+26);c.stroke();c.setLineDash([]);txt(c,'쉼',(xa+xb)/2,y+42,K.sp[3],11.5,false,'center');});
+  rr(c,gx-44,y-46,88,92,K.sp[4],'rgba(10,16,36,.92)');txt(c,'STT',gx,y-6,K.tx,15,true,'center');txt(c,'받아쓰기',gx,y+14,K.mu,12,false,'center');
+  const tx=gx+60;txt(c,'남은 글자',tx,34,K.mu,12.5,true);const a=clamp(BN.t*1.4,0,1),s=S.txt.slice(0,Math.ceil(S.txt.length*a));
+  if(wide)txt(c,s,tx,y+5,K.ok,14.5,true);else{txt(c,s.slice(0,13),tx,y-4,K.ok,12,true);txt(c,s.slice(13),tx,y+14,K.ok,12,true);}
+  const by=wide?218:190;INFO.forEach(([l,col],i)=>{const bx=14+i*((w-28)/4),bw=(w-28)/4-8,in0=S.has[i],keep=i===0;
+    rr(c,bx,by,bw,wide?86:104,in0?col:K.line,in0?'rgba(10,16,36,.9)':null);txt(c,l,bx+bw/2,by+24,in0?col:K.mu,wide?13.5:12,true,'center');
+    txt(c,in0?'소리에 있음':'소리에 없음',bx+bw/2,by+46,in0?K.tx:K.mu,wide?12:11,false,'center');
+    if(in0)txt(c,keep?(wide?'글자에 남음 ✓':'남음 ✓'):(wide?'글자에서 사라짐 ✕':'사라짐 ✕'),bx+bw/2,by+(wide?68:72),keep?K.ok:K.bad,wide?12.5:11.5,true,'center');});
+  const lost=INFO.filter((_,i)=>i&&S.has[i]).map(x=>x[0]);
+  setKv('bnKv',kv('이 말의 특징',S.d,null,true)+kv('받아쓴 글자',esc(S.txt),'--ok',true)+kv('글자에서 사라진 것',lost.length?lost.join(' · '):'없음',lost.length?'--bad':null)+kv('글자만 본 LLM의 판단',BN.k==='loud'?'만족한 손님으로 읽음':BN.k==='calm'?'소리와 같음':'평소 말투와 구분 못 함',null,true));}};
+TOURS.bottleneck=[{say:'평소 말투입니다. 소리에 있는 정보는 내용뿐이고, 글자에 그대로 남습니다.',do:()=>document.querySelector('[data-bn="calm"]').click(),hold:3000},
+ {say:'머뭇거리며 말했습니다. 쉼은 받아쓰기를 지나며 사라지고 글자는 평소와 거의 같습니다.',do:()=>document.querySelector('[data-bn="hes"]').click(),hold:3600},
+ {say:'"네, 알겠습니다. 괜찮습니다." 글자는 공손하지만 소리는 빠르고 큽니다. 글자만 본 LLM은 만족한 손님으로 읽습니다.',do:()=>document.querySelector('[data-bn="loud"]').click(),hold:4200},
+ {say:'뒤에서 아기가 웁니다. 받아쓰기는 말이 아닌 소리를 버리도록 학습되어 글자에 남지 않습니다.',do:()=>document.querySelector('[data-bn="baby"]').click(),hold:3800}];
+
+/* ═══ 3. 오디오 토큰 ═══ */
+const TKM={whisper:['Whisper 인코더',50],gemini:['Gemini',32],qwen:['Qwen2.5-Omni',25],mimi:['Mimi (프레임)',12.5]};
+const TK={m:'gemini',a:0,b:0};
+chipRow($('tkChips'),'data-tk',Object.entries(TKM).map(([k,v])=>[k,`${v[0]} · ${v[1]}/초`]),'gemini','--a1',v=>{TK.m=v;});
+bindSl({tkL:v=>v<60?v+'초':Math.floor(v/60)+'분'+(v%60?' '+v%60+'초':'')});
+STG.tokens={draw(dt,now){const {c,w,h}=fit($('tkCv'));grid(c,w,h);const L=val('tkL'),rate=TKM[TK.m][1],au=Math.ceil(L*rate),tx=Math.ceil(L*0.6*5);
+  TK.a=ease(TK.a,au,dt,7);TK.b=ease(TK.b,tx,dt,7);const cell=w>=640?13:9,gap=3,cols=Math.floor((w-28)/(cell+gap));
+  const draw=(n,y0,col,lab,num)=>{txt(c,lab,14,y0-8,K.tx,13,true);txt(c,Math.round(num).toLocaleString()+' 토큰',w-14,y0-8,col,13.5,true,'right');const boxes=Math.ceil(n/100),maxRows=Math.floor((y0===46?150:70)/(cell+gap)),cap=cols*maxRows;
+    for(let i=0;i<Math.min(boxes,cap);i++){const x=14+(i%cols)*(cell+gap),y=y0+Math.floor(i/cols)*(cell+gap);c.fillStyle=col;c.globalAlpha=(i===boxes-1)?0.5+0.5*Math.sin(now*6):0.9;c.fillRect(x,y,cell,cell);}c.globalAlpha=1;
+    if(boxes>cap)txt(c,`… 외 ${(boxes-cap).toLocaleString()}칸`,w-14,y0+maxRows*(cell+gap)+12,K.mu,11.5,false,'right');};
+  draw(TK.a,46,K.sp[1],'소리로 넣으면',TK.a);draw(TK.b,246,K.sp[0],'받아쓴 글로 넣으면 (어림)',TK.b);
+  setKv('tkKv',kv('소리 토큰',au.toLocaleString(),'--a2')+kv('글자 토큰 (어림)',tx.toLocaleString(),'--a1')+kv('소리 ÷ 글자',(au/tx).toFixed(1)+'배')+kv('계산',`올림(${L} × ${rate})`,null,true));}};
+TOURS.tokens=[{say:'1분 통화를 Gemini에 소리로 넣으면 60 × 32 = 1,920 토큰입니다. 받아쓴 글은 약 180 토큰입니다.',do:()=>document.querySelector('[data-tk="gemini"]').click(),set:{tkL:60},hold:3600},
+ {say:'10분 통화로 늘리면 소리 토큰은 19,200개가 됩니다. 길이에 정비례합니다.',set:{tkL:600},t:2600,hold:3000},
+ {say:'Whisper 인코더는 1초에 50프레임입니다. 그래서 Audio LLM은 어댑터로 개수를 줄입니다.',do:()=>document.querySelector('[data-tk="whisper"]').click(),hold:3400},
+ {say:'Mimi 코덱은 1초에 12.5프레임뿐입니다. 실시간으로 프레임마다 생성하려고 일부러 낮춘 값입니다.',do:()=>document.querySelector('[data-tk="mimi"]').click(),set:{tkL:60},t:1800,hold:3400}];
+
+/* ═══ 4. 구조 ═══ */
+const AR={t:0};bindSl({arK:v=>v+'개씩'});
+STG.arch={draw(dt,now){const {c,w,h}=fit($('arCv'));grid(c,w,h);const k=val('arK'),wide=w>=640;if(!RM)AR.t+=dt;const T=RM?1.3:AR.t;
+  const yA=70,yB=160,yC=262,x0=wide?150:14,x1=w-14;
+  txt(c,wide?'① 소리 16 kHz':'① 소리',14,wide?yA+5:yA-28,K.mu,12.5,true);wave(c,x0,x1,yA,18,now,K.sp[4]);
+  txt(c,wide?'② 인코더 50개/초':'② 인코더 50개/초',14,wide?yB-20:yB-52,K.mu,12.5,true);txt(c,wide?'③ 어댑터':'③ 어댑터 '+(50/k).toFixed(1)+'개/초',14,wide?yB+26:yB+56,K.mu,12.5,true);
+  const n=wide?48:24,fw=(x1-x0)/n;for(let i=0;i<n;i++){const ph=((T*0.9-i/n)%1+1)%1,on=ph<0.12;c.fillStyle=K.sp[1];c.globalAlpha=on?1:0.45;c.fillRect(x0+i*fw+1,yB-38,fw-2,22);c.globalAlpha=1;
+    const g=Math.floor(i/k);if(i%k===0){const gw=Math.min(k,n-i)*fw;c.fillStyle=K.sp[0];c.globalAlpha=0.75;c.fillRect(x0+i*fw+1,yB+10,gw-2,22);c.globalAlpha=1;c.strokeStyle=K.line;c.beginPath();c.moveTo(x0+i*fw+gw/2,yB-14);c.lineTo(x0+i*fw+gw/2,yB+10);c.stroke();}}
+  txt(c,'④ LLM이 읽는 토큰 한 줄',14,yC-30,K.mu,12.5,true);const pre=wide?4:2,post=wide?5:3,au=Math.min(wide?26:12,Math.ceil(n/k)),tot=pre+au+post,cw=Math.min(30,(w-28)/tot);
+  for(let i=0;i<tot;i++){const kind=i<pre?0:i<pre+au?1:2,col=kind===1?K.sp[0]:K.sp[3];c.fillStyle=col;c.globalAlpha=kind===1?0.5+0.4*Math.abs(Math.sin(now*3+i*0.5)):0.9;c.fillRect(14+i*cw+1,yC-16,cw-2,26);c.globalAlpha=1;}
+  txt(c,'시스템 글자',14,yC+30,K.sp[3],11.5);txt(c,'소리 토큰',14+(pre+au/2)*cw,yC+30,K.sp[0],11.5,true,'center');txt(c,'질문 글자',14+tot*cw,yC+30,K.sp[3],11.5,false,'right');
+  const r=50/k;setKv('arKv',kv('인코더 출력','50개/초')+kv('어댑터 뒤',r.toFixed(1)+'개/초','--a1')+kv('30초 소리',Math.ceil(30*r).toLocaleString()+' 토큰','--a2')+kv('같은 모델',k===2?'Qwen2.5-Omni(25)와 같음':k===1?'묶지 않음: 가장 자세하고 가장 비쌈':k===4?'12.5/초: Mimi와 같은 속도':'16.7/초',null,true));}};
+TOURS.arch=[{say:'소리가 인코더에서 1초에 50개의 벡터가 됩니다. 묶지 않으면 30초에 1,500 토큰입니다.',set:{arK:1},hold:3400},
+ {say:'이웃한 2개를 묶으면 1초에 25개. Qwen2.5-Omni가 쓰는 속도입니다.',set:{arK:2},t:1200,hold:3200},
+ {say:'4개씩 묶으면 12.5개. 싸고 빠르지만 짧은 소리(기침 한 번)는 토큰 한두 개에 뭉개집니다.',set:{arK:4},t:1200,hold:3600},
+ {say:'LLM은 이 소리 토큰을 시스템 글자와 질문 글자 사이에 끼워 한 줄로 읽습니다.',set:{arK:2},t:1000,hold:3000}];
+
+/* ═══ 5. 비교 ═══ */
+const CPQ=[['time','내용: 몇 시로 바꾸려 했나요?',['네 시입니다',1],['네 시입니다',1],['네 시입니다',1]],
+ ['hes','말투: 머뭇거렸나요?',['알 수 없음',0],['쉼 45%: 머뭇거렸습니다',1],['말을 끊어 가며 머뭇거렸습니다',1]],
+ ['fast','말투: 마지막 말이 달라졌나요?',['알 수 없음',0],['말속도 +30%, 크기 +8 dB',1],['빨라지고 커졌습니다',1]],
+ ['baby','주변 소리: 무슨 소리가 났나요?',['알 수 없음',0],['알 수 없음 (주석에 없음)',0],['아기 울음과 기침',1]],
+ ['dog','함정: 개가 몇 번 짖었나요?',['알 수 없음',1],['알 수 없음',1],['두 번 짖었습니다 (지어냄)',0]]];
+const CP={q:'time',t:0,seen:{}};
+chipRow($('cpChips'),'data-cp',CPQ.map(q=>[q[0],q[1]]),'time','--a4',v=>{CP.q=v;CP.t=0;});
+STG.compare={draw(dt,now){const {c,w,h}=fit($('cpCv'));grid(c,w,h);CP.t+=dt;const Q=CPQ.find(q=>q[0]===CP.q),wide=w>=640,n=3,pw=(w-28-(n-1)*10)/n,top=40,ph=wide?212:176;
+  const names=wide?['① Cascade (글자만)','② 글자 + 말투 주석','③ Audio LLM (소리)']:['① 글자만','② + 주석','③ 소리'];
+  for(let i=0;i<n;i++){const x=14+i*(pw+10),col=[K.sp[4],K.sp[1],K.sp[0]][i];rr(c,x,top,pw,ph,col,'rgba(10,16,36,.88)');txt(c,names[i],x+pw/2,top-10,col,wide?13:11.5,true,'center');
+    if(i<2){const lines=wide?['상담원: 무엇을 도와…','손님: 내일 세 시 예약…','상담원: 세 시로 예약…','손님: 네 시로 바꿀…','상담원: 네 시는 찼습…','손님: 네, 알겠습니다']:['상: 무엇을…','손: 세 시…','상: 예약…','손: 네 시…','상: 찼습…','손: 알겠…'];
+      lines.forEach((l,j)=>{txt(c,l,x+10,top+24+j*(wide?31:24),j%2?K.tx:K.mu,wide?12:10.5);if(i===1&&j%2&&j>1)txt(c,wide?(j===3?'[말속도 -15% · 쉼 45%]':'[말속도 +30% · 크기 +8 dB]'):(j===3?'[쉼 45%]':'[+30%]'),x+10,top+24+j*(wide?31:24)+(wide?13:11),K.sp[1],wide?10.5:9.5);});}
+    else{for(let j=0;j<3;j++)wave(c,x+10,x+pw-10,top+40+j*52,[12,9,20][j],now+j,K.sp[4],j===1?[[.1,.3],[.45,.6]]:null);c.strokeStyle=K.sp[2];c.beginPath();for(let xx=x+10;xx<x+pw-10;xx+=2){const yy=top+118+Math.sin(xx*0.11+now*6)*5;xx===x+10?c.moveTo(xx,yy):c.lineTo(xx,yy);}c.stroke();}
+    const sy=top+((CP.t*0.9)%1)*ph;if(CP.t<1.15&&!RM){c.strokeStyle=K.th;c.lineWidth=2;c.beginPath();c.moveTo(x+4,sy);c.lineTo(x+pw-4,sy);c.stroke();}
+    const [ans,ok]=Q[2+i],by=top+ph+14;if(CP.t>1.15||RM){rr(c,x,by,pw,wide?70:92,ok?K.ok:K.bad,'rgba(10,16,36,.92)');const words=ans.split(' ');let line='',ly=by+24;c.font=`700 ${wide?13:11.5}px ${FONT}`;
+      words.forEach(wd=>{if(c.measureText(line+wd).width>pw-20){txt(c,line,x+10,ly,K.tx,wide?13:11.5,true);line='';ly+=wide?18:16;}line+=wd+' ';});txt(c,line,x+10,ly,K.tx,wide?13:11.5,true);txt(c,ok?'✓':'✕',x+pw-12,by+(wide?58:80),ok?K.ok:K.bad,15,true,'right');}}
+  if(CP.t>1.15||RM)CP.seen[CP.q]=1;const sc=[0,1,2].map(i=>CPQ.filter(q=>CP.seen[q[0]]&&q[2+i][1]).length),tot=Object.keys(CP.seen).length;
+  setKv('cpKv',kv('본 질문',tot+' / 5')+kv('① 글자만',sc[0]+' / '+tot,'--a5')+kv('② 글자 + 주석',sc[1]+' / '+tot,'--a2')+kv('③ 소리',sc[2]+' / '+tot,'--a1'));}};
+TOURS.compare=CPQ.map((q,i)=>({say:['내용 질문은 세 시스템 모두 맞힙니다. 글자에 남아 있기 때문입니다.','머뭇거림은 글자에 없습니다. ②는 "쉼 45%" 주석을 보고, ③은 직접 듣고 답합니다.','마지막 말의 말투도 같습니다. ①만 알 수 없다고 답합니다.','주변 소리는 ②의 주석에 넣지 않았습니다. 미리 뽑아 준 것만 알 수 있는 것이 ②의 한계입니다.','개는 짖지 않았습니다. 글자만 본 쪽은 알 수 없다고 하지만, 소리를 들은 쪽이 질문에 맞춰 지어낼 수 있습니다.'][i],do:()=>document.querySelector(`[data-cp="${q[0]}"]`).click(),hold:4200}));
+
+/* ═══ 6. 함정 ═══ */
+const TR={q:'lead',s:'audio',g:false,drops:[],acc:0,r:rnd(11),cnt:[0,0],key:''};
+chipRow($('trQ'),'data-tq',[['open','"개 소리가 들렸나요?"'],['lead','"개가 몇 번 짖었나요?"']],'lead','--a3',v=>{TR.q=v;});
+chipRow($('trS'),'data-ts',[['text','받아쓴 글'],['audio','소리']],'audio','--a1',v=>{TR.s=v;});
+$('trG').innerHTML='<button class="chip" id="trB" style="--c:var(--ok)" aria-pressed="false">프롬프트에 "알 수 없으면 알 수 없음" 넣기</button>';$('trB').onclick=()=>{TR.g=!TR.g;$('trB').setAttribute('aria-pressed',TR.g);};
+const trP=()=>clamp((TR.s==='audio'?0.16:0.05)*(TR.q==='lead'?2.6:1)*(TR.g?0.3:1),0,0.9);
+STG.trap={draw(dt,now){const {c,w,h}=fit($('trCv'));grid(c,w,h);const p=trP(),key=TR.q+TR.s+TR.g;if(key!==TR.key){TR.key=key;TR.cnt=[0,0];TR.drops=[];}
+  const mid=w/2,fy=h-60;txt(c,'정직한 답',mid/2,28,K.tgt,13.5,true,'center');txt(c,'지어낸 답',mid+mid/2,28,K.non,13.5,true,'center');txt(c,'"들리지 않았습니다 · 알 수 없음"',mid/2,46,K.mu,11.5,false,'center');txt(c,'"두 번 짖었습니다"',mid+mid/2,46,K.mu,11.5,false,'center');
+  c.strokeStyle=K.line;c.beginPath();c.moveTo(mid,56);c.lineTo(mid,fy);c.moveTo(14,fy);c.lineTo(w-14,fy);c.stroke();
+  if(!RM){TR.acc+=dt*14;while(TR.acc>=1){TR.acc-=1;const bad=TR.r()<p;TR.drops.push({bad,x:(bad?mid:0)+30+TR.r()*(mid-60),y:60,vy:40+TR.r()*50});}}else if(!TR.cnt[0]&&!TR.cnt[1]){TR.cnt=[Math.round(200*(1-p)),Math.round(200*p)];}
+  TR.drops=TR.drops.filter(d=>{d.vy+=420*dt;d.y+=d.vy*dt;if(d.y>fy-4){TR.cnt[d.bad?1:0]++;return false;}dot(c,d.x,d.y,4,d.bad?K.non:K.tgt,6);return true;});
+  const tot=TR.cnt[0]+TR.cnt[1]||1,bh=fy-70;[0,1].forEach(i=>{const hh=bh*TR.cnt[i]/tot,x=(i?mid:0)+mid/2-40;c.fillStyle=i?K.non:K.tgt;c.globalAlpha=.35;c.fillRect(x,fy-hh,80,hh);c.globalAlpha=1;txt(c,pct(TR.cnt[i]/tot,0),x+40,fy-hh-8,i?K.non:K.tgt,15,true,'center');});
+  txt(c,`지금까지 ${tot.toLocaleString()}번 물음`,mid,h-22,K.mu,12,false,'center');
+  setKv('trKv',kv('지어낼 확률 (모형)',pct(p,0),'--a3')+kv('지금까지 지어낸 비율',pct(TR.cnt[1]/tot,0))+kv('질문',TR.q==='lead'?'있다고 가정하고 물음':'있는지부터 물음',null,true)+kv('자료 · 프롬프트',(TR.s==='audio'?'소리':'글자')+' · '+(TR.g?'알 수 없음 허용':'허용 문구 없음'),null,true));}};
+const trSet=(q,s,g)=>{document.querySelector(`[data-tq="${q}"]`).click();document.querySelector(`[data-ts="${s}"]`).click();if(TR.g!==g)$('trB').click();};
+TOURS.trap=[{say:'소리를 들려주고 "개가 몇 번 짖었나요?"라고 묻습니다. 있다고 가정한 질문이라 꽤 많은 답이 횟수를 지어냅니다.',do:()=>trSet('lead','audio',false),hold:4200},
+ {say:'"개 소리가 들렸나요?"로 바꾸면 지어낸 답이 줄어듭니다. 질문이 답을 유도하지 않게 씁니다.',do:()=>trSet('open','audio',false),hold:3800},
+ {say:'프롬프트에 "알 수 없으면 알 수 없음"을 넣으면 더 줄어듭니다. 0이 되지는 않습니다.',do:()=>trSet('lead','audio',true),hold:3800},
+ {say:'받아쓴 글만 준 경우입니다. 글자에는 근거가 없다는 것이 분명해서 지어내는 일이 훨씬 적습니다.',do:()=>trSet('lead','text',true),hold:3800}];
+
+/* ═══ 7. 턴 기반 vs Full-duplex ═══ */
+const DX={mode:'turn',t:0,key:'',sim:null};const DXF=0.08;
+chipRow($('dxChips'),'data-dx',[['turn','턴 기반 (침묵 문턱)'],['duplex','Full-duplex (이상적)']],'turn','--a5',v=>{DX.mode=v;DX.t=0;});
+bindSl({dxE:v=>v.toFixed(1)+'초',dxT:v=>v.toFixed(1)+'초',dxP:v=>v.toFixed(1)+'초'});$('dxGo').onclick=()=>{DX.t=0;};
+function dxSim(duplex,endpoint,think,pause){const F=s=>Math.max(1,Math.round(s/DXF)),n=Math.round(40/DXF),U=[[2.9,'t',0.5,1],[1.7,'ae',0.5,0],[2.0,'ue',pause,1],[1.5,'as',1.5,1]],R=[3.0,6.0,1.7],stop=duplex?0.16:0.4;
+  const user=new Uint8Array(n),agent=new Uint8Array(n),back=new Uint8Array(n);let k=0,uU=-1,uE=null,uF=1,aU=-1,aE=0,aS=null,done=0,rep=0,sil=0,heard=0,pend=null,run=0;const L={te:[],rp:[],fs:[],st:[],us:[]};
+  for(let i=0;i<n;i++){if(i>uU&&k<U.length){const [d,kind,v]=U[k];const ok=kind==='t'?i>=F(v):kind==='ue'?uE!==null&&i>=uE+F(v):kind==='ae'?rep>=done&&i>aU&&i>=aE+F(v):rep>=done&&aS!==null&&i>=aS+F(v);if(ok){uU=i+F(d)-1;uF=U[k][3];L.us.push(i);k++;}}
+    if(i<=uU){user[i]=1;if(i===uU){uE=i;if(uF){done++;L.te.push(i);}}}
+    const sp=i<=aU;if(user[i]){sil=0;heard=1;pend=null;if(sp){run++;if(run>=F(stop)){aU=aE=i;L.st.push(i);}}}else{sil++;run=0;}
+    let start=false;if(!duplex){if(heard&&!sp&&pend===null&&sil===F(endpoint))pend=i+F(think);start=pend===i;}
+    else if(heard&&!sp&&!user[i]){if(rep<done&&sil>=F(0.2))start=true;else if(rep===done&&!uF&&sil===F(0.5))for(let j=i;j<i+F(0.5)&&j<n;j++)back[j]=1;}
+    if(start){const pr=rep<done,d=pr?R[rep]:2.4;aU=i+F(d)-1;heard=0;pend=null;if(pr){L.rp.push(i);aS=i;rep++;}else L.fs.push(i);}
+    if(i<=aU){agent[i]=1;if(i===aU)aE=i;}}
+  let ov=0,last=0;for(let i=0;i<n;i++){if(user[i]&&agent[i])ov++;if(user[i]||agent[i])last=i;}
+  const dl=L.rp.map((r,j)=>(r-L.te[j])*DXF);return {user,agent,back,L,ov:ov*DXF,end:last*DXF,delay:dl.length?dl.reduce((a,b)=>a+b,0)/dl.length:0,n};}
+STG.duplex={enter(){DX.t=0;},draw(dt,now){const dup=DX.mode==='duplex',e=val('dxE'),th=val('dxT'),p=val('dxP'),key=[dup,e,th,p].join();if(key!==DX.key){DX.key=key;DX.sim=dxSim(dup,e,th,p);DX.t=0;}
+  const S=DX.sim,{c,w,h}=fit($('dxCv'));grid(c,w,h);if(!RM){DX.t+=dt*2.2;if(DX.t>S.end+2.5)DX.t=0;}const T=RM?S.end+1:DX.t,wide=w>=640,x0=wide?86:54,x1=w-14,span=Math.max(18,S.end+1.5),X=s=>x0+s/span*(x1-x0);
+  const yU=96,yA=186,bh=44;txt(c,'손님',12,yU+bh/2+4,K.sp[4],13,true);txt(c,wide?'에이전트':'AI',12,yA+bh/2+4,K.sp[1],13,true);
+  const seg=(arr,y,col,hh=bh,yo=0)=>{let s=-1;for(let i=0;i<=S.n;i++){const on=i<S.n&&arr[i]&&i*DXF<=T;if(on&&s<0)s=i;if(!on&&s>=0){c.fillStyle=col;c.fillRect(X(s*DXF),y+yo,Math.max(2,X(i*DXF)-X(s*DXF)),hh);s=-1;}}};
+  seg(S.user,yU,K.sp[4]);seg(S.agent,yA,K.sp[1]);seg(S.back,yA,K.ok);const both=S.user.map((v,i)=>v&&S.agent[i]?1:0);seg(both,yU+bh+6,K.bad,yA-yU-bh-12);
+  S.L.fs.forEach(i=>{if(i*DXF<=T)txt(c,wide?'쉼을 끝으로 착각 → 잘못 끼어듦':'잘못 끼어듦',X(i*DXF),yA+bh+20,K.bad,wide?12.5:11.5,true);});
+  if(S.back.some((v,i)=>v&&i*DXF<=T)){const i=S.back.indexOf(1);txt(c,'"네" (맞장구)',X(i*DXF),yA+bh+20,K.ok,wide?12.5:11.5,true);}
+  S.L.st.forEach(i=>{if(i*DXF<=T){c.strokeStyle=K.tx;c.lineWidth=2;c.beginPath();c.moveTo(X(i*DXF)+1,yA-6);c.lineTo(X(i*DXF)+1,yA+bh+6);c.stroke();}});
+  if(!dup){const te=S.L.te[0];if(te!==undefined&&te*DXF<=T){const xa=X(te*DXF),xb=X(te*DXF+e),xc=X(te*DXF+e+th);c.strokeStyle=K.th;c.lineWidth=1.5;c.beginPath();c.moveTo(xa,yU-14);c.lineTo(xb,yU-14);c.stroke();c.strokeStyle=K.sp[3];c.beginPath();c.moveTo(xb,yU-14);c.lineTo(xc,yU-14);c.stroke();
+    txt(c,wide?'침묵 문턱':'문턱',xa,yU-22,K.th,11.5);txt(c,wide?'생각 시간':'생각',xb+2,yU-34,K.sp[3],11.5);}}
+  for(let s=0;s<=span;s+=wide?2:4){txt(c,s+'초',X(s),h-14,K.mu,11,false,'center');}c.strokeStyle=K.tx;c.lineWidth=1.5;c.beginPath();c.moveTo(X(Math.min(T,span)),40);c.lineTo(X(Math.min(T,span)),h-30);c.stroke();
+  txt(c,dup?'Full-duplex: 프레임마다 듣고, 말할지 정함':'턴 기반: 침묵이 문턱을 넘으면 끝으로 봄',x0,28,K.tx,wide?13.5:12,true);
+  setKv('dxKv',kv('평균 응답 지연',S.delay.toFixed(2)+'초','--a2')+kv('잘못 끼어든 횟수',S.L.fs.length+'번',S.L.fs.length?'--bad':'--ok')+kv('겹쳐 말한 시간',S.ov.toFixed(2)+'초')+kv('대화가 끝난 시각',S.end.toFixed(1)+'초'));}};
+const dxMode=m=>document.querySelector(`[data-dx="${m}"]`).click();
+TOURS.duplex=[{say:'턴 기반, 침묵 문턱 0.7초. 손님이 말 중간에 1.8초 쉬자 에이전트가 끝난 줄 알고 끼어듭니다.',do:()=>dxMode('turn'),set:{dxE:0.7,dxT:0.9,dxP:1.8},hold:9000},
+ {say:'침묵 문턱을 2.0초로 올리면 잘못 끼어들지 않습니다. 대신 모든 답이 그만큼 늦어집니다.',set:{dxE:2.0},t:1500,hold:9000},
+ {say:'문턱을 0.4초로 내리면 답은 빨라지지만 짧은 쉼에도 끼어듭니다. 턴 기반은 이 둘을 맞바꿉니다.',set:{dxE:0.4,dxP:1.0},t:1500,hold:8000},
+ {say:'Full-duplex는 침묵의 길이가 아니라 말의 흐름으로 정합니다. 쉼에는 "네"만 하고, 끝나면 프레임 두세 개 뒤에 답합니다.',do:()=>dxMode('duplex'),set:{dxP:1.8},t:800,hold:9000}];
+
+/* ═══ 8. 두 흐름 ═══ */
+const ST={t:0};bindSl({stV:v=>v.toFixed(2)+'배'});
+const STU=[[0.4,2.6],[5.2,6.4],[7.6,9.2]],STA=[[2.9,4.9],[9.4,11.4]],STB=[[6.7,7.1]],STW=['네','','성함','을','','말씀','해','','주세','요','','',''];
+const stOn=(segs,t)=>segs.some(([a,b])=>t>=a&&t<b);
+STG.streams={draw(dt,now){const {c,w,h}=fit($('stCv'));grid(c,w,h);if(!RM){ST.t+=dt*val('stV');if(ST.t>12.5)ST.t=0;}const T=RM?10:ST.t,wide=w>=640,x0=wide?150:78,x1=w-14,fw=wide?13:9,nf=Math.floor((x1-x0)/fw),f1=Math.floor(T/0.08),f0=Math.max(0,f1-nf+1);
+  const rows=[[40,'상대 소리 토큰',K.sp[4],STU,8],[178,'속말 (글자)',K.sp[3],null,1],[216,'내 소리 토큰',K.sp[1],STA,8]];
+  rows.forEach(([y,l,col,segs,nb])=>{txt(c,wide?l:l.split(' ')[0],12,y+ (nb>1?56:14),col,wide?12.5:11.5,true);for(let f=f0;f<=f1;f++){const t=f*0.08,x=x0+(f-f0)*fw;
+    if(nb>1){const on=stOn(segs,t),bk=segs===STA&&stOn(STB,t);for(let b=0;b<8;b++){c.fillStyle=bk?K.ok:col;c.globalAlpha=(on||bk)?(0.35+0.6*Math.abs(Math.sin(f*1.7+b*2.3))):0.08;c.fillRect(x+1,y+b*13,fw-2,11);}c.globalAlpha=1;}
+    else{const on=stOn(STA,t)||stOn(STB,t);c.fillStyle=col;c.globalAlpha=on?0.85:0.1;c.fillRect(x+1,y,fw-2,22);c.globalAlpha=1;}}});
+  [...STA,...STB].forEach(([a,b],k)=>{const fa=Math.floor(a/0.08);if(fa>=f0&&fa<=f1)txt(c,k===2?'"네"':k===0?'"네, 성함을 말씀해 주세요"':'"두 시로 바꿔 드릴까요?"',x0+(fa-f0)*fw,172,K.tx,wide?12:10.5,true);});
+  const xn=x0+(f1-f0)*fw;c.strokeStyle=K.th;c.lineWidth=2;c.strokeRect(xn,36,fw,286);txt(c,'지금 프레임',Math.min(xn,w-80),30,K.th,11.5,true);
+  const us=stOn(STU,T),as=stOn(STA,T),bk=stOn(STB,T);txt(c,us&&as?'둘 다 말하는 중 (겹침)':us?(bk?'상대가 말하는 중 · 맞장구':'상대가 말하는 중 · 나는 조용함을 생성'):as?'내가 말하는 중 · 계속 듣는 중':bk?'쉼에 맞장구':'둘 다 조용함',x0,h-8,K.tx,wide?13:11.5,true);
+  setKv('stKv',kv('지나간 프레임',f1.toLocaleString(),'--a2')+kv('시간',T.toFixed(2)+'초')+kv('주고받은 소리 토큰',(f1*16).toLocaleString(),'--a5')+kv('한 프레임',`듣기 8 + 속말 1 + 말하기 8`,null,true));}};
+TOURS.streams=[{say:'상대가 말하는 동안에도 모델은 매 프레임 자기 소리 토큰을 냅니다. 내용은 "조용함"입니다.',do:()=>{ST.t=0;},set:{stV:1},hold:3200},
+ {say:'상대의 말이 끝나자 프레임 두세 개 뒤에 답이 시작됩니다. 속말(글자)이 먼저 나오고 소리가 따라갑니다.',hold:3200},
+ {say:'상대가 말 중간에 쉬자 "네" 하고 맞장구만 칩니다. 턴을 가져가지 않습니다.',do:()=>{ST.t=5.6;},hold:3400},
+ {say:'느리게 보면 한 프레임이 80 ms, 토큰 17개(듣기 8 · 속말 1 · 말하기 8)라는 것이 보입니다.',set:{stV:0.25},t:1000,hold:3600},{say:'',set:{stV:1},t:400,hold:200}];
+
+/* ═══ 9. 정리 퀴즈 ═══ */
+const RC=[
+ ['통화 요약은 잘 나오는데 "손님이 불쾌해했는지"는 늘 알 수 없다고 나온다.',['말투 주석을 글에 붙이거나 소리를 직접 듣는 LLM에 묻기','받아쓰기 모델을 더 큰 것으로 바꾸기','LLM의 답 길이 제한을 두 배로 늘리기'],0,'받아쓴 글자에는 말투가 없습니다. 입력에 없는 것은 LLM을 바꿔도 알 수 없습니다.'],
+ ['10분짜리 통화 1만 건을 Audio LLM으로 요약하려니 비용이 너무 크다.',['내용 요약은 받아쓴 글로 하고, 필요한 구간만 소리로 묻기','소리 파일을 base64 대신 16진수 글자로 보내기','질문을 더 길고 자세하게 써서 한 번에 묻기'],0,'소리 토큰은 길이에 비례하고 글자의 열 배 안팎입니다. 소리가 꼭 필요한 곳에만 씁니다.'],
+ ['Audio LLM이 "뒤에서 TV 소리가 들렸다"고 답했는데 녹음에는 없다.',['알 수 없음을 허용하고, 전용 모델(D36)과 겹쳐 확인하기','같은 질문을 더 강하게 다시 물어 확답 받기','답이 구체적이니 리포트에 그대로 적기'],0,'Audio LLM도 지어냅니다. 유도하지 않는 질문, unsure 칸, 다른 신호와 겹쳐 보기로 줄입니다.'],
+ ['손님이 말 중간에 잠깐 쉴 때마다 비서가 끼어들어 답한다.',['침묵 문턱을 올리거나 말의 흐름으로 끝을 판단하는 방식 쓰기','TTS 목소리를 더 느린 것으로 바꾸기','STT 모델을 더 빠른 것으로 바꾸기'],0,'턴 기반은 침묵 길이로 끝을 정합니다. 문턱을 올리면 늦어지고, 의미 기반 판단이나 Full-duplex가 대안입니다.'],
+ ['예약 변경 전화에 Full-duplex 모델을 쓰자는 제안이 나왔다.',['도구 호출과 기록 검사가 쉬운 Cascade나 S2S를 먼저 검토하기','가장 새로운 구조이므로 바로 바꾸기','응답이 빠르니 예약 확인 절차를 생략하기'],0,'예약은 내용과 도구가 중요합니다. 글자가 중간에 있는 구조가 검사하고 기록하기 쉽습니다.'],
+ ['실제 고객 통화 녹음을 클라우드 Audio LLM으로 분석하려 한다.',['동의 · 고지와 국외 이전 규칙부터 확인하고, 가릴 구간은 소리에서 지우기','받아쓴 글이 아니라 소리이므로 개인정보가 아니라고 보기','분석이 끝난 뒤에 고객에게 알리기'],0,'소리 원본에는 이름 · 번호뿐 아니라 목소리 자체가 들어 있습니다. 보내기 전에 확인합니다.']];
+RC.forEach((it,i)=>{const r=(i+1)%3;it[1]=it[1].slice(r).concat(it[1].slice(0,r));it[2]=(3-r)%3;});
+let rcRight=0,rcDone=0;
+$('rcList2').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}"><div class="q">${i+1}. ${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList2').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(s.classList.contains('done'))return;const a=RC[+s.dataset.i][2],ok=+b.dataset.j===a;
+  b.className=ok?'right':'wrong';if(!ok)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');rcDone++;if(ok)rcRight++;
+  $('rcScore').textContent=`${rcRight} / 6`+(rcDone===6?(rcRight===6?' · 모두 맞혔습니다':' · 틀린 문제의 해설을 다시 읽어 보세요'):'');$('rcBar').style.width=(rcDone/6*100)+'%';}));
+STG.recap={};
+
+const h0=location.hash.slice(1);openTab(STG[h0]?h0:'flow',true);
+if(!RM)requestAnimationFrame(frame);else kick();
+})();
+</script>
+</body>
+</html>
