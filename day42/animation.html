@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D42 Voice Agent 평가 자동화: 인터랙티브 수업 자료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#E9EDF4;--panel:#FFFFFF;--ink:#0F1B3D;--muted:#55607E;--line:#CCD4E3;--soft:#DFE5F0;
+  --a1:#0E9C8A;--a2:#C97A00;--a3:#D23B7C;--a4:#6A4FCF;--a5:#2B78D6;--ok:#1E9A55;--bad:#D0453B;
+  --scope:#0A1024;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}}
+:root[data-theme="dark"]{
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;line-height:1.6;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+button,input,select{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid var(--a4);outline-offset:2px}
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+/* 왼쪽 정거장 목록 */
+.rail{position:sticky;top:0;align-self:start;height:100vh;padding:26px 14px 18px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
+.rail h1{font-size:1.5rem;font-weight:900;line-height:1.15;letter-spacing:-.03em;margin:0}
+.rail h1 small{display:block;font-size:.84rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:6px}
+nav.tabs{display:flex;flex-direction:column;gap:2px;position:relative}
+nav.tabs::before{content:"";position:absolute;left:14px;top:14px;bottom:14px;width:2px;background:var(--line)}
+nav.tabs button{position:relative;display:grid;grid-template-columns:30px 1fr;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:7px 8px 7px 0;border-radius:10px;cursor:pointer;color:var(--muted);font-size:.95rem}
+nav.tabs button .tc{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--page);border:2px solid var(--line);font-weight:700;font-size:.82rem;font-variant-numeric:tabular-nums;transition:background .2s,border-color .2s,color .2s}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-selected="true"] .tc{background:var(--ink);border-color:var(--ink);color:var(--page)}
+nav.tabs button.seen .tc{border-color:var(--a1)}
+.railfoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--muted)}
+.railfoot button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem;text-align:left}
+main{padding:30px clamp(16px,3vw,40px) 60px;max-width:1120px;width:100%;min-width:0}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:clamp(1.45rem,2.6vw,2.05rem);font-weight:900;letter-spacing:-.03em;line-height:1.2;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 18px;max-width:68ch}
+/* 측정 화면: 테마와 상관없이 늘 어두운 계측기 화면 */
+.scope{position:relative;background:var(--scope);border-radius:16px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 18px 40px -24px rgba(10,16,36,.7)}
+.scope canvas{display:block;width:100%;touch-action:none}
+.scope .tag{position:absolute;left:14px;top:10px;color:#8794B8;font-size:.78rem;pointer-events:none}
+.cap{min-height:1.7em;margin:10px 2px 0;font-weight:700;color:var(--a4);font-size:1rem}
+.cap:empty::before{content:"\00a0"}
+.deck{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:6px;align-items:start}
+@media (max-width:900px){.deck{grid-template-columns:1fr}}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.ctl h3,.read h3{margin:0 0 8px;font-size:.9rem;color:var(--muted);font-weight:700}
+label.sl{display:grid;grid-template-columns:minmax(96px,150px) 1fr 76px;gap:10px;align-items:center;margin:9px 0;font-size:.93rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--a4);height:22px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 15px;border-radius:999px;cursor:pointer;font-size:.92rem;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.go{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:700}
+.btn.tour{border-color:var(--a4);color:var(--a4);font-weight:700}
+.btn.tour[aria-pressed="true"]{background:var(--a4);color:#fff}
+.chip{border:2px solid var(--c,var(--a4));background:transparent;padding:6px 13px;border-radius:999px;cursor:pointer;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--c,var(--a4));color:#fff;font-weight:700}
+:root[data-theme="dark"] .chip[aria-pressed="true"],:root[data-theme="dark"] .btn.tour[aria-pressed="true"]{color:#0A1024}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"],:root:not([data-theme="light"]) .btn.tour[aria-pressed="true"]{color:#0A1024}}
+.read{display:grid;gap:8px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.kv div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 13px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.22rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.3}
+.kv b.s{font-size:.98rem;font-weight:700}
+.note{font-size:.86rem;color:var(--muted);margin:10px 2px 0}
+/* 흐름 */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px}
+.road button{text-align:left;border:0;border-top:4px solid var(--c);background:var(--panel);border-radius:0 0 12px 12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:78px}
+.road button b{color:var(--c);font-size:.82rem}
+.road button span{font-weight:700;line-height:1.3}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:760px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.roaddetail h3{margin:0 0 6px;font-size:1.1rem}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+/* 퀴즈 */
+.qbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-weight:700}
+.qbar .track{flex:1;height:10px;background:var(--soft);border-radius:99px;overflow:hidden}
+.qbar .track i{display:block;height:100%;width:0;background:var(--a1);border-radius:99px;transition:width .35s}
+.scen{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.scen .q{font-weight:700;margin-bottom:8px}
+.scen .opts{display:grid;gap:6px}
+.scen .opts button{text-align:left;border:1px solid var(--line);background:transparent;border-radius:10px;padding:9px 12px;cursor:pointer;transition:transform .12s}
+.scen .opts button:hover{border-color:var(--ink)}
+.scen .opts button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent);font-weight:700}
+.scen .opts button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.scen .fb{display:none;margin-top:8px;color:var(--muted);font-size:.92rem;border-left:3px solid var(--a1);padding-left:10px}
+.scen.done .fb{display:block}
+footer{margin-top:36px;color:var(--muted);font-size:.84rem}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{min-width:0;position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px 16px 10px;gap:10px}
+  nav.tabs{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:6px}
+  nav.tabs::before{display:none}
+  nav.tabs button{flex:0 0 auto;grid-template-columns:26px auto;gap:6px;padding:4px 10px 4px 0;font-size:.88rem;white-space:nowrap}
+  nav.tabs button .tc{width:26px;height:26px}
+  .railfoot{flex-direction:row;margin-top:0;align-items:center}
+  .railfoot span{display:none}
+  main{padding-top:18px}
+  label.sl{grid-template-columns:96px 1fr 66px;font-size:.88rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<style>.kv,.kv *{overflow-wrap:anywhere}</style>
+<div class="shell">
+<aside class="rail">
+  <h1><small>음성 AI 전문가 과정 Day 42</small>담고, 띄우고, 버티는 수를 재기</h1>
+  <nav class="tabs" role="tablist" aria-label="애니메이션 목록">
+    <button role="tab" aria-selected="true" data-t="flow"><span class="tc">1</span>오늘의 흐름</button>
+    <button role="tab" aria-selected="false" data-t="layers"><span class="tc">2</span>레이어 캐시</button>
+    <button role="tab" aria-selected="false" data-t="compose"><span class="tc">3</span>compose 지도</button>
+    <button role="tab" aria-selected="false" data-t="quant"><span class="tc">4</span>계산 형식과 배치</button>
+    <button role="tab" aria-selected="false" data-t="batch"><span class="tc">5</span>마이크로 배치</button>
+    <button role="tab" aria-selected="false" data-t="path"><span class="tc">6</span>통화 한 건의 길</button>
+    <button role="tab" aria-selected="false" data-t="load"><span class="tc">7</span>부하 시험</button>
+    <button role="tab" aria-selected="false" data-t="cost"><span class="tc">8</span>통화당 원가</button>
+    <button role="tab" aria-selected="false" data-t="recap"><span class="tc">9</span>정리 퀴즈</button>
+  </nav>
+  <div class="railfoot">
+    <button id="themeBtn" type="button">화면 밝기 바꾸기</button>
+    <span>번호는 노트북의 🎬 D42-1 ~ 9와 같습니다. 키보드 ← → 로 넘길 수 있습니다.</span>
+  </div>
+</aside>
+<main>
+
+<section class="panel active" id="flow">
+  <h2>통화가 늘면 어디에 줄이 생기나</h2>
+  <p class="lead">통화가 하나씩 늘어납니다. 소리는 api를 지나 asr · llm · tts를 차례로 거쳐 돌아옵니다. 통화가 많아지면 한 구간에 줄이 쌓이고, 오른쪽의 p95 지연이 목표선을 넘습니다.</p>
+  <div class="scope"><canvas id="flCv" data-h="330"></canvas></div>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="layers">
+  <h2>코드 한 줄을 고쳤을 때 어디부터 다시 빌드하나</h2>
+  <p class="lead">Dockerfile의 단계가 위에서 아래로 쌓입니다. 무엇이 바뀌었는지와 단계의 순서를 고르면, 캐시에서 다시 쓰는 단계와 다시 하는 단계가 나뉩니다.</p>
+  <div class="scope"><canvas id="lyCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-layers"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>단계의 순서</h3><div class="row" id="lyOrd" style="margin-top:0"></div><h3>무엇이 바뀌었나</h3><div class="row" id="lyChg" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="layers" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="lyKv"></div></div>
+  </div>
+  <p class="note">단계마다의 시간은 노트북 1교시의 가정과 같습니다(pip install 300초 등).</p>
+</section>
+
+<section class="panel" id="compose">
+  <h2>서비스 넷과 띄우는 순서</h2>
+  <p class="lead">서비스를 누르면 compose.yaml에 적힌 내용이 오른쪽에 나옵니다. ‘띄우기’를 누르면 모델을 올리는 동안의 막대가 차고, 셋이 건강해진 뒤에 api가 시작합니다.</p>
+  <div class="scope"><canvas id="cmCv" data-h="350"></canvas></div>
+  <p class="cap" id="cap-compose"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>서비스</h3><div class="row" id="cmSvc" style="margin-top:0"></div><div class="row"><button class="btn" id="cmUp" type="button">띄우기 (compose up)</button></div><div class="row" id="cmHc"></div>
+      <div class="row"><button class="btn tour" data-tour="compose" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="cmKv"></div></div>
+  </div>
+  <p class="note">준비에 걸리는 시간은 설명용으로 줄인 값입니다.</p>
+</section>
+
+<section class="panel" id="quant">
+  <h2>숫자의 형식을 줄이고, 여러 개를 한 번에</h2>
+  <p class="lead">계산 형식을 바꾸면 메모리가, 배치 크기를 바꾸면 초당 처리량이 움직입니다. 위쪽에서는 소리 조각이 배치 크기만큼씩 GPU로 들어갑니다.</p>
+  <div class="scope"><canvas id="qnCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-quant"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>장치</h3><div class="row" id="qnDev" style="margin-top:0"></div><h3>계산 형식</h3><div class="row" id="qnCt" style="margin-top:0"></div><label class="sl">배치 크기<input type="range" id="qnB" min="1" max="16" step="1" value="1"><output id="qnBo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="quant" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="qnKv"></div></div>
+  </div>
+  <p class="note">막대는 방향을 보여 주는 설명용 모형입니다. 실제 값은 노트북 2교시의 표로 확인하세요.</p>
+</section>
+
+<section class="panel" id="batch">
+  <h2>자리가 차거나 시간이 다 되면 출발</h2>
+  <p class="lead">요청이 왼쪽에서 도착해 줄을 섭니다. 묶음이 max_batch개가 되거나 첫 요청이 max_wait만큼 기다리면 GPU로 들어갑니다. 요청이 오는 빠르기를 바꿔 줄이 어떻게 변하는지 보세요.</p>
+  <div class="scope"><canvas id="mbCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-batch"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">초당 요청<input type="range" id="mbR" min="2" max="60" step="1" value="30"><output id="mbRo"></output></label><label class="sl">max_batch<input type="range" id="mbB" min="1" max="8" step="1" value="1"><output id="mbBo"></output></label><label class="sl">max_wait<input type="range" id="mbW" min="0" max="200" step="10" value="30"><output id="mbWo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="batch" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="mbKv"></div></div>
+  </div>
+  <p class="note">한 묶음을 계산하는 시간은 0.06초 + 요청 하나당 0.012초로 둔 설명용 모형입니다.</p>
+</section>
+
+<section class="panel" id="path">
+  <h2>한 턴이 지나가는 길과 구간별 시간</h2>
+  <p class="lead">소리가 api → asr → llm → tts를 지나 돌아옵니다. 아래 막대는 구간마다 쌓이는 시간이고, 빗금 친 부분은 계산이 아니라 줄 서서 기다린 시간입니다.</p>
+  <div class="scope"><canvas id="ptCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-path"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>동시에 걸려 있는 통화</h3><div class="row" id="ptN" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="path" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="ptKv"></div></div>
+  </div>
+  <p class="note">시간은 설명용 모형입니다(설정 A, 생각 시간 1초). 실제 값은 노트북 3 · 4교시의 표로 확인하세요.</p>
+</section>
+
+<section class="panel" id="load">
+  <h2>지연은 무릎처럼 꺾인다</h2>
+  <p class="lead">가로축은 동시 통화 수, 세로축은 지연입니다. 실선이 p95, 점선이 p50입니다. 통화 수를 늘려 곡선이 목표선을 넘는 지점을 찾고, 설정을 바꿔 무릎이 어디로 옮겨 가는지 보세요.</p>
+  <div class="scope"><canvas id="ldCv" data-h="350"></canvas></div>
+  <p class="cap" id="cap-load"></p>
+  <div class="deck">
+    <div class="ctl">
+      <h3>설정</h3><div class="row" id="ldCfg" style="margin-top:0"></div><label class="sl">동시 통화<input type="range" id="ldN" min="1" max="48" step="1" value="8"><output id="ldNo"></output></label><label class="sl">목표 (p95)<input type="range" id="ldS" min="0.8" max="2.5" step="0.1" value="1.5"><output id="ldSo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="load" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="ldKv"></div></div>
+  </div>
+  <p class="note">곡선은 줄 서기 모형으로 그린 설명용입니다. 실제 곡선은 노트북 4교시에서 직접 잽니다.</p>
+</section>
+
+<section class="panel" id="cost">
+  <h2>GPU는 통화가 없어도 값을 낸다</h2>
+  <p class="lead">자리 하나가 동시에 받을 수 있는 통화 하나입니다. 색이 찬 자리가 지금 통화 중인 자리(가동률)입니다. 값을 바꿔 통화 한 건의 원가가 어떻게 움직이는지 보세요. 숫자는 화면에서 실제로 계산합니다.</p>
+  <div class="scope"><canvas id="csCv" data-h="320"></canvas></div>
+  <p class="cap" id="cap-cost"></p>
+  <div class="deck">
+    <div class="ctl">
+      <label class="sl">동시 통화 수<input type="range" id="csC" min="5" max="100" step="5" value="20"><output id="csCo"></output></label><label class="sl">가동률<input type="range" id="csU" min="10" max="100" step="5" value="50"><output id="csUo"></output></label><label class="sl">GPU 시간당 값<input type="range" id="csP" min="500" max="5000" step="100" value="1000"><output id="csPo"></output></label><label class="sl">통화 한 건의 길이<input type="range" id="csL" min="60" max="600" step="30" value="180"><output id="csLo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="cost" aria-pressed="false">▶ 시연 보기</button></div>
+    </div>
+    <div class="read"><div class="kv" id="csKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2>이 상황에서 무엇을 할까</h2>
+  <p class="lead">서비스를 담고, 띄우고, 부하를 걸며 만나는 문제 여섯 가지입니다.</p>
+  <div class="qbar"><span id="rcScore">0 / 6</span><div class="track"><i id="rcBar"></i></div></div>
+  <div id="rcList2"></div>
+</section>
+<footer>통화당 원가 탭의 값은 화면에서 실제로 계산하고, 레이어 캐시 탭은 노트북과 같은 가정을 씁니다. 나머지 탭의 시간 · 곡선은 설명용 모형입니다. 손님과 예약은 모두 가상입니다.</footer>
+</main>
+</div>
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const FONT='"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+/* 계측기 화면 색 (테마와 무관) */
+const K={tx:'#DCE3F5',mu:'#8794B8',grid:'rgba(150,170,255,.08)',line:'rgba(150,170,255,.22)',
+  sp:['#35D0BA','#FFB23E','#FF6FA9','#A58BFF','#6FB6FF'],ok:'#57E08A',bad:'#FF6B5E',th:'#FFE066',tgt:'#57E08A',non:'#FF6FA9'};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const pct=(v,d=1)=>(v*100).toFixed(d)+'%';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=(cur,tg,dt,k=9)=>cur+(tg-cur)*(1-Math.exp(-k*dt));
+function rnd(s){let x=(s>>>0)||1;const f=()=>{x=(x*16807)%2147483647;return x/2147483647;};f();f();f();return f;}
+function gauss(r){let u=0;while(u===0)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r());}
+function Phi(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+function invPhi(p){let lo=-9,hi=9;for(let i=0;i<60;i++){const m=(lo+hi)/2;if(Phi(m)<p)lo=m;else hi=m;}return (lo+hi)/2;}
+function fit(cv){const r=Math.min(2,devicePixelRatio||1),w=cv.clientWidth||cv.parentElement.clientWidth||640,h=+cv.dataset.h||300;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+function grid(c,w,h,step=40){c.strokeStyle=K.grid;c.lineWidth=1;c.beginPath();for(let x=step;x<w;x+=step){c.moveTo(x+.5,0);c.lineTo(x+.5,h);}for(let y=step;y<h;y+=step){c.moveTo(0,y+.5);c.lineTo(w,y+.5);}c.stroke();}
+function dot(c,x,y,r,col,glow=0){c.save();if(glow){c.shadowColor=col;c.shadowBlur=glow;}c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.restore();}
+function txt(c,s,x,y,col=K.tx,size=13,bold=false,align='left'){c.fillStyle=col;c.font=`${bold?'700 ':''}${size}px ${FONT}`;c.textAlign=align;c.fillText(s,x,y);c.textAlign='left';}
+const kvCache={};
+function setKv(id,html){if(kvCache[id]!==html){kvCache[id]=html;$(id).innerHTML=html;}}
+const kv=(k,v,col,small)=>`<div><span>${k}</span><b${small?' class="s"':''}${col?` style="color:var(${col})"`:''}>${v}</b></div>`;
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(fmt){Object.keys(fmt).forEach(id=>{const el=$(id),o=$(id+'o');const up=()=>{o.textContent=fmt[id](+el.value);kick();};el.addEventListener('input',up);o.textContent=fmt[id](+el.value);});}
+const val=id=>+$(id).value;
+function setSl(id,v){const el=$(id);el.value=v;el.dispatchEvent(new Event('input'));}
+
+/* ── 탭 · 프레임 루프 ── */
+const STG={};let active='flow',lastTs=0;
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function openTab(id,noHash){if(!$(id)||!STG[id])return;stopTour();active=id;
+  tabs.forEach(x=>{const on=x.dataset.t===id;x.setAttribute('aria-selected',on);if(on)x.classList.add('seen');});
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  if(STG[id].enter)STG[id].enter();kick();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>kick());
+addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  const i=tabs.findIndex(b=>b.dataset.t===active);if(e.key==='ArrowRight'&&i<tabs.length-1)openTab(tabs[i+1].dataset.t);if(e.key==='ArrowLeft'&&i>0)openTab(tabs[i-1].dataset.t);});
+function kick(){if(RM){const s=STG[active];if(s&&s.draw)s.draw(1,performance.now()/1000);}}
+function frame(ts){const dt=clamp((ts-lastTs)/1000||0.016,0.001,0.05);lastTs=ts;const s=STG[active];if(s&&s.draw)s.draw(dt,ts/1000);requestAnimationFrame(frame);}
+$('themeBtn').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';};
+
+/* ── 시연(자동 조작 + 자막) ── */
+let tourTok=null;const TOURS={};
+const wait=ms=>new Promise(r=>setTimeout(r,RM?Math.min(ms,30):ms));
+function stopTour(){if(tourTok){tourTok.stop=true;tourTok=null;}document.querySelectorAll('.btn.tour').forEach(b=>{b.setAttribute('aria-pressed','false');b.textContent='▶ 시연 보기';});
+  document.querySelectorAll('.cap').forEach(c=>c.textContent='');}
+async function runTour(id){const tok={stop:false};tourTok=tok;const btn=document.querySelector(`[data-tour="${id}"]`);btn.setAttribute('aria-pressed','true');btn.textContent='■ 시연 멈추기';const cap=$('cap-'+id);
+  for(const st of TOURS[id]){if(tok.stop)return;cap.textContent=st.say;if(st.do)st.do();
+    const moves=Object.entries(st.set||{}).map(([sid,to])=>[sid,val(sid),to]);const T=st.t||1300,t0=performance.now();
+    if(moves.length){while(!tok.stop){const p=RM?1:clamp((performance.now()-t0)/T,0,1),e=p<.5?2*p*p:1-2*(1-p)*(1-p);moves.forEach(([sid,a,b])=>setSl(sid,a+(b-a)*e));if(p>=1)break;await wait(16);}}
+    await wait(st.hold||1700);}
+  if(!tok.stop)stopTour();}
+document.querySelectorAll('.btn.tour').forEach(b=>b.onclick=()=>{const on=b.getAttribute('aria-pressed')==='true';stopTour();if(!on)runTour(b.dataset.tour);});
+
+/* ═══ 1. 흐름 ═══ */
+function rr(c,x,y,w,h,col,fill){c.strokeStyle=col;c.lineWidth=1.8;c.beginPath();c.roundRect(x,y,w,h,8);if(fill){c.fillStyle=fill;c.fill();}c.stroke();}
+function wrap(c,s,x,y,maxW,col,size,bold,lh){c.font=`${bold?'700 ':''}${size}px ${FONT}`;let line='',yy=y;s.split(' ').forEach(wd=>{if(line&&c.measureText(line+wd).width>maxW){txt(c,line,x,yy,col,size,bold);line='';yy+=lh||size+5;}line+=wd+' ';});txt(c,line,x,yy,col,size,bold);return yy;}
+const DARK='rgba(10,16,36,.9)';
+function wave(c,x0,x1,y,amp,now,col){c.strokeStyle=col;c.lineWidth=1.5;c.beginPath();for(let x=x0;x<x1;x+=3){const u=(x-x0)/Math.max(1,x1-x0),a=amp*(0.35+0.65*Math.abs(Math.sin(x*0.21+now*2.2)));c.moveTo(x,y-a);c.lineTo(x,y+a);}c.stroke();}
+
+
+const pick=(a,v)=>document.querySelector(`[${a}="${v}"]`).click();
+const hatch=(c,x,y,w,h,col)=>{c.save();c.beginPath();c.rect(x,y,w,h);c.clip();c.strokeStyle=col;c.lineWidth=1.4;for(let i=-h;i<w;i+=7){c.beginPath();c.moveTo(x+i,y+h);c.lineTo(x+i+h,y);c.stroke();}c.restore();};
+/* 줄 서기 모형 (설명용): 생각 시간 1초의 가상 통화 N개 · llm은 기다리기만 함(0.46초) · asr · tts는 초당 처리량이 정해진 창구 */
+const CFG={A:{asr:11,tts:10,l:'A 최적화 없음'},B:{asr:36,tts:10,l:'B 마이크로 배치'},C:{asr:36,tts:150,l:'C 배치 + TTS 캐시'}};
+function lm(cfg,N,think=1){const m=CFG[cfg],mn=Math.min(m.asr,m.tts),base=0.46+1/m.asr+1/m.tts;let lo=Math.max(base,N/mn-think)+1e-4,hi=lo+80;
+  const f=L=>{const lam=N/(think+L);return 0.46+1/(m.asr-lam)+1/(m.tts-lam)-L;};for(let i=0;i<60;i++){const mid=(lo+hi)/2;f(mid)>0?lo=mid:hi=mid;}
+  const L=(lo+hi)/2,lam=N/(think+L),wa=1/(m.asr-lam),wt=1/(m.tts-lam),qa=wa-1/m.asr,qt=wt-1/m.tts;return {L,lam,wa,wt,qa,qt,p95:L+1.8*(qa+qt),neck:qa+qt<0.05?'llm':qa>qt?'asr':'tts'};}
+const capOf=(cfg,slo)=>{let cap=0;for(let n=1;n<=48;n++){if(lm(cfg,n).p95>slo)break;cap=n;}return cap;};
+const ms=v=>Math.round(v*1000)+' ms';
+
+/* ═══ 1. 흐름 ═══ */
+const FL={t:0};
+STG.flow={draw(dt,now){const {c,w,h}=fit($('flCv'));grid(c,w,h);if(!RM)FL.t+=dt;const T=RM?13:FL.t%20,N=Math.max(1,Math.min(24,Math.round(1+T*1.35))),r=lm('A',N),wide=w>=640;
+  const names=[['api','문지기 · WebSocket',K.sp[0]],['asr','소리 → 글자',K.sp[1]],['llm','글자 → 답',K.sp[3]],['tts','답 → 소리',K.sp[2]]],bw=wide?Math.min(150,(w-80)/4-16):(w-28)/4-6,gap=(w-28-bw*4)/3,by=64,bh=wide?74:60;
+  txt(c,`동시 통화 ${N}개`,14,30,K.tx,wide?17:14,true);txt(c,'통화가 하나씩 늘어납니다',14,48,K.mu,wide?12:10.5);
+  names.forEach(([n,d,col],i)=>{const x=14+i*(bw+gap),q=i===1?r.qa:i===3?r.qt:0,hot=q>0.25;rr(c,x,by,bw,bh,hot?K.bad:col,DARK);txt(c,n,x+bw/2,by+(wide?30:26),hot?K.bad:col,wide?16:13,true,'center');txt(c,wide?d:d.replace(' → ','→'),x+bw/2,by+(wide?52:44),K.mu,wide?12:9.5,false,'center');
+    const nq=Math.min(wide?12:6,Math.round(q*14));for(let k=0;k<nq;k++)dot(c,x+10+(k%6)*((bw-20)/5),by+bh+14+Math.floor(k/6)*13,4,K.bad,6);if(nq)txt(c,'줄',x+bw/2,by+bh+(nq>6?46:34),K.bad,10.5,false,'center');
+    if(i<3){const x0=x+bw,x1=x+bw+gap;c.strokeStyle=K.line;c.lineWidth=1.2;c.beginPath();c.moveTo(x0,by+bh/2);c.lineTo(x1,by+bh/2);c.stroke();const nd=Math.min(5,1+Math.floor(N/5));for(let k=0;k<nd;k++)dot(c,x0+(x1-x0)*((now*0.9+k/nd+i*0.3)%1),by+bh/2,3.5,K.sp[4],8);}});
+  const gy=h-70,gx=14,gw=w-28,slo=1.5,mx=3.2,X=v=>gx+gw*Math.min(1,v/mx);c.fillStyle='rgba(150,170,255,.10)';c.fillRect(gx,gy,gw,18);c.fillStyle=r.p95>slo?K.bad:K.ok;c.fillRect(gx,gy,X(r.p95)-gx,18);c.fillStyle=K.sp[4];c.fillRect(gx,gy+22,X(r.L)-gx,8);
+  c.strokeStyle='rgba(255,255,255,.7)';c.setLineDash([4,4]);c.beginPath();c.moveTo(X(slo),gy-8);c.lineTo(X(slo),gy+36);c.stroke();c.setLineDash([]);txt(c,'목표 1.5초',X(slo)+6,gy-2,K.mu,10.5);
+  txt(c,`p95 ${r.p95.toFixed(2)}초 · p50 ${r.L.toFixed(2)}초`+(r.p95>slo?' → 목표를 넘었습니다':''),14,h-12,r.p95>slo?K.bad:K.mu,wide?13:10.5,true);}};
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--a5',go:'flow',items:['faster-whisper · fastapi · websockets 설치','손님 목소리 여섯 마디 만들기','배포 꾸러미 폴더 hanbit_deploy'],q:'키가 없어도 끝까지 실행됩니다'},
+ {p:'Part 1',t:'컨테이너',c:'--a2',go:'layers',items:['Dockerfile: CUDA 베이스 · 모델 캐시 · 루트가 아닌 사용자','레이어 캐시: 의존성 먼저, 코드 나중','compose: 서비스 넷 · 건강 검사 · 순서'],q:'⭐ Dockerfile 점검표 ／ ✍️ 직접 작성 1: 캐시되는 레이어 세기',more:[['compose','compose 지도']]},
+ {p:'Part 2',t:'서빙 최적화',c:'--a1',go:'quant',items:['계산 형식: float16 · int8','배치: 여러 조각을 한 번에','마이크로 배치: 여러 통화의 요청을 묶기 · vLLM'],q:'⭐ 계산 형식 비교 · transcribe_batch ／ ✍️ 직접 작성 2: 요청 묶기',more:[['batch','마이크로 배치']]},
+ {p:'Part 3',t:'서비스 넷',c:'--a4',go:'path',items:['asr · llm · tts · api를 프로세스 넷으로','/health가 답할 때까지 기다리기','WebSocket 통화 한 건과 구간별 시간'],q:'⭐ up · one_call ／ ✍️ 직접 작성 3: 띄우는 순서'},
+ {p:'Part 4',t:'부하 시험',c:'--a3',go:'load',items:['가상 통화 N개 · p50 · p95 · 병목','최적화 전후: A · B · C','수용량과 통화당 원가'],q:'⭐ load_test · capacity ／ ✍️ 직접 작성 4: 통화당 원가',more:[['cost','통화당 원가']]},
+ {p:'Part 5',t:'정리',c:'--bad',go:'recap',items:['오늘의 산출물: 곡선 + 배포 꾸러미','진짜 서버에서 쓰는 명령','D43: 운영 · 관측성 · 보안 · 개인정보'],q:'📝 워크시트 25문항 (하루 한 장)'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row"><button class="btn go" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ═══ 2. 레이어 캐시 ═══ */
+const LYS={bad:[['FROM cuda:12.3.2','base',60],['RUN apt-get install','base',40],['COPY . .','any',1],['RUN pip install','',300],['CMD uvicorn','',0]],
+ good:[['FROM cuda:12.3.2','base',60],['RUN apt-get install','base',40],['RUN useradd app','base',1],['COPY requirements.txt','req',1],['RUN pip install','',300],['COPY services/','code',1],['CMD uvicorn','',0]]};
+const LY={o:'bad',g:'code',t:0};
+chipRow($('lyOrd'),'data-lo',[['bad','나쁜 순서: 코드 먼저'],['good','좋은 순서: 의존성 먼저']],'bad','--a2',v=>{LY.o=v;LY.t=0;});
+chipRow($('lyChg'),'data-lg',[['code','코드 한 줄'],['req','requirements.txt'],['base','베이스 이미지'],['none','바뀐 것 없음']],'code','--a1',v=>{LY.g=v;LY.t=0;});
+function lyCut(o,g){const S=LYS[o];if(g==='none')return S.length;if(g==='base')return 0;const i=S.findIndex(s=>s[1]===g||(s[1]==='any'));return i<0?S.length:i;}
+STG.layers={draw(dt,now){const {c,w,h}=fit($('lyCv'));grid(c,w,h);if(!RM)LY.t+=dt;const S=LYS[LY.o],cut=lyCut(LY.o,LY.g),wide=w>=640,rh=Math.min(40,(h-50)/S.length),x=14,bw=w-28,tot=S.slice(cut).reduce((a,s)=>a+s[2],0);
+  const dur=s=>0.25+Math.min(2.2,s[2]/110);let acc=0.5,cur=-1;const st=S.map((s,i)=>{if(i<cut)return 1;const d=dur(s),p=RM?1:Math.max(0,Math.min(1,(LY.t-acc)/d));if(p>0&&p<1)cur=i;acc+=d;return p;});
+  S.forEach((s,i)=>{const y=20+i*rh,cached=i<cut,p=st[i],col=cached?K.ok:p>=1?K.th:K.bad;rr(c,x,y,bw,rh-6,col,DARK);if(!cached){c.fillStyle='rgba(255,107,107,.20)';c.fillRect(x+2,y+2,(bw-4)*p,rh-10);}
+    txt(c,s[0],x+12,y+rh/2+2,K.tx,wide?14:11.5,true);txt(c,cached?'캐시 · 0초':p>=1?`다시 함 · ${s[2]}초`:p>0?'빌드 중 …':'기다림',x+bw-12,y+rh/2+2,col,wide?13:11,true,'right');});
+  if(cut<S.length&&cut>0){const y=20+cut*rh-4;c.strokeStyle=K.bad;c.setLineDash([5,4]);c.beginPath();c.moveTo(x,y);c.lineTo(x+bw,y);c.stroke();c.setLineDash([]);}
+  txt(c,cut===S.length?'바뀐 것이 없어 모두 캐시에서 가져옵니다':`처음으로 달라진 단계: ${S[cut][0]} → 그 아래를 모두 다시`,14,h-12,cut===S.length?K.ok:K.mu,wide?13:10.5,true);
+  setKv('lyKv',kv('캐시에서 다시 쓴 단계',`${cut} / ${S.length}`,cut>=S.length-2?'--ok':'--bad')+kv('다시 빌드에 걸리는 시간',`약 ${tot}초`,tot<10?'--ok':tot>200?'--bad':'--a2')+kv('읽는 법',LY.g==='code'?(LY.o==='bad'?'코드를 pip install보다 위에서 복사했습니다. 코드만 고쳐도 5분짜리 설치를 매번 다시 합니다.':'코드 복사가 맨 아래에 있어, 코드를 고쳐도 위의 설치는 캐시에서 가져옵니다.'):LY.g==='req'?'의존성이 바뀌면 어느 순서든 pip install을 다시 합니다. 그것은 해야 하는 일입니다.':LY.g==='base'?'베이스 이미지를 바꾸면 모든 단계를 다시 합니다.':'같은 Dockerfile · 같은 파일이면 몇 초 만에 끝납니다.',null,true));}};
+TOURS.layers=[{say:'나쁜 순서입니다. 코드 한 줄을 고쳤을 뿐인데 COPY 단계가 달라지고, 그 아래의 pip install을 다시 합니다. 약 5분.',do:()=>{pick('data-lo','bad');pick('data-lg','code');},hold:5200},
+ {say:'좋은 순서입니다. 같은 코드 한 줄인데 위의 다섯 단계는 캐시에서 가져오고 마지막 두 단계만 다시 합니다. 약 1초.',do:()=>{pick('data-lo','good');pick('data-lg','code');},hold:4600},
+ {say:'requirements.txt가 바뀌면 좋은 순서에서도 pip install을 다시 합니다. 글자가 같은 단계라도 위 단계가 달라지면 캐시를 쓸 수 없습니다.',do:()=>pick('data-lg','req'),hold:5200},
+ {say:'베이스 이미지를 바꾸면 전부 다시 합니다. 그래서 잘 안 바뀌는 것을 위에, 자주 바뀌는 것을 아래에 둡니다.',do:()=>pick('data-lg','base'),hold:5200}];
+
+/* ═══ 3. compose ═══ */
+const CMS={asr:{img:'hanbit/voice:1.0.0 (여기서 빌드)',cmd:'uvicorn services.asr_server:app --port 8101',env:'ASR_COMPUTE=int8_float16 · MAX_BATCH=8 · MAX_WAIT_MS=30',port:'없음 (안에서만 보임)',gpu:true,dep:'없음',load:3.2,col:1},
+ llm:{img:'vllm/vllm-openai:<버전>',cmd:'--model … --served-model-name hana-llm --gpu-memory-utilization 0.45',env:'-',port:'없음 (안에서만 보임)',gpu:true,dep:'없음',load:6.5,col:3},
+ tts:{img:'hanbit/voice:1.0.0',cmd:'uvicorn services.tts_server:app --port 8103',env:'TTS_CACHE=1',port:'없음 (안에서만 보임)',gpu:true,dep:'없음',load:2.4,col:2},
+ api:{img:'hanbit/voice:1.0.0',cmd:'uvicorn services.api_server:app --port 8100',env:'ASR_URL=http://asr:8101 · LLM_URL=http://llm:8000/v1 · TTS_URL=http://tts:8103',port:'8100:8100 (바깥으로 열린 하나뿐인 문)',gpu:false,dep:'asr · llm · tts가 건강해진 뒤 (service_healthy)',load:0.4,col:0}};
+const CM={s:'api',t:-1,hc:true};
+chipRow($('cmSvc'),'data-cs',[['asr','asr'],['llm','llm'],['tts','tts'],['api','api']],'api','--a1',v=>{CM.s=v;});
+$('cmHc').innerHTML='<button class="chip" id="cmH" style="--c:var(--bad)" aria-pressed="false">건강 검사 없이 띄우기</button>';$('cmH').onclick=()=>{CM.hc=!CM.hc;$('cmH').setAttribute('aria-pressed',!CM.hc);CM.t=0;};
+$('cmUp').onclick=()=>{CM.t=0;kick();};
+STG.compose={draw(dt,now){const {c,w,h}=fit($('cmCv'));grid(c,w,h);if(!RM&&CM.t>=0)CM.t+=dt;const T=RM?99:CM.t,wide=w>=640,up=T>=0;
+  const ax=14,aw=wide?170:w*0.36,ay=h/2-60,sx=wide?w*0.44:w*0.52,sw=wide?Math.min(250,w*0.34):w-sx-14,ready=k=>up&&T>=CMS[k].load,all=['asr','llm','tts'].every(ready),tAll=Math.max(CMS.asr.load,CMS.llm.load,CMS.tts.load),apiStart=CM.hc?tAll:0,apiUp=up&&T>=apiStart+CMS.api.load,err=up&&!CM.hc&&apiUp&&!all;
+  const box=(k,x,y,bw,bh)=>{const S=CMS[k],sel=CM.s===k,col=K.sp[S.col],started=up&&(k!=='api'||T>=apiStart),ok=k==='api'?apiUp:ready(k);rr(c,x,y,bw,bh,sel?'#fff':col,DARK);txt(c,k,x+12,y+24,col,wide?16:13.5,true);
+    txt(c,!up?'대기':!started?'기다리는 중':ok?(k==='api'&&err?'요청 오류 발생':'healthy'):'모델 올리는 중 …',x+bw-10,y+24,!up?K.mu:ok?(k==='api'&&err?K.bad:K.ok):K.th,wide?12:10.5,true,'right');
+    const p=!started?0:Math.min(1,(T-(k==='api'?apiStart:0))/S.load);c.fillStyle='rgba(150,170,255,.12)';c.fillRect(x+12,y+bh-16,bw-24,6);c.fillStyle=ok?K.ok:K.th;c.fillRect(x+12,y+bh-16,(bw-24)*p,6);if(S.gpu)txt(c,'GPU',x+12,y+bh-24,K.mu,10);};
+  box('api',ax,ay,aw,120);txt(c,'8100',ax+12,ay+50,K.mu,11);txt(c,'바깥에서 들어오는 문',ax+12,ay+66,K.mu,wide?11:9.5);
+  ['asr','llm','tts'].forEach((k,i)=>{const y=20+i*((h-40)/3),bh=(h-40)/3-12;box(k,sx,y,sw,bh);c.strokeStyle=ready(k)&&apiUp?K.ok:K.line;c.lineWidth=1.4;c.beginPath();c.moveTo(ax+aw,ay+60);c.lineTo(sx,y+bh/2);c.stroke();if(apiUp&&ready(k)&&!RM)dot(c,ax+aw+(sx-ax-aw)*((now*0.8+i*0.3)%1),ay+60+(y+bh/2-ay-60)*((now*0.8+i*0.3)%1),3.5,K.sp[4],8);
+    if(err&&!ready(k)){txt(c,'✕ 아직 준비 안 됨',sx-8,y+bh/2-6,K.bad,wide?11.5:9.5,true,'right');}});
+  if(wide){rr(c,sx+sw+20,h/2-44,w-sx-sw-34,88,K.sp[5]||K.ok,DARK);txt(c,'볼륨 models',sx+sw+32,h/2-16,K.tx,12.5,true);txt(c,'모델 캐시',sx+sw+32,h/2+4,K.mu,11.5);txt(c,'(다시 안 받음)',sx+sw+32,h/2+22,K.mu,11);}
+  txt(c,!up?"'띄우기'를 눌러 순서를 보세요":err?'api가 먼저 떠서 준비 안 된 서비스를 불렀습니다 → 손님에게 오류':apiUp&&all?'넷 모두 healthy · 통화를 받을 수 있습니다':CM.hc?'api는 셋이 건강해질 때까지 기다립니다':'api가 기다리지 않고 바로 시작했습니다',14,h-10,err?K.bad:apiUp&&all?K.ok:K.mu,wide?13:10.5,true);
+  const S=CMS[CM.s];setKv('cmKv',kv('서비스',CM.s,'--a1')+kv('image',S.img)+kv('command',S.cmd,null,true)+kv('environment',S.env,null,true)+kv('ports',S.port,CM.s==='api'?'--a2':null,true)+kv('GPU',S.gpu?'1장 예약':'쓰지 않음')+kv('depends_on',S.dep,null,true));}};
+TOURS.compose=[{say:'api는 바깥으로 문을 연 하나뿐인 서비스입니다. GPU를 쓰지 않고, 나머지 셋을 서비스 이름으로 부릅니다.',do:()=>pick('data-cs','api'),hold:4400},
+ {say:'띄워 봅니다. asr · llm · tts가 모델을 올리는 동안 api는 기다립니다. 셋이 healthy가 된 뒤에 api가 시작합니다.',do:()=>{if(!CM.hc)$('cmH').click();$('cmUp').click();},hold:8200},
+ {say:'건강 검사 없이 띄우면 api가 먼저 뜹니다. 아직 모델을 올리는 서비스를 불러 손님에게 오류가 나갑니다.',do:()=>{if(CM.hc)$('cmH').click();},hold:5200},
+ {say:'llm은 vLLM이 만든 이미지를 그대로 씁니다. GPU 메모리를 미리 잡는 비율을 줄여 asr · tts와 나눠 씁니다.',do:()=>{pick('data-cs','llm');if(!CM.hc)$('cmH').click();},hold:4800}];
+
+/* ═══ 4. 계산 형식과 배치 ═══ */
+const QN={d:'gpu',ct:'float16'},QCT={gpu:{float16:[1.0,1.0],int8_float16:[0.62,0.97]},cpu:{float32:[1.0,1.0],int8:[0.45,2.0]}};
+function qnChips(){chipRow($('qnCt'),'data-qc',Object.keys(QCT[QN.d]).map(k=>[k,k]),QN.ct,'--a2',v=>{QN.ct=v;});}
+chipRow($('qnDev'),'data-qd',[['gpu','GPU'],['cpu','CPU']],'gpu','--a1',v=>{QN.d=v;QN.ct=Object.keys(QCT[v])[0];qnChips();});qnChips();
+bindSl({qnB:v=>v+'개씩'});
+STG.quant={draw(dt,now){const {c,w,h}=fit($('qnCv'));grid(c,w,h);const b=val('qnB'),[mem,spd]=QCT[QN.d][QN.ct],gain=QN.d==='gpu'?b/(1+0.12*(b-1)):b/(1+0.55*(b-1)),thr=spd*gain,memT=mem*(1+0.07*(b-1)),wide=w>=640;
+  const gx=w-(wide?190:120),gy=24,gw=wide?170:106,gh=92;rr(c,gx,gy,gw,gh,K.sp[1],DARK);txt(c,QN.d==='gpu'?'GPU':'CPU',gx+gw/2,gy+26,K.sp[1],15,true,'center');txt(c,QN.ct,gx+gw/2,gy+48,K.mu,wide?12:10,false,'center');
+  const per=1.6/Math.max(0.4,thr/2),ph=RM?0.5:(now%per)/per,n=Math.min(b,wide?16:8),cols=Math.min(8,n);for(let k=0;k<n;k++){const x=14+ph*(gx-60)+(k%cols)*13,y=gy+30+Math.floor(k/cols)*14;c.fillStyle=K.sp[4];c.fillRect(x,y,10,10);}
+  txt(c,`한 번에 ${b}개`,14,gy+12,K.mu,11.5);txt(c,'결과',gx+gw/2,gy+gh-10,ph>0.85?K.ok:K.mu,11,false,'center');
+  const bars=[['메모리',memT/2.2,pct(memT,0)+' (기준 대비)',memT>1.3?K.th:K.ok],['초당 처리량',thr/9,'× '+thr.toFixed(1),K.sp[4]]],bx=wide?130:96,bw=w-bx-(wide?150:96);
+  bars.forEach(([l,v,s,col],i)=>{const y=gy+gh+40+i*52;txt(c,l,14,y+16,K.tx,wide?13.5:11.5,true);c.fillStyle='rgba(150,170,255,.10)';c.fillRect(bx,y,bw,22);c.fillStyle=col;c.fillRect(bx,y,bw*Math.min(1,v),22);txt(c,s,bx+bw+10,y+16,K.tx,wide?13:10.5,true);});
+  txt(c,QN.d==='gpu'?'GPU: int8은 메모리를 줄이고, 배치는 처리량을 올립니다':'CPU: int8이 속도를 크게 올립니다. 배치의 이득은 GPU보다 작습니다',14,h-10,K.mu,wide?13:10.5,true);
+  setKv('qnKv',kv('계산 형식',QN.ct,'--a2')+kv('메모리',pct(memT,0),memT>1.3?'--a2':'--ok')+kv('초당 처리량','× '+thr.toFixed(1),'--a5')+kv('읽는 법',b===1?(mem<1?'가중치를 8비트로 줄여 메모리가 줄었습니다. 남은 메모리에 TTS · LLM을 올릴 수 있습니다.':'기준 설정입니다. 계산 형식과 배치 크기를 바꿔 보세요.'):'여러 개를 한 번에 넣어도 걸리는 시간이 그만큼 늘지 않습니다. 대신 한 번에 쓰는 메모리가 늡니다.',null,true));}};
+TOURS.quant=[{say:'GPU의 기본 선택은 float16입니다. 이것을 기준(100%)으로 둡니다.',do:()=>{pick('data-qd','gpu');pick('data-qc','float16');setSl('qnB',1);},hold:3800},
+ {say:'int8_float16으로 바꾸면 속도는 비슷하고 메모리가 줄어듭니다. 줄어든 자리에 다른 모델을 올립니다.',do:()=>pick('data-qc','int8_float16'),hold:4400},
+ {say:'배치를 8로 올립니다. 여덟 개를 한 번에 넣어 초당 처리량이 몇 배가 됩니다. 메모리는 조금 늡니다.',do:()=>setSl('qnB',8),hold:4800},
+ {say:'CPU에서는 int8이 속도를 크게 올립니다. GPU가 없는 곳(D44)에서 쓰는 방법입니다.',do:()=>{pick('data-qd','cpu');pick('data-qc','int8');setSl('qnB',1);},hold:4600}];
+
+/* ═══ 5. 마이크로 배치 ═══ */
+bindSl({mbR:v=>v+'개/초',mbB:v=>v+'개',mbW:v=>v+' ms'});
+const svc=b=>0.06+0.012*b;
+function mbStat(rate,B,W){let s=12345;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;const arr=[];let t=0;for(let i=0;i<700;i++){t+=-Math.log(1-rnd())/rate;arr.push(t);}
+  let free=0,i=0,sum=0,nb=0,tot=0;while(i<arr.length){const full=arr[Math.min(arr.length-1,i+B-1)],start=Math.max(free,Math.min(full,arr[i]+W));let j=i+1;
+    while(j<arr.length&&j-i<B&&arr[j]<=start)j++;const done=start+svc(j-i);for(let k=i;k<j;k++)tot+=done-arr[k];sum+=j-i;nb++;free=done;i=j;}
+  return {mean:sum/nb,lat:tot/arr.length,cap:B/svc(B)};}
+const MB={q:[],busy:null,acc:0,key:'',st:null,done:0};
+STG.batch={draw(dt,now){const {c,w,h}=fit($('mbCv'));grid(c,w,h);const rate=val('mbR'),B=val('mbB'),W=val('mbW')/1000,key=rate+'|'+B+'|'+W,wide=w>=640,SLOW=0.25;
+  if(key!==MB.key){MB.key=key;MB.st=mbStat(rate,B,W);MB.q=[];MB.busy=null;}
+  if(!RM){const d=dt*SLOW;MB.acc+=rate*d;while(MB.acc>=1){MB.acc-=1;MB.q.push({t:0});}MB.q.forEach(q=>q.t+=d);if(MB.q.length>60)MB.q.splice(0,MB.q.length-60);
+    if(MB.busy){MB.busy.left-=d;if(MB.busy.left<=0)MB.busy=null;}
+    if(!MB.busy&&MB.q.length&&(MB.q.length>=B||MB.q[0].t>=W||B===1)){const n=Math.min(B,MB.q.length);MB.q.splice(0,n);MB.busy={n,left:svc(n),tot:svc(n)};}}
+  const gx=w-(wide?210:130),gy=h/2-60,gw=wide?190:116,gh=120,qx1=gx-24;rr(c,gx,gy,gw,gh,MB.busy?K.sp[1]:K.line,DARK);txt(c,'GPU',gx+gw/2,gy+24,K.sp[1],15,true,'center');
+  if(MB.busy||RM){const n=RM?Math.round(MB.st.mean):MB.busy.n,p=RM?0.5:1-MB.busy.left/MB.busy.tot;for(let k=0;k<n;k++){c.fillStyle=K.sp[4];c.fillRect(gx+16+(k%4)*((gw-32)/4),gy+40+Math.floor(k/4)*20,(gw-32)/4-5,14);}c.fillStyle=K.ok;c.fillRect(gx+16,gy+gh-18,(gw-32)*p,6);txt(c,`${n}개를 한 번에`,gx+gw/2,gy+gh+18,K.mu,11.5,false,'center');}else txt(c,'쉬는 중',gx+gw/2,gy+70,K.mu,12,false,'center');
+  const ql=RM?Math.min(30,Math.round(Math.max(0,MB.st.lat-svc(1))*rate)):MB.q.length,per=wide?16:9,hot=ql>B*2+4;txt(c,'요청이 선 줄',14,gy-12,hot?K.bad:K.mu,12,true);for(let k=0;k<Math.min(ql,per*5);k++)dot(c,qx1-(k%per)*((qx1-20)/per)-6,gy+12+Math.floor(k/per)*22,6,hot?K.bad:K.sp[4],hot?8:4);
+  if(!ql)txt(c,'(줄 없음)',14,gy+18,K.mu,11.5);
+  const over=rate>MB.st.cap;txt(c,over?`초당 ${rate}개가 오는데 최대 ${MB.st.cap.toFixed(0)}개만 처리합니다 → 줄이 끝없이 길어집니다`:`초당 ${rate}개 도착 · 이 설정의 최대 처리량 초당 ${MB.st.cap.toFixed(0)}개`,14,h-10,over?K.bad:K.mu,wide?13:10.5,true);
+  setKv('mbKv',kv('묶음의 평균 크기',MB.st.mean.toFixed(2)+'개',MB.st.mean>1.5?'--ok':null)+kv('최대 처리량','초당 '+MB.st.cap.toFixed(0)+'개',over?'--bad':'--ok')+kv('요청 하나의 평균 지연',over?'계속 늘어남':ms(MB.st.lat),over?'--bad':MB.st.lat>0.3?'--a2':'--ok')+kv('읽는 법',over?'max_batch를 올려 보세요. 한 번에 여러 개를 넣어야 따라잡습니다.':B===1?'하나씩 처리합니다. 요청이 늘면 곧 한계에 닿습니다.':MB.st.mean<1.3?'한산해서 묶을 것이 없습니다. max_wait만큼 기다리기만 합니다.':'붐빌수록 묶음이 커져 스스로 따라잡습니다.',null,true));}};
+TOURS.batch=[{say:'하나씩 처리합니다. 1초에 30개가 오는데 한 번에 하나, 0.07초씩 걸려 초당 14개가 한계입니다. 줄이 계속 길어집니다.',do:()=>{setSl('mbR',30);setSl('mbB',1);setSl('mbW',30);},hold:5600},
+ {say:'max_batch를 8로 올립니다. 한 번에 여덟 개를 넣어 줄이 사라집니다. 같은 GPU, 같은 모델입니다.',do:()=>setSl('mbB',8),hold:5400},
+ {say:'한산할 때(초당 4개)는 묶을 것이 없습니다. max_wait를 200 ms로 두면 얻는 것 없이 기다리기만 합니다.',do:()=>{setSl('mbR',4);setSl('mbW',200);},hold:5400},
+ {say:'그래서 max_wait는 짧게 둡니다. 붐빌 때는 GPU가 일하는 동안 줄이 쌓여, 기다리지 않아도 저절로 묶입니다.',do:()=>{setSl('mbR',40);setSl('mbW',10);},hold:5200}];
+
+/* ═══ 6. 통화 한 건의 길 ═══ */
+const PT={n:1};chipRow($('ptN'),'data-pn',[['1','1개'],['16','16개'],['24','24개']],'1','--a4',v=>{PT.n=+v;});
+STG.path={draw(dt,now){const {c,w,h}=fit($('ptCv'));grid(c,w,h);const r=lm('A',PT.n),wide=w>=640,seg=[['asr',1/11,r.qa,K.sp[1]],['llm',0.46,0,K.sp[3]],['tts',1/10,r.qt,K.sp[2]]],tot=seg.reduce((a,s)=>a+s[1]+s[2],0);
+  const names=[['손님',K.sp[4]],['api',K.sp[0]],['asr',K.sp[1]],['llm',K.sp[3]],['tts',K.sp[2]]],bw=(w-28)/5-(wide?14:6),gap=(w-28-bw*5)/4,by=24,bh=wide?58:48,cxs=names.map((_,i)=>14+i*(bw+gap)+bw/2);
+  const route=[0,1,2,1,3,1,4,1,0],legs=route.length-1,cyc=RM?0.62:(now*0.16)%1,li=Math.min(legs-1,Math.floor(cyc*legs)),lp=cyc*legs-li,px=cxs[route[li]]+(cxs[route[li+1]]-cxs[route[li]])*lp;
+  names.forEach(([n,col],i)=>{const on=route[li]===i||route[li+1]===i;rr(c,cxs[i]-bw/2,by,bw,bh,on?col:K.line,DARK);txt(c,n,cxs[i],by+bh/2+5,on?col:K.mu,wide?15:12,true,'center');});
+  c.strokeStyle=K.line;c.beginPath();c.moveTo(cxs[0],by+bh+18);c.lineTo(cxs[4],by+bh+18);c.stroke();dot(c,px,by+bh+18,6,K.sp[4],12);txt(c,['소리 + end','소리를 asr로','받아쓴 글자','이력을 llm으로','답 글자','답을 tts로','답 소리','답 글자 · 소리'][li],px,by+bh+40,K.tx,wide?12:10,false,'center');
+  const x0=14,bwid=w-28,y=by+bh+70,scale=bwid/Math.max(1.2,tot*1.05);let x=x0;txt(c,'서버가 잰 구간별 시간',14,y-10,K.mu,11.5);
+  seg.forEach(([n,base,q,col])=>{const wb=base*scale,wq=q*scale;c.fillStyle=col;c.globalAlpha=0.85;c.fillRect(x,y,wb,30);c.globalAlpha=1;if(wq>1){c.fillStyle='rgba(255,107,107,.18)';c.fillRect(x+wb,y,wq,30);hatch(c,x+wb,y,wq,30,K.bad);}
+    txt(c,`${n} ${Math.round((base+q)*1000)}`,x+4,y+50,col,wide?12.5:10.5,true);x+=wb+wq;});
+  txt(c,`total ${ms(tot)}`,x0,y+76,K.tx,wide?14:12,true);txt(c,'빗금 = 줄 서서 기다린 시간',w-14,y+76,K.bad,wide?12:10,false,'right');
+  txt(c,PT.n===1?'통화 하나: 가장 긴 구간은 llm입니다':`통화 ${PT.n}개: 계산 시간은 그대로인데 기다린 시간이 붙었습니다`,14,h-10,PT.n===1?K.mu:K.bad,wide?13:10.5,true);
+  setKv('ptKv',kv('asr',ms(1/11+r.qa),r.qa>0.2?'--bad':null)+kv('llm',ms(0.46))+kv('tts',ms(1/10+r.qt),r.qt>0.2?'--bad':null)+kv('가장 긴 구간',[['asr',1/11+r.qa],['llm',0.46],['tts',1/10+r.qt]].sort((a,b)=>b[1]-a[1])[0][0],'--a2')+kv('읽는 법',PT.n===1?'통화가 하나일 때는 줄이 없습니다. 구간의 시간이 곧 계산 시간입니다.':'asr · tts의 계산은 빨라지지도 느려지지도 않았습니다. 늘어난 것은 앞의 요청이 끝나기를 기다린 시간입니다. 그 구간이 병목입니다.',null,true));}};
+TOURS.path=[{say:'통화 하나입니다. 소리가 api를 지나 asr · llm · tts를 차례로 거쳐 돌아옵니다. 가장 긴 구간은 llm입니다.',do:()=>pick('data-pn','1'),hold:6000},
+ {say:'통화 16개가 동시에 걸려 있습니다. asr과 tts에 빗금이 생겼습니다. 계산이 아니라 줄 서서 기다린 시간입니다.',do:()=>pick('data-pn','16'),hold:5200},
+ {say:'24개가 되면 기다린 시간이 계산 시간보다 길어집니다. 가장 긴 구간이 llm에서 다른 곳으로 바뀌었습니다. 그곳이 병목입니다.',do:()=>pick('data-pn','24'),hold:5600}];
+
+/* ═══ 7. 부하 시험 ═══ */
+const LD={c:'A'};chipRow($('ldCfg'),'data-lc',Object.entries(CFG).map(([k,v])=>[k,v.l]),'A','--a3',v=>{LD.c=v;});
+bindSl({ldN:v=>v+'개',ldS:v=>v.toFixed(1)+'초'});
+STG.load={draw(dt,now){const {c,w,h}=fit($('ldCv'));grid(c,w,h);const N=val('ldN'),slo=val('ldS'),wide=w>=640,x0=46,x1=w-16,y0=22,y1=h-46,mx=4.5,X=n=>x0+(x1-x0)*(n-1)/47,Y=v=>y1-(y1-y0)*Math.min(1,v/mx);
+  c.strokeStyle=K.line;c.strokeRect(x0,y0,x1-x0,y1-y0);[0,1,2,3,4].forEach(v=>txt(c,v+'초',10,Y(v)+4,K.mu,10.5));[1,8,16,24,32,40,48].forEach(n=>txt(c,n+'',X(n),h-28,K.mu,10.5,false,'center'));txt(c,'동시 통화 수 →',(x0+x1)/2,h-10,K.mu,11,false,'center');
+  c.strokeStyle='rgba(255,255,255,.6)';c.setLineDash([5,4]);c.beginPath();c.moveTo(x0,Y(slo));c.lineTo(x1,Y(slo));c.stroke();c.setLineDash([]);txt(c,`목표 p95 ≤ ${slo.toFixed(1)}초`,x0+8,Y(slo)-6,K.mu,11);
+  Object.keys(CFG).forEach(k=>{const on=k===LD.c,col={A:K.bad,B:K.th,C:K.ok}[k];[['p95',false],['L',true]].forEach(([f,dash])=>{if(!on&&dash)return;c.strokeStyle=col;c.globalAlpha=on?1:0.28;c.lineWidth=on?2.6:1.6;if(dash)c.setLineDash([3,4]);c.beginPath();for(let n=1;n<=48;n++){const v=lm(k,n)[f];n===1?c.moveTo(X(n),Y(v)):c.lineTo(X(n),Y(v));}c.stroke();c.setLineDash([]);c.globalAlpha=1;});});
+  const r=lm(LD.c,N),cap=capOf(LD.c,slo),xs=X(N);c.strokeStyle='rgba(255,255,255,.5)';c.lineWidth=1;c.beginPath();c.moveTo(xs,y0);c.lineTo(xs,y1);c.stroke();dot(c,xs,Y(r.p95),6,r.p95>slo?K.bad:K.ok,12);dot(c,xs,Y(r.L),4,K.sp[4],6);
+  if(cap>0&&cap<48){const xc=X(cap);c.fillStyle='rgba(87,224,138,.10)';c.fillRect(x0,y0,xc-x0,y1-y0);txt(c,`수용량 ${cap}`,Math.min(xc+6,x1-70),y0+16,K.ok,12,true);}
+  setKv('ldKv',kv('p95',r.p95.toFixed(2)+'초',r.p95>slo?'--bad':'--ok')+kv('p50',r.L.toFixed(2)+'초')+kv('초당 턴',r.lam.toFixed(1))+kv('병목',r.neck,r.neck==='llm'?null:'--bad')+kv('수용량',cap>=48?'48개 이상':cap+'개','--a3')+kv('읽는 법',r.p95>slo?'목표를 넘었습니다. 병목 구간을 먼저 풉니다.':N<cap*0.6?'아직 평평한 구간입니다. 통화가 늘어도 지연이 거의 같습니다.':'무릎에 가까워졌습니다. p95가 p50보다 먼저 오릅니다.',null,true));}};
+TOURS.load=[{say:'설정 A, 통화 8개. 곡선이 평평한 구간입니다. 통화가 늘어도 지연이 거의 같습니다.',do:()=>{pick('data-lc','A');setSl('ldS',1.5);setSl('ldN',8);},hold:4600},
+ {say:'통화를 늘립니다. 10개를 넘으며 p95가 가파르게 올라 목표선을 넘습니다. 점선인 p50은 아직 아래에 있습니다.',do:()=>setSl('ldN',15),hold:5200},
+ {say:'마이크로 배치를 켠 B입니다. asr의 줄은 풀렸지만 무릎은 조금밖에 옮겨 가지 않았습니다. 이제 병목은 tts입니다.',do:()=>pick('data-lc','B'),hold:5400},
+ {say:'TTS 캐시까지 켠 C입니다. 무릎이 화면 밖으로 밀렸습니다. 병목을 하나 풀 때마다 다음 병목이 드러납니다.',do:()=>{pick('data-lc','C');setSl('ldN',40);},hold:5400}];
+
+/* ═══ 8. 통화당 원가 ═══ */
+bindSl({csC:v=>v+'개',csU:v=>v+'%',csP:v=>v.toLocaleString()+'원',csL:v=>v+'초'});
+STG.cost={draw(dt,now){const {c,w,h}=fit($('csCv'));grid(c,w,h);const C=val('csC'),U=val('csU')/100,P=val('csP'),L=val('csL'),perH=C*3600/L*U,cost=P/perH,wide=w>=640;
+  const cols=wide?20:10,sz=Math.min(26,(w-28)/cols-4),busy=Math.round(C*U);txt(c,`자리 ${C}개 가운데 통화 중 ${busy}개`,14,24,K.tx,wide?14:12,true);
+  for(let k=0;k<C;k++){const x=14+(k%cols)*(sz+4),y=36+Math.floor(k/cols)*(sz+4),on=k<busy,tw=on&&!RM?0.6+0.4*Math.sin(now*3+k):1;c.strokeStyle=on?K.ok:K.line;c.lineWidth=1.4;c.strokeRect(x,y,sz,sz);if(on){c.fillStyle=`rgba(87,224,138,${(0.25*tw).toFixed(2)})`;c.fillRect(x+1,y+1,sz-2,sz-2);}}
+  const yb=h-76;txt(c,`한 시간에 ${Math.round(perH).toLocaleString()}건 = ${C} × (3600 ÷ ${L}) × ${U.toFixed(2)}`,14,yb,K.mu,wide?13:10.5);
+  txt(c,`통화당 ${cost<10?cost.toFixed(2):cost.toFixed(1)}원`,14,yb+34,cost>20?K.bad:cost>5?K.th:K.ok,wide?26:20,true);txt(c,`= ${P.toLocaleString()}원 ÷ ${Math.round(perH).toLocaleString()}건`,14,yb+56,K.mu,wide?13:10.5);
+  setKv('csKv',kv('한 시간에 받는 통화',Math.round(perH).toLocaleString()+'건')+kv('통화당 원가',(cost<10?cost.toFixed(2):cost.toFixed(1))+'원',cost>20?'--bad':cost>5?'--a2':'--ok')+kv('동시 통화 수를 두 배로',(cost/2<10?(cost/2).toFixed(2):(cost/2).toFixed(1))+'원','--ok')+kv('읽는 법',U<0.3?'자리가 대부분 비어 있습니다. 비어 있어도 GPU의 값은 나갑니다. 통화량에 맞춰 서버를 줄이는 까닭입니다.':'식의 모든 항이 곱하기 · 나누기입니다. 서빙 최적화로 동시 통화 수를 두 배로 만들면 원가가 절반이 됩니다.',null,true));}};
+TOURS.cost=[{say:'시간당 1,000원인 서버가 통화 20개를 동시에 받고, 절반이 차 있고, 통화가 3분입니다. 한 시간에 200건, 건당 5원입니다.',do:()=>{setSl('csC',20);setSl('csU',50);setSl('csP',1000);setSl('csL',180);},hold:5400},
+ {say:'서빙 최적화로 동시 통화 수를 40개로 늘립니다. 같은 서버로 원가가 절반이 됩니다.',do:()=>setSl('csC',40),hold:4600},
+ {say:'새벽에는 가동률이 10%로 떨어집니다. 서버는 그대로인데 통화 한 건의 값이 다섯 배가 됩니다.',do:()=>setSl('csU',10),hold:5000},
+ {say:'가장 붐빌 때에 맞춰 서버를 두면 하루 평균은 절반도 차지 않습니다. 원가를 말할 때는 가동률을 함께 말합니다.',do:()=>setSl('csU',50),hold:4800}];
+
+/* ═══ 9. 정리 퀴즈 ═══ */
+const RC=[
+ ['코드 한 줄만 고쳤는데 이미지를 빌드할 때마다 pip install이 5분씩 걸린다.',['requirements 복사와 설치를 코드 복사보다 위로 옮긴다','베이스 이미지를 latest로 바꿔 최신을 받는다','pip install을 CMD로 옮겨 실행할 때 설치한다'],0,'달라진 단계의 아래를 모두 다시 합니다. 잘 안 바뀌는 것을 위에, 자주 바뀌는 것을 아래에 둡니다.'],
+ ['compose up 직후 몇십 초 동안 api가 오류를 내다가 저절로 괜찮아진다.',['healthcheck를 두고 service_healthy까지 기다리게 한다','api를 맨 먼저 띄워 미리 준비시킨다','오류가 나면 손님에게 그대로 보여 준다'],0,'프로세스가 떴다는 것과 모델을 올려 요청을 받을 준비가 됐다는 것은 다릅니다.'],
+ ['vLLM을 띄우자 같은 GPU의 ASR이 메모리 부족으로 죽었다.',['gpu-memory-utilization을 낮춰 나눠 쓴다','ASR의 배치 크기를 더 크게 올린다','vLLM의 max-model-len을 더 길게 잡는다'],0,'vLLM은 기본값으로 GPU 메모리의 대부분을 미리 잡습니다. 함께 쓰려면 비율을 줄입니다.'],
+ ['통화가 몰리는 시간에 p95가 3초로 뛴다. GPU 사용률은 40%다.',['요청을 묶어 한 번에 넣는다: 마이크로 배치','GPU를 한 장 더 사서 꽂는다','p95 대신 평균 지연을 보고한다'],0,'GPU가 남는데 줄이 쌓인다면 한 번에 하나씩만 넣고 있는 것입니다. 묶어 넣으면 같은 GPU로 더 받습니다.'],
+ ['마이크로 배치를 켰는데 한산한 새벽에 지연이 오히려 늘었다.',['max_wait를 짧게 줄인다','max_batch를 더 크게 올린다','새벽에는 서비스를 내려 둔다'],0,'묶을 요청이 없으면 기다리는 시간만 더해집니다. 붐빌 때는 기다리지 않아도 저절로 묶입니다.'],
+ ['ASR을 두 배 빠르게 만들었는데 수용량이 거의 그대로다.',['구간별 시간을 재서 지금의 병목을 찾는다','ASR을 한 번 더 빠르게 만든다','부하 시험의 통화 수를 줄여 다시 잰다'],0,'병목이 아닌 곳을 고치면 수용량은 늘지 않습니다. 재고, 가장 느린 구간을 고치고, 다시 잽니다.']];
+RC.forEach((it,i)=>{const r=(i+2)%3;it[1]=it[1].slice(r).concat(it[1].slice(0,r));it[2]=(3-r)%3;});
+let rcRight=0,rcDone=0;
+$('rcList2').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}"><div class="q">${i+1}. ${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList2').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(s.classList.contains('done'))return;const a=RC[+s.dataset.i][2],ok=+b.dataset.j===a;
+  b.className=ok?'right':'wrong';if(!ok)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');rcDone++;if(ok)rcRight++;
+  $('rcScore').textContent=`${rcRight} / 6`+(rcDone===6?(rcRight===6?' · 모두 맞혔습니다':' · 틀린 문제의 해설을 다시 읽어 보세요'):'');$('rcBar').style.width=(rcDone/6*100)+'%';}));
+STG.recap={};
+
+const h0=location.hash.slice(1);openTab(STG[h0]?h0:'flow',true);
+if(!RM)requestAnimationFrame(frame);else kick();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>음성 AI Day 42 개념 워크시트 — Voice Agent 평가 자동화</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--page:#E9EDF4;--panel:#FFFFFF;--ink:#0F1B3D;--muted:#55607E;--line:#CCD4E3;--soft:#DFE5F0;
+  --a1:#0E9C8A;--a2:#C97A00;--a3:#D23B7C;--a4:#6A4FCF;--a5:#2B78D6;--ok:#1E9A55;--bad:#D0453B;--scope:#0A1024;box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;line-height:1.6}
+button,input,select{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--a4);outline-offset:2px}
+.app{max-width:860px;margin:0 auto;padding:30px 18px 130px}
+h1{font-size:clamp(1.6rem,4vw,2.3rem);font-weight:900;letter-spacing:-.03em;line-height:1.15;margin:0 0 8px}
+h1 small{display:block;font-size:.9rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:6px}
+.sub{color:var(--muted);margin:0 0 18px;max-width:70ch}
+.sub a{color:var(--a4);font-weight:700}
+.who{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.who input{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 12px;width:180px}
+.who span{font-size:.86rem;color:var(--muted)}
+/* 문항 번호 띠 */
+.strip{position:sticky;top:0;z-index:5;background:var(--page);padding:8px 0;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:16px}
+.strip a{flex:0 0 auto;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:.8rem;font-weight:700;text-decoration:none;color:var(--muted);background:var(--soft);font-variant-numeric:tabular-nums}
+.strip a.ans{background:var(--ink);color:var(--page)}
+.strip a.ok{background:var(--ok);color:#fff}.strip a.bad{background:var(--bad);color:#fff}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;margin-bottom:14px;scroll-margin-top:60px}
+.q.unans{border-color:var(--bad)}
+.q .n{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.q .n .ty{font-size:.78rem;font-weight:700;padding:2px 10px;border-radius:999px;border:1.5px solid var(--c);color:var(--c)}
+.q .p{font-weight:500;margin-bottom:10px}
+.q pre{background:var(--scope);color:#DCE3F5;border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:.88rem;line-height:1.5;margin:0 0 10px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.q pre b{color:#FFE066}
+.opts{display:grid;gap:7px}
+.opt{text-align:left;border:1.5px solid var(--line);background:transparent;border-radius:11px;padding:10px 13px;cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt.sel{border-color:var(--a4);background:color-mix(in srgb,var(--a4) 14%,transparent);font-weight:700}
+.opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent);font-weight:700}
+.opt.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.opt.miss{border-color:var(--ok);border-style:dashed}
+.opt:disabled{cursor:default}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:340px}
+.oxrow .opt{text-align:center;font-size:1.5rem;font-weight:900;padding:8px}
+.multi .opt::before{content:"☐  "}.multi .opt.sel::before,.multi .opt.ok::before{content:"☑  "}
+.reflist{display:grid;gap:4px;margin:0 0 10px;padding:10px 14px;border:1.5px dashed var(--line);border-radius:11px;font-size:.95rem}
+.reflist b{color:var(--a1);margin-right:8px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow select,.fillin input{width:100%;border:1.5px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 10px}
+select.ok,.fillin input.ok{border-color:var(--ok);color:var(--ok);font-weight:700}
+select.bad,.fillin input.bad{border-color:var(--bad);color:var(--bad)}
+.step{display:flex;gap:12px;align-items:center}
+.step .bd{flex:none;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.85rem;font-weight:700;color:var(--muted)}
+.step.sel .bd{background:var(--a4);border-color:var(--a4);color:#fff}
+.step.ok .bd{background:var(--ok);border-color:var(--ok);color:#fff}.step.bad .bd{background:var(--bad);border-color:var(--bad);color:#fff}
+.seqbar{display:flex;gap:10px;align-items:center;margin-top:8px;font-size:.9rem;color:var(--muted)}
+.seqbar button{border:1px solid var(--line);background:transparent;border-radius:8px;padding:3px 10px;cursor:pointer;font-size:.85rem}
+.fillin{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.fillin input{max-width:240px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.fillin.num input{max-width:130px;text-align:right;font-family:inherit;font-variant-numeric:tabular-nums}
+.fillin span{color:var(--muted)}
+.brow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.brow:first-of-type{border-top:0}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:7px 12px;cursor:pointer;font-size:.9rem;white-space:nowrap}
+.seg button+button{border-left:1.5px solid var(--line)}
+.seg button.sel{background:var(--a4);color:#fff;font-weight:700}
+.seg button.ok{background:var(--ok);color:#fff;font-weight:700}.seg button.bad{background:var(--bad);color:#fff}
+.seg button.miss{box-shadow:inset 0 0 0 2px var(--ok)}
+.seg button:disabled{cursor:default}
+@media (max-width:560px){.brow,.mrow{grid-template-columns:1fr}}
+.lab{background:var(--scope);border-radius:12px;overflow:hidden;margin-bottom:10px}
+.lab canvas{display:block;width:100%}
+.labctl{display:grid;grid-template-columns:auto 1fr 64px;gap:10px;align-items:center}
+.labctl input{width:100%;accent-color:var(--a4)}
+.labctl output{font-weight:900;text-align:right;font-variant-numeric:tabular-nums}
+.labread{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px;font-weight:700;font-variant-numeric:tabular-nums}
+.fb{margin-top:12px;font-size:.93rem;color:var(--muted);border-left:4px solid var(--line);padding-left:12px}
+.fb.ok{border-left-color:var(--ok)}.fb.bad{border-left-color:var(--bad)}
+.fb b{color:var(--ink)}
+.fb .ref{display:block;font-size:.84rem;margin-top:2px}
+/* 아래 고정 막대 */
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 18px calc(10px + env(safe-area-inset-bottom,0px));z-index:6}
+.bar .in{max-width:860px;margin:0 auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.prog{flex:1 1 160px;min-width:120px}
+.prog .t{height:8px;background:var(--soft);border-radius:99px;overflow:hidden}
+.prog .t i{display:block;height:100%;width:0;background:var(--a4);border-radius:99px;transition:width .25s}
+.prog span{font-size:.84rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.btn{border:1.5px solid var(--line);background:var(--panel);padding:9px 18px;border-radius:999px;cursor:pointer;font-weight:700}
+.btn.go{background:var(--ink);color:var(--page);border-color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:default}
+.res{font-weight:900;font-variant-numeric:tabular-nums}
+.res small{font-weight:500;color:var(--muted);margin-left:6px}
+.code{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--a2);font-weight:700}
+dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:0;max-width:820px;width:94vw;max-height:88vh}
+dialog::backdrop{background:rgba(7,11,24,.6)}
+.dgbody{overflow:auto;max-height:calc(88vh - 62px);padding:20px 22px}
+.dgbody h3{margin:0 0 4px;font-size:1.25rem;font-weight:900}
+.dgbody .meta{color:var(--muted);font-size:.88rem;margin-bottom:12px}
+.dgbody table{width:100%;border-collapse:collapse;font-size:.88rem}
+.dgbody th{text-align:left;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+.dgbody td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.dgbody .okc{color:var(--ok);font-weight:700}.dgbody .badc{color:var(--bad)}
+.dgbar{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:10px 18px;border-top:1px solid var(--line)}
+.toast{margin-right:auto;color:var(--ok);font-size:.88rem;font-weight:700}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1><small>음성 AI 전문가 과정 Day 42 · Voice Agent 평가 자동화</small>개념 워크시트 25문항</h1>
+  <p class="sub">하루 수업 전체를 한 장으로 확인합니다. 객관식, OX, 모두 고르기, 선 잇기, 순서 맞추기, 코드 직접 쓰기, 계산, 분류, 직접 조작까지 아홉 가지 형식이 섞여 있습니다. 답을 고친 뒤 아래 <b>채점하기</b>를 누르면 해설이 열리고 답이 잠깁니다. <b>오답 정리</b>를 눌러 복사한 내용을 노션에 붙여 넣으세요. 해설의 🎬 번호는 <a href="animation.html">animation.html</a>의 애니메이션 번호입니다.</p>
+  <div class="who"><label>이름 <input type="text" id="name" placeholder="홍길동" autocomplete="off"></label><span>이름은 결과 코드 계산에만 쓰이고 저장되지 않습니다.</span></div>
+  <nav class="strip" id="strip" aria-label="문항 번호"></nav>
+  <div id="sheet"></div>
+</div>
+<div class="bar"><div class="in">
+  <div class="prog"><div class="t"><i id="pbar"></i></div><span id="ptxt"></span></div>
+  <span class="res" id="res"></span><span class="code" id="rcode"></span>
+  <button class="btn go" id="gradeBtn">채점하기</button>
+  <button class="btn" id="submitBtn">오답 정리</button>
+</div></div>
+<dialog id="dlg"><div class="dgbody" id="dgBody"></div>
+  <div class="dgbar"><span class="toast" id="toast"></span><button class="btn go" id="captureBtn">노션용으로 복사</button><button class="btn" id="closeBtn">닫기</button></div></dialog>
+<script>
+const Q=[{"ty": "mc", "p": "음성 서비스를 컨테이너에 담는 가장 큰 까닭은 무엇인가요?", "o": ["모델의 정확도를 올리려고", "코드의 길이를 줄여 쓰려고", "어디서나 똑같이 띄우려고", "GPU 없이도 돌려 보려고"], "a": 2, "w": "코드 바깥의 것(파이썬 · 라이브러리 · CUDA · cuDNN 버전)까지 상자에 담아, 어느 서버에서 열어도 똑같이 돌아가게 합니다.", "an": "Part 1 표 · 🎬 D42-2"}, {"ty": "ox", "p": "Dockerfile에서 달라진 단계가 나오면 그 단계 하나만 다시 빌드합니다.", "a": false, "w": "달라진 단계와 그 아래를 모두 다시 합니다. 그래서 잘 안 바뀌는 것을 위에, 자주 바뀌는 것을 아래에 둡니다.", "an": "노트북 1-2 · 🎬 D42-2"}, {"ty": "fill", "p": "지난번과 이번의 단계를 위에서부터 비교하다가 처음으로 다른 단계가 나오면 세기를 멈춥니다. 빈칸의 낱말을 쓰세요.", "c": "for a, b in zip(old, new):\n    if a != b:\n        ____\n    n += 1", "a": ["break"], "w": "break는 반복을 그 자리에서 끝냅니다. 아래 단계의 글자가 같더라도 위가 달라졌으면 캐시를 쓸 수 없기 때문입니다.", "an": "노트북 ✍️ 직접 작성 1", "ph": "낱말 하나"}, {"ty": "num", "p": "단계가 7개인 Dockerfile에서 코드만 고쳤더니 위의 5단계를 캐시에서 다시 썼습니다. 다시 한 단계는 몇 개인가요?", "a": 2, "tol": 0.001, "w": "7 − 5 = 2. COPY 코드와 CMD만 다시 합니다. 5분짜리 pip install은 캐시에서 가져옵니다.", "an": "노트북 1교시 ⭐ 점검표 · 🎬 D42-2", "unit": "개", "ph": "숫자", "hint": ""}, {"ty": "multi", "p": "오늘의 Dockerfile 점검표에 맞는 것을 모두 고르세요.", "o": ["베이스 이미지 버전을 고정", "루트가 아닌 사용자로 실행", "API 키를 ENV 줄에 적어 둠", "의존성 설치를 코드보다 먼저"], "a": [0, 1, 3], "w": "키를 이미지에 넣으면 이미지를 받은 사람은 누구나 볼 수 있습니다. 실행할 때 환경 변수나 비밀 값 저장소로 넣습니다.", "an": "노트북 1-1 표 · ⭐ 점검표"}, {"ty": "match", "p": "compose 파일의 낱말과 뜻을 이으세요.", "left": ["ports", "volumes", "depends_on"], "right": ["먼저 떠야 하는 서비스", "바깥에 여는 문", "컨테이너가 사라져도 남는 저장소"], "a": [1, 2, 0], "w": "오늘 ports는 api에만, volumes는 모델 캐시에, depends_on은 api가 asr · llm · tts를 기다리는 데 썼습니다.", "an": "노트북 1-3 표 · 🎬 D42-3"}, {"ty": "mc", "p": "GPU에서 float16을 int8_float16으로 바꾸면 주로 무엇이 달라지나요?", "o": ["받아쓴 글이 길어짐", "메모리를 덜 쓰게 됨", "소리가 더 또렷해짐", "모델이 더 커지게 됨"], "a": 1, "w": "가중치를 8비트 정수로 줄여 메모리가 줄어듭니다. 남은 메모리에 TTS · LLM을 올릴 수 있습니다. CPU에서는 int8이 속도도 크게 올립니다.", "an": "노트북 2-1 표 · 🎬 D42-4"}, {"ty": "ox", "p": "요청이 드문드문 올 때 마이크로 배치는 기다리는 시간만 더할 수 있습니다.", "a": true, "w": "묶을 요청이 없으면 max_wait만큼 기다리기만 합니다. 이득은 요청이 몰릴 때 생깁니다. 그래서 max_wait는 짧게 둡니다.", "an": "노트북 ✍️ 직접 작성 2 · 🎬 D42-5"}, {"ty": "fill", "p": "묶음이 차거나 시간이 다 되면 지금 묶음을 끝난 묶음들의 리스트에 넣습니다. 빈칸의 메서드 이름을 쓰세요.", "c": "if cur and (len(cur) == max_batch or t - cur[0] > max_wait):\n    batches.____(cur)\n    cur = []", "a": ["append"], "w": "append는 리스트의 맨 뒤에 하나를 더합니다. 기준 시각이 묶음의 첫 요청(cur[0])인 것도 눈여겨보세요.", "an": "노트북 ✍️ 직접 작성 2", "ph": "메서드 이름"}, {"ty": "order", "p": "마이크로 배치가 요청을 처리하는 순서대로 누르세요.", "steps": ["결과를 각 요청에 돌려줌", "첫 요청이 오면 시계를 켬", "차거나 시간이 되면 GPU에 넣음", "시간 안에 온 요청을 묶음에 넣음"], "a": [1, 3, 2, 0], "w": "첫 요청 → 모으기 → 한 번에 계산 → 나눠 돌려주기. 놀이공원의 열차가 자리가 차거나 시간이 되면 출발하는 것과 같습니다.", "an": "노트북 2-2 👣 · 🎬 D42-5"}, {"ty": "mc", "p": "RTF가 0.1이라는 것은 무슨 뜻인가요?", "o": ["소리 열 개 가운데 하나를 틀림", "1초짜리 소리에 10초가 걸림", "메모리를 10분의 1만 쓰게 됨", "10초짜리 소리를 1초에 처리"], "a": 3, "w": "RTF = 처리에 걸린 시간 ÷ 소리의 길이. 한 GPU가 쉬지 않고 감당하는 실시간 소리의 수는 대략 1 ÷ RTF입니다.", "an": "노트북 2-1 📐"}, {"ty": "num", "p": "요청 8개를 한 묶음으로 받아쓰는 데 0.2초가 걸립니다. 초당 처리량은 몇 요청인가요?", "a": 40, "tol": 0.01, "w": "8 ÷ 0.2 = 40. 하나씩 0.1초가 걸렸다면 초당 10이었을 것입니다.", "an": "노트북 2교시 ⭐ 배치 크기 표", "unit": "요청/초", "ph": "숫자", "hint": ""}, {"ty": "mc", "p": "compose 파일에서 api에만 ports를 적은 까닭은 무엇인가요?", "o": ["바깥에 열린 문을 하나로 줄이려고", "api만 GPU를 쓰게 하려고", "나머지 서비스를 더 빠르게 하려고", "모델 캐시를 api에만 두려고"], "a": 0, "w": "ASR · LLM · TTS는 바깥에서 직접 부를 수 없습니다. 공격받을 면이 줄고, 인증과 기록을 한 곳에서 합니다.", "an": "노트북 1-3 · ⭐ 서비스 지도"}, {"ty": "fill", "p": "서비스 s가 기다리는 서비스가 모두 이미 순서에 들어갔는지 봅니다. 빈칸의 함수 이름을 쓰세요.", "c": "if s not in order and ____(d in order for d in deps[s]):\n    order.append(s)", "a": ["all"], "w": "all()은 하나도 빠짐없이 참일 때만 True입니다. 기다리는 것이 없으면 all([])은 True라서 바로 들어갑니다.", "an": "노트북 ✍️ 직접 작성 3", "ph": "함수 이름"}, {"ty": "bucket", "p": "서비스를 넷으로 나눴을 때의 일을 나누세요.", "items": ["막히는 서비스만 따로 늘림", "서비스 사이의 네트워크 시간", "하나가 죽어도 나머지는 삶", "띄우고 지켜볼 것이 늘어남"], "cats": ["얻는 것", "치르는 값"], "a": [0, 1, 0, 1], "w": "나누면 따로 늘리고 바꾸고 살릴 수 있지만, 오가는 시간과 관리할 것이 늘어납니다.", "an": "Part 3 표"}, {"ty": "ox", "p": "depends_on만 적어 두면 compose가 모델을 다 올릴 때까지 기다려 줍니다.", "a": false, "w": "depends_on만으로는 '컨테이너가 시작됨'까지만 기다립니다. healthcheck와 condition: service_healthy를 함께 써야 '준비됨'까지 기다립니다.", "an": "노트북 3-1 🔍 해설 · 🎬 D42-3"}, {"ty": "match", "p": "서비스와 하는 일을 이으세요.", "left": ["asr", "llm", "tts"], "right": ["답 글자를 소리로 만듦", "소리를 글자로 받아씀", "글자를 읽고 답을 만듦"], "a": [1, 2, 0], "w": "api가 이 셋을 차례로 부르고 구간마다 시간을 잽니다.", "an": "노트북 3교시 서비스 표 · 🎬 D42-6"}, {"ty": "mc", "p": "LLM 서버가 OpenAI 호환 주소를 열면 무엇이 좋은가요?", "o": ["답이 언제나 더 정확해짐", "GPU 메모리를 쓰지 않게 됨", "주소만 바꿔 갈아 끼움", "요청을 묶을 필요가 없어짐"], "a": 2, "w": "요청 · 응답의 모양이 같으므로 대역 · vLLM · 클라우드 LLM을 주소(LLM_URL) 한 줄로 바꿉니다.", "an": "노트북 2-3 · (선택) 진짜 LLM 셀"}, {"ty": "mc", "p": "통화가 몰릴 때 지연이 꺾였는데 GPU 사용률은 40%였습니다. 가장 그럴듯한 원인은 무엇인가요?", "o": ["GPU의 메모리가 모두 찼음", "한 번에 하나씩만 넣고 있음", "모델이 너무 작게 줄어 있음", "손님이 너무 천천히 말했음"], "a": 1, "w": "GPU가 남는데 줄이 쌓인다면 요청을 하나씩 넣고 있는 것입니다. 묶어 넣으면(마이크로 배치) 같은 GPU로 더 받습니다.", "an": "노트북 4교시 🔍 해설 · 🎬 D42-7"}, {"ty": "num", "p": "가상 통화 10개가 지연 1초, 생각 시간 1초로 통화합니다. 서버에 들어오는 요청은 초당 몇 개인가요?", "a": 5, "tol": 0.01, "w": "초당 요청 ≈ N ÷ (지연 + 생각 시간) = 10 ÷ 2 = 5.", "an": "Part 4 📐", "unit": "개/초", "ph": "숫자", "hint": ""}, {"ty": "multi", "p": "부하 시험의 결과를 읽는 법으로 옳은 것을 모두 고르세요.", "o": ["지연이 무릎처럼 꺾여 오름", "p95가 p50보다 먼저 오름", "평균만 보면 충분히 알 수 있음", "병목을 풀면 다음 병목이 나옴"], "a": [0, 1, 3], "w": "평균은 느린 몇 번을 가립니다. 스무 명에 한 명이 겪는 지연(p95)으로 목표를 정합니다.", "an": "노트북 4교시 🔍 해설 · 🎬 D42-7"}, {"ty": "fill", "p": "모아 둔 지연들에서 '스무 번에 한 번은 이보다 느린 값'을 구합니다. 빈칸의 숫자를 쓰세요.", "c": "p95 = np.percentile(lat, ____)", "a": ["95"], "w": "np.percentile(값들, 95)는 작은 것부터 줄 세웠을 때 95% 자리에 있는 값입니다.", "an": "노트북 4교시 ⭐ load_test", "ph": "숫자"}, {"ty": "order", "p": "수용량을 늘리는 일의 순서대로 누르세요.", "steps": ["그 구간만 고침", "구간별 시간을 잼", "같은 부하로 다시 잼", "가장 느린 구간을 찾음"], "a": [1, 3, 0, 2], "w": "재기 → 병목 찾기 → 그것만 고치기 → 다시 재기. 재지 않고 고치면 병목이 아닌 곳을 고치게 됩니다.", "an": "노트북 4-2 🔍 해설"}, {"ty": "lab", "p": "지연(초)이 문턱 이상이면 '서버를 늘리라'는 알림을 울립니다. 평소인데 울리는 헛알림을 2% 이하로 지키면서, 서버가 밀렸는데 놓치는 일이 가장 적은 문턱에 슬라이더를 놓으세요.", "mn": 0.3, "mt": 0.7, "s": 0.1, "lo": 0.51, "hi": 0.52, "key": "0.51 (0.52도 정답)", "w": "평소의 지연이 문턱 위로 올라오는(헛알림) 비율이 2% 이하가 되는 가장 낮은 문턱이 답입니다. 더 올리면 서버가 밀렸을 때를 놓치게 됩니다.", "an": "Part 4 SLO · 🎬 D42-7", "n0": "평소의 지연", "n1": "서버가 밀릴 때의 지연", "r0": "헛알림", "r1": "놓친 알림"}, {"ty": "bucket", "p": "통화당 원가가 어떻게 되는지 나누세요.", "items": ["동시 통화 수가 늘어남", "가동률이 떨어짐", "통화 한 건이 길어짐", "GPU 시간당 값이 내림"], "cats": ["원가가 내려감", "원가가 올라감"], "a": [0, 1, 1, 0], "w": "통화당 원가 = GPU의 시간당 값 ÷ (동시 통화 수 × 시간당 회전 수 × 가동률). 분모가 커지면 내려갑니다.", "an": "노트북 ✍️ 직접 작성 4 · 🎬 D42-8"}];
+const $=s=>document.querySelector(s);
+const TY={mc:['객관식','--a5'],ox:['OX','--a2'],multi:['모두 고르기','--a3'],match:['선 잇기','--a1'],order:['순서 맞추기','--a4'],fill:['코드 직접 쓰기','--a2'],num:['계산','--a5'],bucket:['분류','--a1'],lab:['직접 조작','--a3']};
+const AB='ABCDEFGH',N=Q.length;
+const ans=Q.map(q=>q.ty==='multi'||q.ty==='order'?[]:q.ty==='match'?q.left.map(()=>null):q.ty==='bucket'?q.items.map(()=>null):q.ty==='fill'||q.ty==='num'?'':null);
+let graded=false;
+function strip(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent;}
+const eqArr=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+const normFill=s=>{const t=String(s).trim().toLowerCase().replace(/[\s"']+/g,'').replace(/^[.]+/,'');return /^[\w.]+\(\)?$/.test(t)?t.replace(/\(\)?$/,''):t;};
+const numVal=s=>{const v=parseFloat(String(s).replace(/[%,\s]/g,''));return isNaN(v)?null:v;};
+function answered(q,a){switch(q.ty){case 'mc':case 'ox':case 'lab':return a!==null;case 'multi':return a.length>0;case 'match':case 'bucket':return a.every(x=>x!==null);
+  case 'order':return a.length===q.steps.length;case 'fill':return normFill(a)!=='';case 'num':return numVal(a)!==null;}}
+function correct(q,a){if(!answered(q,a))return false;switch(q.ty){case 'multi':return eqArr([...a].sort((x,y)=>x-y),q.a);case 'match':case 'order':case 'bucket':return eqArr(a,q.a);
+  case 'fill':return q.a.map(normFill).includes(normFill(a));case 'num':return Math.abs(numVal(a)-q.a)<=q.tol+1e-9;case 'lab':return a>=q.lo-1e-9&&a<=q.hi+1e-9;default:return a===q.a;}}
+function show(q,a,isKey){if(!isKey&&!answered(q,a))return '미응답';switch(q.ty){case 'mc':return '①②③④'[a]+' '+strip(q.o[a]);case 'ox':return a?'O':'X';
+  case 'multi':return [...a].sort((x,y)=>x-y).map(j=>AB[j]).join(', ');case 'match':return a.map((r,i)=>(i+1)+'-'+AB[r]).join(' · ');case 'order':return a.map(j=>AB[j]).join(' → ');
+  case 'bucket':return a.map((b,i)=>(i+1)+'-'+q.cats[b]).join(' · ');case 'fill':return isKey?q.a[0]:String(a).trim();case 'num':return (isKey?q.a:numVal(a))+(q.unit||'');
+  case 'lab':return isKey?q.key:Number(a).toFixed(2);}}
+const score=()=>ans.filter((a,k)=>correct(Q[k],a)).length,nAns=()=>ans.filter((a,k)=>answered(Q[k],a)).length;
+function hash(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16).padStart(8,'0').slice(-4);}
+const codeFor=(name,sc)=>`D42-${String(sc).padStart(2,'0')}-${hash(`${name.trim()}|${sc}|voice-day42`)}`;
+const dis=()=>graded?'disabled':'';
+function body(q,k){const a=ans[k],g=graded;
+  if(q.ty==='mc')return `<div class="opts">${q.o.map((o,j)=>{let c=j===a?'sel':'';if(g)c=j===q.a?'ok':(j===a?'bad':'');return `<button class="opt ${c}" data-k="${k}" data-j="${j}" ${dis()}>${'①②③④'[j]} ${o}</button>`;}).join('')}</div>`;
+  if(q.ty==='ox')return `<div class="oxrow">${[true,false].map(v=>{let c=v===a?'sel':'';if(g)c=v===q.a?'ok':(v===a?'bad':'');return `<button class="opt ${c}" data-k="${k}" data-v="${v?1:0}" ${dis()}>${v?'O':'X'}</button>`;}).join('')}</div>`;
+  if(q.ty==='multi')return `<div class="opts multi">${q.o.map((o,j)=>{const on=a.includes(j),ri=q.a.includes(j);let c=on?'sel':'';if(g)c=on&&ri?'ok':on?'bad':ri?'miss':'';return `<button class="opt ${c}" data-k="${k}" data-m="${j}" ${dis()}>${AB[j]}. ${o}</button>`;}).join('')}</div>`;
+  if(q.ty==='match')return `<div class="reflist">${q.right.map((r,j)=>`<div><b>${AB[j]}</b>${r}</div>`).join('')}</div>`+q.left.map((l,i)=>`<div class="mrow"><div>${i+1}. ${l}</div><select class="${g?(a[i]===q.a[i]?'ok':'bad'):''}" data-k="${k}" data-i="${i}" aria-label="${i+1}번 짝" ${dis()}><option value="">고르기</option>${q.right.map((r,j)=>`<option value="${j}" ${a[i]===j?'selected':''}>${AB[j]}. ${strip(r)}</option>`).join('')}</select></div>`).join('');
+  if(q.ty==='order')return `<div class="opts">${q.steps.map((s,j)=>{const pos=a.indexOf(j);let c=pos>=0?'sel':'';if(g)c=pos>=0&&q.a[pos]===j?'ok':'bad';return `<button class="opt step ${c}" data-k="${k}" data-s="${j}" ${dis()}><span class="bd">${pos>=0?pos+1:AB[j]}</span><span>${AB[j]}. ${s}</span></button>`;}).join('')}</div><div class="seqbar">${a.length?'고른 순서: '+a.map(j=>AB[j]).join(' → '):'일어나는 순서대로 누르세요'}${g?'':`<button data-k="${k}" data-reset="1">다시</button>`}</div>`;
+  if(q.ty==='fill'||q.ty==='num')return `<div class="fillin ${q.ty}"><input type="text" ${q.ty==='num'?'inputmode="decimal"':'spellcheck="false" autocapitalize="off" style="max-width:360px"'} data-k="${k}" data-f="1" value="${String(a).replace(/"/g,'&quot;')}" placeholder="${q.ph||''}" aria-label="답 입력" class="${g?(correct(q,a)?'ok':'bad'):''}" ${dis()}><span>${q.unit||q.hint||''}</span></div>`;
+  if(q.ty==='bucket')return q.items.map((it,i)=>`<div class="brow"><div>${i+1}. ${it}</div><div class="seg">${q.cats.map((ct,b)=>{let c=a[i]===b?'sel':'';if(g)c=b===q.a[i]?(a[i]===b?'ok':'miss'):(a[i]===b?'bad':'');return `<button class="${c}" data-k="${k}" data-b="${i}" data-c="${b}" ${dis()}>${ct}</button>`;}).join('')}</div></div>`).join('');
+  return `<div class="lab"><canvas id="lab${k}" height="210"></canvas></div><div class="labctl"><span>문턱 θ</span><input type="range" min="0" max="0.8" step="0.01" value="${a===null?0.2:a}" data-k="${k}" data-lab="1" aria-label="문턱" ${dis()}><output id="labo${k}"></output></div><div class="labread" id="labr${k}"></div>`;}
+function Phi(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+function drawLab(k){const q=Q[k],cv=$('#lab'+k);if(!cv)return;const el=document.querySelector(`[data-lab][data-k="${k}"]`),th=+el.value,r=Math.min(2,devicePixelRatio||1),w=cv.clientWidth||600,h=210;
+  cv.width=w*r;cv.height=h*r;cv.style.height=h+'px';const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);c.clearRect(0,0,w,h);
+  const X=v=>20+(v+0.25)/1.2*(w-40),base=h-34,pdf=(v,m)=>Math.exp(-((v-m)**2)/(2*q.s*q.s));
+  [['#FF6FA9',q.mn,v=>v>=th,q.n0],['#57E08A',q.mt,v=>v<th,q.n1]].forEach(([col,m,sh,lab])=>{c.fillStyle=col;c.globalAlpha=.45;c.beginPath();c.moveTo(X(-0.25),base);for(let i=0;i<=240;i++){const v=-0.25+i/240*1.2;c.lineTo(X(v),base-(sh(v)?pdf(v,m):0)*(base-34));}c.lineTo(X(0.95),base);c.fill();c.globalAlpha=1;
+    c.strokeStyle=col;c.lineWidth=2;c.beginPath();for(let i=0;i<=240;i++){const v=-0.25+i/240*1.2,y=base-pdf(v,m)*(base-34);i?c.lineTo(X(v),y):c.moveTo(X(v),y);}c.stroke();c.fillStyle=col;c.font='700 13px "Gothic A1",sans-serif';c.textAlign='center';c.fillText(lab,X(m),22);});
+  c.strokeStyle='#FFE066';c.lineWidth=2.5;c.beginPath();c.moveTo(X(th),28);c.lineTo(X(th),base+6);c.stroke();c.fillStyle='#FFE066';c.fillText('θ '+th.toFixed(2),X(th),h-10);c.textAlign='left';
+  const far=1-Phi((th-q.mn)/q.s),frr=Phi((th-q.mt)/q.s);$('#labo'+k).textContent=th.toFixed(2);
+  $('#labr'+k).innerHTML=`<span style="color:var(--a3)">${q.r0} ${(far*100).toFixed(2)}%</span><span style="color:var(--ok)">${q.r1} ${(frr*100).toFixed(2)}%</span>${ans[k]===null?'<span style="color:var(--muted);font-weight:500">슬라이더를 움직이면 답으로 기록됩니다</span>':''}`;}
+function fb(q,k){const a=ans[k],ok=correct(q,a);return `<div class="fb ${ok?'ok':'bad'}"><b>${!answered(q,a)?'미응답':ok?'정답':'오답'}</b>${ok&&q.ty!=='fill'?'':` · 정답: <b>${show(q,q.a,true)}</b>`}<br>${q.w}<span class="ref">다시 보기: ${q.an}</span></div>`;}
+function render(){
+  $('#sheet').innerHTML=Q.map((q,k)=>`<div class="q ${graded&&!answered(q,ans[k])?'unans':''}" id="q${k+1}"><div class="n">${k+1}<span class="ty" style="--c:var(${TY[q.ty][1]})">${TY[q.ty][0]}</span></div><div class="p">${q.p}</div>${q.c?`<pre>${q.c}</pre>`:''}${body(q,k)}${graded?fb(q,k):''}</div>`).join('');
+  Q.forEach((q,k)=>{if(q.ty==='lab')drawLab(k);});
+  if(!graded){const S=$('#sheet');
+    S.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,j=+b.dataset.j;ans[k]=ans[k]===j?null:j;render();});
+    S.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,v=b.dataset.v==='1';ans[k]=ans[k]===v?null:v;render();});
+    S.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const a=ans[+b.dataset.k],j=+b.dataset.m,p=a.indexOf(j);p>=0?a.splice(p,1):a.push(j);render();});
+    S.querySelectorAll('select[data-i]').forEach(s=>s.onchange=()=>{ans[+s.dataset.k][+s.dataset.i]=s.value===''?null:+s.value;status();});
+    S.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const a=ans[+b.dataset.k],j=+b.dataset.s,p=a.indexOf(j);p>=0?a.splice(p):a.push(j);render();});
+    S.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{ans[+b.dataset.k]=[];render();});
+    S.querySelectorAll('[data-f]').forEach(i=>i.oninput=()=>{ans[+i.dataset.k]=i.value;status();});
+    S.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,i=+b.dataset.b,c=+b.dataset.c;ans[k][i]=ans[k][i]===c?null:c;render();});
+    S.querySelectorAll('[data-lab]').forEach(i=>i.oninput=()=>{const k=+i.dataset.k;ans[k]=+i.value;drawLab(k);status();});}
+  status();}
+function status(){const n=nAns();
+  $('#strip').innerHTML=Q.map((q,k)=>`<a href="#q${k+1}" class="${graded?(correct(q,ans[k])?'ok':'bad'):(answered(q,ans[k])?'ans':'')}" aria-label="${k+1}번">${k+1}</a>`).join('');
+  $('#pbar').style.width=(n/N*100)+'%';$('#ptxt').textContent=graded?'채점 완료 · 답이 잠겼습니다':`${n} / ${N}문항 답함`;
+  $('#gradeBtn').disabled=graded;$('#gradeBtn').textContent=graded?'채점 완료':'채점하기';
+  if(graded){const sc=score(),nm=$('#name').value;$('#res').innerHTML=`${sc} / ${N}<small>${sc*4}점</small>`;$('#rcode').textContent=nm.trim()?codeFor(nm,sc):'이름을 쓰면 결과 코드가 나옵니다';}}
+$('#gradeBtn').onclick=()=>{const n=nAns();if(n<N&&!confirm(`아직 ${N-n}문항에 답하지 않았습니다. 그래도 채점할까요? 답하지 않은 문항은 오답으로 처리합니다.`))return;graded=true;render();scrollTo({top:0});};
+$('#name').addEventListener('input',status);
+addEventListener('resize',()=>Q.forEach((q,k)=>{if(q.ty==='lab')drawLab(k);}));
+/* 오답 정리 */
+let lastHtml='',lastText='';
+function report(){const nm=$('#name').value.trim()||'(이름 없음)',ds=new Date().toLocaleString('ko-KR'),sc=score();
+  const wrong=Q.map((q,k)=>({q,k,a:ans[k]})).filter(x=>!correct(x.q,x.a));
+  let h=`<h3>음성 AI Day 42 개념 워크시트 — 오답 정리</h3><div class="meta">${nm} · ${ds} · ${sc} / ${N} (${sc*4}점) · ${codeFor(nm,sc)}</div>`;
+  let t=`음성 AI Day 42 개념 워크시트 — 오답 정리\n이름: ${nm}\n일시: ${ds}\n점수: ${sc} / ${N} (${sc*4}점)\n결과 코드: ${codeFor(nm,sc)}\n\n`;
+  if(!wrong.length){h+=`<p class="okc">오답 없음</p>`;t+='오답 없음\n';}
+  else{h+=`<table><tr><th>#</th><th>유형</th><th>문항</th><th>내 답</th><th>정답</th><th>해설</th></tr>`;t+=`| # | 유형 | 문항 | 내 답 | 정답 | 해설 |\n|---|---|---|---|---|---|\n`;
+    wrong.forEach(({q,k,a})=>{const cells=[k+1,TY[q.ty][0],strip(q.p).replace(/\s+/g,' ').slice(0,70),show(q,a),show(q,q.a,true),strip(q.w)];
+      h+=`<tr><td>${cells[0]}</td><td>${cells[1]}</td><td>${cells[2]}</td><td class="badc">${cells[3]}</td><td class="okc">${cells[4]}</td><td>${cells[5]}</td></tr>`;t+='| '+cells.map(x=>String(x).replace(/\|/g,'/')).join(' | ')+' |\n';});h+='</table>';}
+  lastHtml=h;lastText=t;return h;}
+$('#submitBtn').onclick=()=>{if(!graded){alert('먼저 채점하기를 눌러 주세요.');return;}$('#dgBody').innerHTML=report();$('#toast').textContent='';$('#dlg').showModal();};
+$('#closeBtn').onclick=()=>$('#dlg').close();
+function copyRich(html,text){let done=false;const on=e=>{e.clipboardData.setData('text/html',html);e.clipboardData.setData('text/plain',text);e.preventDefault();done=true;};
+  document.addEventListener('copy',on);try{const sel=getSelection(),r=document.createRange();r.selectNodeContents($('#dgBody'));sel.removeAllRanges();sel.addRange(r);document.execCommand('copy');sel.removeAllRanges();}catch(e){}
+  document.removeEventListener('copy',on);return done;}
+$('#captureBtn').onclick=async()=>{const doc='<meta charset="utf-8">'+lastHtml.replace(/ class="[^"]*"/g,'').replace(/<table>/g,'<table border="1" style="border-collapse:collapse">');
+  if(copyRich(doc,lastText)){$('#toast').textContent='복사했습니다. 노션 페이지에서 Ctrl+V로 붙여 넣으세요.';return;}
+  try{await navigator.clipboard.writeText(lastText);$('#toast').textContent='글자로 복사했습니다. 노션에 붙여 넣으세요.';}catch(e){$('#toast').textContent='복사하지 못했습니다. 표를 직접 선택해 복사해 주세요.';}};
+render();
+</script>
+</body>
+</html>
