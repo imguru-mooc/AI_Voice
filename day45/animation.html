@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D45 프로젝트 ① 키오스크 음성 주문: 과제 브리핑</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#E9EDF4;--panel:#FFFFFF;--ink:#0F1B3D;--muted:#55607E;--line:#CCD4E3;--soft:#DFE5F0;
+  --a1:#0E9C8A;--a2:#C97A00;--a3:#D23B7C;--a4:#6A4FCF;--a5:#2B78D6;--ok:#1E9A55;--bad:#D0453B;
+  --scope:#0A1024;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}}
+:root[data-theme="dark"]{
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;line-height:1.6;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+button,input,select{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid var(--a4);outline-offset:2px}
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+/* 왼쪽 정거장 목록 */
+.rail{position:sticky;top:0;align-self:start;height:100vh;padding:26px 14px 18px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
+.rail h1{font-size:1.5rem;font-weight:900;line-height:1.15;letter-spacing:-.03em;margin:0}
+.rail h1 small{display:block;font-size:.84rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:6px}
+nav.tabs{display:flex;flex-direction:column;gap:2px;position:relative}
+nav.tabs::before{content:"";position:absolute;left:14px;top:14px;bottom:14px;width:2px;background:var(--line)}
+nav.tabs button{position:relative;display:grid;grid-template-columns:30px 1fr;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:7px 8px 7px 0;border-radius:10px;cursor:pointer;color:var(--muted);font-size:.95rem}
+nav.tabs button .tc{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--page);border:2px solid var(--line);font-weight:700;font-size:.82rem;font-variant-numeric:tabular-nums;transition:background .2s,border-color .2s,color .2s}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-selected="true"] .tc{background:var(--ink);border-color:var(--ink);color:var(--page)}
+nav.tabs button.seen .tc{border-color:var(--a1)}
+.railfoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--muted)}
+.railfoot button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem;text-align:left}
+main{padding:30px clamp(16px,3vw,40px) 60px;max-width:1120px;width:100%;min-width:0}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:clamp(1.45rem,2.6vw,2.05rem);font-weight:900;letter-spacing:-.03em;line-height:1.2;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 18px;max-width:68ch}
+/* 측정 화면: 테마와 상관없이 늘 어두운 계측기 화면 */
+.scope{position:relative;background:var(--scope);border-radius:16px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 18px 40px -24px rgba(10,16,36,.7)}
+.scope canvas{display:block;width:100%;touch-action:none}
+.scope .tag{position:absolute;left:14px;top:10px;color:#8794B8;font-size:.78rem;pointer-events:none}
+.cap{min-height:1.7em;margin:10px 2px 0;font-weight:700;color:var(--a4);font-size:1rem}
+.cap:empty::before{content:"\00a0"}
+.deck{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:6px;align-items:start}
+@media (max-width:900px){.deck{grid-template-columns:1fr}}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.ctl h3,.read h3{margin:0 0 8px;font-size:.9rem;color:var(--muted);font-weight:700}
+label.sl{display:grid;grid-template-columns:minmax(96px,150px) 1fr 76px;gap:10px;align-items:center;margin:9px 0;font-size:.93rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--a4);height:22px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 15px;border-radius:999px;cursor:pointer;font-size:.92rem;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.go{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:700}
+.btn.tour{border-color:var(--a4);color:var(--a4);font-weight:700}
+.btn.tour[aria-pressed="true"]{background:var(--a4);color:#fff}
+.chip{border:2px solid var(--c,var(--a4));background:transparent;padding:6px 13px;border-radius:999px;cursor:pointer;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--c,var(--a4));color:#fff;font-weight:700}
+:root[data-theme="dark"] .chip[aria-pressed="true"],:root[data-theme="dark"] .btn.tour[aria-pressed="true"]{color:#0A1024}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"],:root:not([data-theme="light"]) .btn.tour[aria-pressed="true"]{color:#0A1024}}
+.read{display:grid;gap:8px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.kv div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 13px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.22rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.3}
+.kv b.s{font-size:.98rem;font-weight:700}
+.note{font-size:.86rem;color:var(--muted);margin:10px 2px 0}
+/* 흐름 */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px}
+.road button{text-align:left;border:0;border-top:4px solid var(--c);background:var(--panel);border-radius:0 0 12px 12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:78px}
+.road button b{color:var(--c);font-size:.82rem}
+.road button span{font-weight:700;line-height:1.3}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:760px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.roaddetail h3{margin:0 0 6px;font-size:1.1rem}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+/* 퀴즈 */
+.qbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-weight:700}
+.qbar .track{flex:1;height:10px;background:var(--soft);border-radius:99px;overflow:hidden}
+.qbar .track i{display:block;height:100%;width:0;background:var(--a1);border-radius:99px;transition:width .35s}
+.scen{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.scen .q{font-weight:700;margin-bottom:8px}
+.scen .opts{display:grid;gap:6px}
+.scen .opts button{text-align:left;border:1px solid var(--line);background:transparent;border-radius:10px;padding:9px 12px;cursor:pointer;transition:transform .12s}
+.scen .opts button:hover{border-color:var(--ink)}
+.scen .opts button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent);font-weight:700}
+.scen .opts button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.scen .fb{display:none;margin-top:8px;color:var(--muted);font-size:.92rem;border-left:3px solid var(--a1);padding-left:10px}
+.scen.done .fb{display:block}
+footer{margin-top:36px;color:var(--muted);font-size:.84rem}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{min-width:0;position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px 16px 10px;gap:10px}
+  nav.tabs{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:6px}
+  nav.tabs::before{display:none}
+  nav.tabs button{flex:0 0 auto;grid-template-columns:26px auto;gap:6px;padding:4px 10px 4px 0;font-size:.88rem;white-space:nowrap}
+  nav.tabs button .tc{width:26px;height:26px}
+  .railfoot{flex-direction:row;margin-top:0;align-items:center}
+  .railfoot span{display:none}
+  main{padding-top:18px}
+  label.sl{grid-template-columns:96px 1fr 66px;font-size:.88rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<style>.kv,.kv *{overflow-wrap:anywhere}</style>
+<div class="shell">
+<aside class="rail">
+  <h1><small>음성 AI 전문가 과정 Day 45</small>프로젝트 ① 키오스크 음성 주문</h1>
+  <nav class="tabs" role="tablist" aria-label="애니메이션 목록">
+    <button role="tab" aria-selected="true" data-t="flow"><span class="tc">1</span>오늘 만드는 것</button>
+    <button role="tab" aria-selected="false" data-t="req"><span class="tc">2</span>요구사항과 체크포인트</button>
+    <button role="tab" aria-selected="false" data-t="menu"><span class="tc">3</span>메뉴판에 맞춰 듣기</button>
+    <button role="tab" aria-selected="false" data-t="slots"><span class="tc">4</span>슬롯 채우기</button>
+    <button role="tab" aria-selected="false" data-t="talk"><span class="tc">5</span>대화의 흐름</button>
+    <button role="tab" aria-selected="false" data-t="noise"><span class="tc">6</span>매장 소음</button>
+    <button role="tab" aria-selected="false" data-t="edit"><span class="tc">7</span>확인과 수정</button>
+    <button role="tab" aria-selected="false" data-t="receipt"><span class="tc">8</span>주문서와 점수판</button>
+    <button role="tab" aria-selected="false" data-t="recap"><span class="tc">9</span>정리 퀴즈</button>
+  </nav>
+  <div class="railfoot">
+    <button id="themeBtn" type="button">화면 밝기 바꾸기</button>
+    <span>번호는 노트북의 🎬 D45-1 ~ 9와 같습니다. 키보드 ← → 로 넘길 수 있습니다.</span>
+  </div>
+</aside>
+<main>
+
+<section class="panel active" id="flow">
+  <h2>말로 주문하고, 고치고, 주문서를 받는다</h2>
+  <p class="lead">오늘 하루에 만드는 키오스크의 대화입니다. 왼쪽이 손님과 키오스크의 말, 오른쪽이 장바구니입니다. 아래에서 교시마다 무엇을 만드는지 눌러 보세요.</p>
+  <div class="scope"><canvas id="flCv" data-h="340"></canvas></div>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="req">
+  <h2>요구사항 여섯 개, 체크포인트 열 개</h2>
+  <p class="lead">고객의 요구사항을 고르면, 그것을 맡는 부품(체크포인트)에 불이 들어옵니다. 소리가 왼쪽에서 들어와 오른쪽으로 나갑니다.</p>
+  <div class="scope"><canvas id="rqCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-req"></p>
+  <div class="deck">
+    <div class="ctl"><h3>요구사항</h3><div class="row" id="rqPick" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="req" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="rqKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="menu">
+  <h2>받아쓰기가 틀려도 메뉴판에서 찾는다</h2>
+  <p class="lead">받아쓴 글을 고르고 문턱을 바꿔 보세요. 막대는 메뉴마다 글과 얼마나 닮았는지입니다. 닮은 정도는 화면에서 실제로 계산합니다.</p>
+  <div class="scope"><canvas id="mnCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-menu"></p>
+  <div class="deck">
+    <div class="ctl"><h3>받아쓴 글</h3><div class="row" id="mnPick" style="margin-top:0"></div>
+      <label class="sl">닮음의 문턱<input type="range" id="mnC" min="0.4" max="0.95" step="0.05" value="0.75"><output id="mnCo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="menu" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="mnKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="slots">
+  <h2>말 한마디가 주문서의 칸을 채운다</h2>
+  <p class="lead">손님의 말을 고르면 다섯 칸이 채워집니다. 말하지 않은 칸은 기본값을 쓰거나(회색), 되묻습니다(노랑).</p>
+  <div class="scope"><canvas id="slCv" data-h="320"></canvas></div>
+  <p class="cap" id="cap-slots"></p>
+  <div class="deck">
+    <div class="ctl"><h3>손님의 말</h3><div class="row" id="slPick" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="slots" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="slKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="talk">
+  <h2>주문서를 보고 다음 질문을 고른다</h2>
+  <p class="lead">위의 다섯 단계 가운데 불이 켜진 것이 지금 물을 것입니다. 상황을 골라 대화가 어떻게 달라지는지 보세요.</p>
+  <div class="scope"><canvas id="tkCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-talk"></p>
+  <div class="deck">
+    <div class="ctl"><h3>상황</h3><div class="row" id="tkPick" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="talk" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="tkKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="noise">
+  <h2>소음은 받아쓰기보다 먼저 ‘말의 끝’을 무너뜨린다</h2>
+  <p class="lead">매장 소음의 크기를 바꿔 보세요. 위는 말의 끝을 찾는 문턱, 아래는 주문이 맞게 들어간 비율입니다.</p>
+  <div class="scope"><canvas id="nzCv" data-h="340"></canvas></div>
+  <p class="cap" id="cap-noise"></p>
+  <div class="deck">
+    <div class="ctl"><h3>매장</h3><div class="row" id="nzPick" style="margin-top:0"></div><div class="row" id="nzAd"></div>
+      <div class="row"><button class="btn tour" data-tour="noise" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="nzKv"></div></div>
+  </div>
+  <p class="note">아래 막대는 이 자료를 만들 때의 한 실행에서 잰 값입니다(주문 18개). 여러분의 실행에서는 조금 다릅니다. 위의 파형은 설명용 모형입니다.</p>
+</section>
+
+<section class="panel" id="edit">
+  <h2>읽어 주고, 말로 고치고, 다시 읽어 준다</h2>
+  <p class="lead">장바구니에 손님의 말을 하나씩 넣어 보세요. 고칠 수 있는 말과 없는 말이 있습니다. 합계는 화면에서 다시 계산합니다.</p>
+  <div class="scope"><canvas id="edCv" data-h="320"></canvas></div>
+  <p class="cap" id="cap-edit"></p>
+  <div class="deck">
+    <div class="ctl"><h3>손님의 말</h3><div class="row" id="edPick" style="margin-top:0"></div>
+      <div class="row"><button class="btn" id="edReset">처음으로</button><button class="btn tour" data-tour="edit" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="edKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="receipt">
+  <h2>통과하지 못해도 끝까지 돌아간다</h2>
+  <p class="lead">체크포인트를 눌러 통과 · 미통과를 바꿔 보세요. 통과한 것은 내 함수가, 아닌 것은 참고 구현이 그 자리를 맡습니다. 주문서는 어느 쪽이든 나옵니다.</p>
+  <div class="scope"><canvas id="rcCv" data-h="320"></canvas></div>
+  <p class="cap" id="cap-receipt"></p>
+  <div class="deck">
+    <div class="ctl"><h3>체크포인트</h3><div class="row" id="rcPick" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="receipt" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="rcKv"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="recap">
+  <h2>이 상황에서 무엇을 할까</h2>
+  <p class="lead">키오스크를 만들며 만나는 문제 여섯 가지입니다.</p>
+  <div class="qbar"><span id="rcScore">0 / 6</span><div class="track"><i id="rcBar"></i></div></div>
+  <div id="rcList2"></div>
+</section>
+<footer>메뉴판 탭과 수정 탭은 화면에서 실제로 계산합니다. 매장 소음 탭의 막대는 이 자료를 만들 때 잰 값이고, 나머지는 설명용입니다. 메뉴 · 가격 · 손님은 모두 가상입니다.</footer>
+</main>
+</div>
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const FONT='"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+/* 계측기 화면 색 (테마와 무관) */
+const K={tx:'#DCE3F5',mu:'#8794B8',grid:'rgba(150,170,255,.08)',line:'rgba(150,170,255,.22)',
+  sp:['#35D0BA','#FFB23E','#FF6FA9','#A58BFF','#6FB6FF'],ok:'#57E08A',bad:'#FF6B5E',th:'#FFE066',tgt:'#57E08A',non:'#FF6FA9'};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const pct=(v,d=1)=>(v*100).toFixed(d)+'%';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=(cur,tg,dt,k=9)=>cur+(tg-cur)*(1-Math.exp(-k*dt));
+function rnd(s){let x=(s>>>0)||1;const f=()=>{x=(x*16807)%2147483647;return x/2147483647;};f();f();f();return f;}
+function gauss(r){let u=0;while(u===0)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r());}
+function Phi(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+function invPhi(p){let lo=-9,hi=9;for(let i=0;i<60;i++){const m=(lo+hi)/2;if(Phi(m)<p)lo=m;else hi=m;}return (lo+hi)/2;}
+function fit(cv){const r=Math.min(2,devicePixelRatio||1),w=cv.clientWidth||cv.parentElement.clientWidth||640,h=+cv.dataset.h||300;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+function grid(c,w,h,step=40){c.strokeStyle=K.grid;c.lineWidth=1;c.beginPath();for(let x=step;x<w;x+=step){c.moveTo(x+.5,0);c.lineTo(x+.5,h);}for(let y=step;y<h;y+=step){c.moveTo(0,y+.5);c.lineTo(w,y+.5);}c.stroke();}
+function dot(c,x,y,r,col,glow=0){c.save();if(glow){c.shadowColor=col;c.shadowBlur=glow;}c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.restore();}
+function txt(c,s,x,y,col=K.tx,size=13,bold=false,align='left'){c.fillStyle=col;c.font=`${bold?'700 ':''}${size}px ${FONT}`;c.textAlign=align;c.fillText(s,x,y);c.textAlign='left';}
+const kvCache={};
+function setKv(id,html){if(kvCache[id]!==html){kvCache[id]=html;$(id).innerHTML=html;}}
+const kv=(k,v,col,small)=>`<div><span>${k}</span><b${small?' class="s"':''}${col?` style="color:var(${col})"`:''}>${v}</b></div>`;
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(fmt){Object.keys(fmt).forEach(id=>{const el=$(id),o=$(id+'o');const up=()=>{o.textContent=fmt[id](+el.value);kick();};el.addEventListener('input',up);o.textContent=fmt[id](+el.value);});}
+const val=id=>+$(id).value;
+function setSl(id,v){const el=$(id);el.value=v;el.dispatchEvent(new Event('input'));}
+
+/* ── 탭 · 프레임 루프 ── */
+const STG={};let active='flow',lastTs=0;
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function openTab(id,noHash){if(!$(id)||!STG[id])return;stopTour();active=id;
+  tabs.forEach(x=>{const on=x.dataset.t===id;x.setAttribute('aria-selected',on);if(on)x.classList.add('seen');});
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  if(STG[id].enter)STG[id].enter();kick();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>kick());
+addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  const i=tabs.findIndex(b=>b.dataset.t===active);if(e.key==='ArrowRight'&&i<tabs.length-1)openTab(tabs[i+1].dataset.t);if(e.key==='ArrowLeft'&&i>0)openTab(tabs[i-1].dataset.t);});
+function kick(){if(RM){const s=STG[active];if(s&&s.draw)s.draw(1,performance.now()/1000);}}
+function frame(ts){const dt=clamp((ts-lastTs)/1000||0.016,0.001,0.05);lastTs=ts;const s=STG[active];if(s&&s.draw)s.draw(dt,ts/1000);requestAnimationFrame(frame);}
+$('themeBtn').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';};
+
+/* ── 시연(자동 조작 + 자막) ── */
+let tourTok=null;const TOURS={};
+const wait=ms=>new Promise(r=>setTimeout(r,RM?Math.min(ms,30):ms));
+function stopTour(){if(tourTok){tourTok.stop=true;tourTok=null;}document.querySelectorAll('.btn.tour').forEach(b=>{b.setAttribute('aria-pressed','false');b.textContent='▶ 시연 보기';});
+  document.querySelectorAll('.cap').forEach(c=>c.textContent='');}
+async function runTour(id){const tok={stop:false};tourTok=tok;const btn=document.querySelector(`[data-tour="${id}"]`);btn.setAttribute('aria-pressed','true');btn.textContent='■ 시연 멈추기';const cap=$('cap-'+id);
+  for(const st of TOURS[id]){if(tok.stop)return;cap.textContent=st.say;if(st.do)st.do();
+    const moves=Object.entries(st.set||{}).map(([sid,to])=>[sid,val(sid),to]);const T=st.t||1300,t0=performance.now();
+    if(moves.length){while(!tok.stop){const p=RM?1:clamp((performance.now()-t0)/T,0,1),e=p<.5?2*p*p:1-2*(1-p)*(1-p);moves.forEach(([sid,a,b])=>setSl(sid,a+(b-a)*e));if(p>=1)break;await wait(16);}}
+    await wait(st.hold||1700);}
+  if(!tok.stop)stopTour();}
+document.querySelectorAll('.btn.tour').forEach(b=>b.onclick=()=>{const on=b.getAttribute('aria-pressed')==='true';stopTour();if(!on)runTour(b.dataset.tour);});
+
+/* ═══ 1. 흐름 ═══ */
+function rr(c,x,y,w,h,col,fill){c.strokeStyle=col;c.lineWidth=1.8;c.beginPath();c.roundRect(x,y,w,h,8);if(fill){c.fillStyle=fill;c.fill();}c.stroke();}
+function wrap(c,s,x,y,maxW,col,size,bold,lh){c.font=`${bold?'700 ':''}${size}px ${FONT}`;let line='',yy=y;s.split(' ').forEach(wd=>{if(line&&c.measureText(line+wd).width>maxW){txt(c,line,x,yy,col,size,bold);line='';yy+=lh||size+5;}line+=wd+' ';});txt(c,line,x,yy,col,size,bold);return yy;}
+const DARK='rgba(10,16,36,.9)';
+function wave(c,x0,x1,y,amp,now,col){c.strokeStyle=col;c.lineWidth=1.5;c.beginPath();for(let x=x0;x<x1;x+=3){const u=(x-x0)/Math.max(1,x1-x0),a=amp*(0.35+0.65*Math.abs(Math.sin(x*0.21+now*2.2)));c.moveTo(x,y-a);c.lineTo(x,y+a);}c.stroke();}
+
+
+const pick=(a,v)=>document.querySelector(`[${a}="${v}"]`).click();
+const tog=(el,id,label,col,on,cb)=>{el.insertAdjacentHTML('beforeend',`<button class="chip" id="${id}" style="--c:var(${col})" aria-pressed="${on}">${label}</button>`);$(id).onclick=()=>{const v=$(id).getAttribute('aria-pressed')!=='true';$(id).setAttribute('aria-pressed',v);cb(v);kick();};};
+const setTog=(id,v)=>{if(($(id).getAttribute('aria-pressed')==='true')!==v)$(id).click();};
+const mix=(a,b,k)=>a+(b-a)*Math.min(1,k);
+const MENU={'아메리카노':[3000,['아메리카노']],'카페라떼':[3500,['카페라떼','카페라테','라떼','라테']],'바닐라라떼':[4000,['바닐라라떼','바닐라라테']],'녹차라떼':[4000,['녹차라떼','녹차라테']],'유자차':[3500,['유자차']],'초코쿠키':[2000,['초코쿠키']],'치즈케이크':[4500,['치즈케이크','치즈케익']]};
+const won=n=>n.toLocaleString()+'원';
+function bubble(c,x,y,w,text,me,col,fs){c.font=`${fs}px system-ui`;const lines=[];let cur='';for(const ch of text){if(c.measureText(cur+ch).width>w-22){lines.push(cur);cur=ch;}else cur+=ch;}lines.push(cur);const h=lines.length*(fs+5)+12,bw=Math.min(w,Math.max(...lines.map(l=>c.measureText(l).width))+22);
+  rr(c,me?x+w-bw:x,y,bw,h,col,me?'rgba(120,200,255,.10)':DARK);lines.forEach((l,i)=>txt(c,l,(me?x+w-bw:x)+11,y+fs+5+i*(fs+5),K.tx,fs));return h+8;}
+function cartDraw(c,x,y,w,items,where,wide){txt(c,'장바구니',x,y,K.tx,wide?14:12,true);let yy=y+12,tot=0;items.forEach(it=>{const p=(MENU[it[0]][0]+(it[3]?500:0))*it[1];tot+=p;rr(c,x,yy,w,30,K.line,DARK);txt(c,`${it[2]&&it[2]!=='-'?it[2]+' ':''}${it[0]}${it[3]?' (큰 컵)':''} × ${it[1]}`,x+10,yy+20,K.tx,wide?12.5:10.5);txt(c,won(p),x+w-10,yy+20,K.mu,wide?12:10.5,false,'right');yy+=36;});
+  if(!items.length)txt(c,'(비어 있음)',x+10,yy+20,K.mu,12);txt(c,`${where?where+' · ':''}합계 ${won(tot)}`,x+w,Math.max(yy+26,y+70),K.ok,wide?15:12.5,true,'right');return tot;}
+
+/* ═══ 1. 오늘 만드는 것 ═══ */
+const FLD=[[0,'주문하실 메뉴를 말씀해 주세요.',[],null],[1,'아이스 아메리카노 두 잔이랑 카페라떼 하나 주세요.',[['아메리카노',2,'아이스',0],['카페라떼',1,'?',0]],null],[0,'카페라떼는 따뜻하게 드릴까요, 아이스로 드릴까요?',null,null],[1,'따뜻하게 주세요.',[['아메리카노',2,'아이스',0],['카페라떼',1,'따뜻한',0]],null],
+ [0,'더 주문하실 것이 있으신가요?',null,null],[1,'초코쿠키 두 개 주세요.',[['아메리카노',2,'아이스',0],['카페라떼',1,'따뜻한',0],['초코쿠키',2,'-',0]],null],[0,'더 주문하실 것이 있으신가요?',null,null],[1,'더 없어요. 포장이요.',null,'포장'],
+ [0,'주문 확인하겠습니다. … 모두 만삼천오백 원입니다. 맞으신가요?',null,null],[1,'아니요, 카페라떼 빼 주세요.',[['아메리카노',2,'아이스',0],['초코쿠키',2,'-',0]],null],[0,'주문 확인하겠습니다. … 모두 만 원입니다. 맞으신가요?',null,null],[1,'네, 맞아요.',null,null],[0,'주문이 접수되었습니다. 카드를 꽂아 주세요.',null,null]];
+const FL={t:0};
+STG.flow={draw(dt,now){const {c,w,h}=fit($('flCv'));grid(c,w,h);if(!RM)FL.t+=dt;const n=RM?FLD.length:Math.min(FLD.length,1+Math.floor((FL.t%(FLD.length*1.7+3))/1.7)),wide=w>=640,cw=wide?w*0.58:w-28;
+  let items=[],where=null;FLD.slice(0,n).forEach(d=>{if(d[2])items=d[2];if(d[3])where=d[3];});
+  const show=FLD.slice(Math.max(0,n-(wide?5:4)),n);let y=16;show.forEach(d=>{y+=bubble(c,14,y,cw,(d[0]?'👤 ':'🤖 ')+d[1],d[0]===1,d[0]?K.sp[1]:K.ok,wide?13:11);});
+  if(wide){cartDraw(c,w*0.64,34,w*0.33,items,where,true);txt(c,n>=FLD.length?'→ order.json':'',w*0.97,h-40,K.th,13,true,'right');}
+  txt(c,`${Math.min(n,FLD.length)} / ${FLD.length}번째 말`,14,h-12,K.mu,wide?12:10.5);}};
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--a5',go:'req',items:['D44의 받아쓰기 · 합성 (CPU만)','체크포인트 채점기','참고 구현 (통과 못 해도 진행)'],q:'키도 GPU도 필요 없습니다'},
+ {p:'1교시',t:'메뉴판에 맞춰 듣기',c:'--a2',go:'menu',items:['긴 별명부터 찾기','받아쓰기가 틀려도 닮은 메뉴 찾기','수량: 두 잔 · 2개 · 하나'],q:'✍️ ① find_menu ／ ② find_qty'},
+ {p:'2교시',t:'슬롯과 대화',c:'--a1',go:'slots',items:['물을 것과 기본값으로 둘 것','주문서를 보고 다음 질문 고르기','글자로 대화 시험'],q:'✍️ ③ parse_item ／ ④ next_slot',more:[['talk','대화의 흐름']]},
+ {p:'3교시',t:'매장 소음과 화면',c:'--a4',go:'noise',items:['소음 속의 주문 정확도 재기','소음에 맞춰 말의 끝 찾기','서버 + 브라우저 화면'],q:'✍️ ⑤ speech_threshold ／ ⑥ reask'},
+ {p:'4교시',t:'확인 · 수정 · 주문서',c:'--a3',go:'edit',items:['말로 주문 고치기','금액은 코드가 계산','소음 속 음성 주문을 끝까지'],q:'✍️ ⑦ apply_edit ／ ⑧ receipt ／ 🏅 도전 A · B',more:[['receipt','주문서와 점수판']]},
+ {p:'마무리',t:'점수판 · 회고',c:'--bad',go:'recap',items:['통과한 체크포인트 세기','회고 세 문항','D46: 요구사항 명세 · 인수 시험'],q:'📝 워크시트 25문항 (하루 한 장)'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row"><button class="btn go" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ═══ 2. 요구사항과 체크포인트 ═══ */
+const RQB=[['마이크',null],['⑤ 말 끝 찾기','5'],['받아쓰기',null],['① 메뉴','1'],['② 수량','2'],['③ 한 메뉴','3'],['🏅A 여러 메뉴','A'],['④ 다음 질문','4'],['⑥ 되묻기','6'],['⑦ 고치기','7'],['⑧ 주문서','8'],['🏅B 느린 말','B'],['합성',null]];
+const RQ={R1:['R1 메뉴판의 메뉴를 말로 주문',['1','2'],'"바닐라라라떼"처럼 틀리게 받아써도 바닐라라떼로 알아듣는가','find_menu("바닐라라떼 큰 걸로") → "바닐라라떼"'],R2:['R2 수량 · 온도 · 크기 · 포장',['3','4','A'],'빠진 칸만 되묻는가','next_slot(온도가 빈 주문) → "temp"'],R3:['R3 브라우저 화면',[],'서버와 화면은 강사와 함께 잇는다 (체크포인트 없음)','kiosk.html · /ws/kiosk'],
+ R4:['R4 매장 소음 · 되묻기',['5','6'],'소음이 깔려도 말의 끝을 찾는가 · 세 번째에 직원을 부르는가','reask(3) → ("직원을 불러 드리겠습니다…", True)'],R5:['R5 확인과 수정',['7','B'],'"카페라떼 빼 주세요"로 고쳐지는가','apply_edit(주문, "라떼 빼 주세요") → True'],R6:['R6 주문서 JSON',['8'],'금액이 메뉴판의 가격으로 계산되는가','receipt(주문)["total"] → 10000']};
+const RQS={k:'R1'};chipRow($('rqPick'),'data-rq',Object.keys(RQ).map(k=>[k,k]),'R1','--a2',v=>{RQS.k=v;});
+STG.req={draw(dt,now){const {c,w,h}=fit($('rqCv'));grid(c,w,h);const R=RQ[RQS.k],wide=w>=640,cols=wide?7:4,bw=(w-28-(cols-1)*10)/cols,bh=wide?64:52;
+  RQB.forEach(([l,id],i)=>{const x=14+(i%cols)*(bw+10),y=20+Math.floor(i/cols)*(bh+26),on=id&&R[1].includes(id),p=on&&!RM?0.5+0.5*Math.sin(now*5):1;
+    rr(c,x,y,bw,bh,on?K.ok:id?K.sp[0]:K.line,on?`rgba(87,224,138,${(0.10+0.12*p).toFixed(2)})`:DARK);txt(c,l,x+bw/2,y+bh/2+5,on?K.ok:id?K.tx:K.mu,wide?13:10.5,true,'center');
+    if(i<RQB.length-1&&(i%cols)<cols-1){c.strokeStyle=K.mu;c.beginPath();c.moveTo(x+bw+1,y+bh/2);c.lineTo(x+bw+9,y+bh/2);c.stroke();}});
+  const y0=20+Math.ceil(RQB.length/cols)*(bh+26)+4;wrap(c,R[0],14,y0+8,w-28,K.th,wide?16:13,true,20);wrap(c,'합격의 기준: '+R[2],14,y0+36,w-28,K.tx,wide?13:11,false,18);txt(c,R[3],14,h-14,K.sp[1],wide?12.5:10);
+  setKv('rqKv',kv('요구사항',R[0])+kv('맡는 체크포인트',R[1].length?R[1].map(x=>isNaN(x)?'도전 '+x:x+'번').join(' · '):'없음 (함께 만듦)','--ok')+kv('점수',R[1].length*10+'점')+kv('합격의 기준',R[2],null,true)+kv('시험의 예',R[3],null,true));}};
+TOURS.req=[{say:'R1입니다. 메뉴판의 메뉴를 말로 주문합니다. 체크포인트 1번과 2번이 맡습니다. 받아쓰기가 조금 틀려도 알아들어야 합니다.',do:()=>pick('data-rq','R1'),hold:5200},
+ {say:'R4는 매장 소음입니다. 받아쓰기 앞의 말 끝 찾기와, 못 알아들었을 때의 되묻기가 맡습니다.',do:()=>pick('data-rq','R4'),hold:5200},
+ {say:'R6은 주문서입니다. 맨 끝의 8번 하나가 맡습니다. 금액은 손님의 말이 아니라 메뉴판의 가격으로 계산합니다.',do:()=>pick('data-rq','R6'),hold:5200}];
+
+/* ═══ 3. 메뉴판에 맞춰 듣기 (화면에서 실제로 계산) ═══ */
+function lcs(a,b){const d=Array.from({length:a.length+1},()=>new Array(b.length+1).fill(0));for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]+1:Math.max(d[i-1][j],d[i][j-1]);return d[a.length][b.length];}
+function simMenu(text){const t=text.replace(/[ .,?!]/g,''),out={};for(const [name,[,al]] of Object.entries(MENU)){let best=0;for(const a of al){if(a.length<4)continue;for(const L of [a.length-1,a.length,a.length+1])for(let i=0;i<Math.max(t.length-L+1,1);i++){const s=t.slice(i,i+L),r=2*lcs(a,s)/(a.length+s.length);if(r>best)best=r;}}out[name]=best;}return out;}
+function exactMenu(text){const t=text.replace(/ /g,''),ps=[];for(const [n,[,al]] of Object.entries(MENU))al.forEach(a=>ps.push([a,n]));ps.sort((x,y)=>y[0].length-x[0].length);const f=ps.find(p=>t.includes(p[0]));return f?f[1]:null;}
+const MNT={a:'아이스아메리카노두잔주세요.',b:'바닐라라라떼큰걸로하나주세요.',c:'아닐라라라떼꿈.',d:'라떼빼주세요.',e:'레몬에이드두잔주세요.',f:'네맞아요.'};
+const MN={k:'b',a:{}};chipRow($('mnPick'),'data-mn',Object.entries(MNT).map(([k,v])=>[k,v.replace('.','')]),'b','--a2',v=>{MN.k=v;MN.a={};});bindSl({mnC:v=>v.toFixed(2)});
+STG.menu={draw(dt,now){const {c,w,h}=fit($('mnCv'));grid(c,w,h);const t=MNT[MN.k],S=simMenu(t),cut=val('mnC'),ex=exactMenu(t),top=Object.entries(S).sort((a,b)=>b[1]-a[1])[0],cl=top[1]>=cut?top[0]:null,wide=w>=640,x0=wide?150:96,x1=w-(wide?70:44),names=Object.keys(MENU);
+  const longHit=names.find(n=>MENU[n][1].some(a=>a.length>=4&&t.replace(/ /g,'').includes(a))),fin=longHit||cl||ex;
+  txt(c,'받아쓴 글: '+t,14,24,K.tx,wide?15:12,true);names.forEach((n,i)=>{const y=44+i*((h-110)/7),v=S[n];MN.a[n]=RM?v:mix(MN.a[n]||0,v,dt*5);txt(c,n,14,y+15,n===fin?K.ok:K.tx,wide?13:11,n===fin);c.fillStyle='rgba(150,170,255,.07)';c.fillRect(x0,y,x1-x0,20);c.fillStyle=n===fin?K.ok:v>=cut?K.th:K.sp[1];c.globalAlpha=n===fin?0.9:0.55;c.fillRect(x0,y,(x1-x0)*MN.a[n],20);c.globalAlpha=1;txt(c,v.toFixed(2),x1+6,y+15,K.mu,wide?12:10.5);});
+  const cx=x0+(x1-x0)*cut;c.strokeStyle=K.th;c.setLineDash([5,5]);c.lineWidth=1.6;c.beginPath();c.moveTo(cx,38);c.lineTo(cx,h-62);c.stroke();c.setLineDash([]);txt(c,'문턱 '+cut.toFixed(2),cx,h-48,K.th,11,true,'center');
+  const wrong=ex&&fin&&ex!==fin,msg=wrong?`별명 그대로는 "${ex}"로 잘못 알아듣습니다. 닮은 것을 찾으면 "${fin}"입니다.`:!fin?'메뉴판에 닮은 것이 없습니다. 모름으로 두고 되묻습니다.':cl&&!longHit&&!ex?`틀린 받아쓰기를 "${fin}"(으)로 살렸습니다.`:`"${fin}"(으)로 알아들었습니다.`;
+  txt(c,msg,14,h-14,wrong?K.th:fin?K.ok:K.mu,wide?13.5:10.5,true);
+  setKv('mnKv',kv('별명 그대로',ex||'모름',wrong?'--bad':null)+kv('가장 닮은 메뉴',`${top[0]} (${top[1].toFixed(2)})`)+kv('문턱을 넘었나',top[1]>=cut?'예':'아니요',top[1]>=cut?'--ok':null)+kv('최종',fin||'모름 → 되묻기',fin?'--ok':'--th')+kv('읽는 법',cut<0.6?'문턱이 낮으면 메뉴판에 없는 것도 있는 것으로 알아듣기 시작합니다.':'긴 이름이 그대로 있으면 그것, 없으면 닮은 것, 그것도 없으면 짧은 별명(라떼) 순서로 찾습니다.',null,true));}};
+TOURS.menu=[{say:'받아쓰기가 "바닐라라라떼"로 틀렸습니다. 별명 그대로 찾으면 그 안의 "라떼" 때문에 카페라떼가 됩니다. 닮은 정도로 찾으면 바닐라라떼입니다.',do:()=>{pick('data-mn','b');setSl('mnC',0.75);},hold:6000},
+ {say:'"레몬에이드"는 메뉴판에 없습니다. 어느 메뉴도 문턱을 넘지 못해 모름이 됩니다. 이것이 맞는 답입니다.',do:()=>pick('data-mn','e'),hold:5200},
+ {say:'문턱을 0.4로 내렸습니다. 없는 메뉴가 있는 메뉴로 바뀝니다. 손님은 시키지 않은 것을 받게 됩니다.',do:()=>setSl('mnC',0.4),hold:5600}];
+
+/* ═══ 4. 슬롯 채우기 ═══ */
+const SLT={a:['아이스 아메리카노 두 잔 주세요',['아메리카노',1],['2',1],['아이스',1],['보통',0],['?',2]],b:['카페라떼 하나요',['카페라떼',1],['1',1],['?',2],['보통',0],['?',2]],c:['바닐라라떼 큰 걸로 하나 포장이요',['바닐라라떼',1],['1',1],['?',2],['큰 컵',1],['포장',1]],d:['초코쿠키 두 개',['초코쿠키',1],['2',1],['-',3],['보통',0],['?',2]],e:['따뜻한 유자차 주세요',['유자차',1],['1',0],['따뜻하게',1],['보통',0],['?',2]]};
+const SL={k:'a',t:0};chipRow($('slPick'),'data-sl',Object.entries(SLT).map(([k,v])=>[k,v[0]]),'a','--a1',v=>{SL.k=v;SL.t=0;});
+STG.slots={draw(dt,now){const {c,w,h}=fit($('slCv'));grid(c,w,h);const S=SLT[SL.k],wide=w>=640;if(!RM)SL.t+=dt;const n=RM?5:Math.min(5,Math.floor(SL.t/0.55));
+  txt(c,'👤 '+S[0],14,34,K.tx,wide?18:13.5,true);const names=['메뉴','수량','온도','크기','포장'],bw=(w-28-4*(wide?14:6))/5,y=70,bh=wide?120:104,cols=[K.mu,K.ok,K.th,K.line],tags=['기본값','말에서 찾음','모름 → 묻는다','해당 없음'];
+  names.forEach((nm,i)=>{const x=14+i*(bw+(wide?14:6)),[v,kind]=S[i+1],on=i<n;rr(c,x,y,bw,bh,on?cols[kind]:K.line,on&&kind===2?'rgba(255,209,102,.10)':DARK);txt(c,nm,x+bw/2,y+24,K.mu,wide?13:11,true,'center');if(on){txt(c,v,x+bw/2,y+bh/2+10,cols[kind]===K.line?K.mu:cols[kind],wide?(v.length>4?15:20):(v.length>4?11:14),true,'center');txt(c,tags[kind],x+bw/2,y+bh-12,K.mu,wide?11:9,false,'center');}});
+  const ask=S.slice(1).map((s,i)=>s[1]===2?names[i]:null).filter(Boolean);txt(c,n>=5?(ask.length?`되물을 것: ${ask.join(' → ')}`:'되물을 것이 없습니다. 바로 확인으로 갑니다.'):'',14,y+bh+34,ask.length?K.th:K.ok,wide?15:12,true);
+  txt(c,'초록: 말에서 찾음 · 회색: 기본값 · 노랑: 되묻는다',14,h-14,K.mu,wide?12:10);
+  setKv('slKv',kv('말에서 찾은 칸',S.slice(1).filter(s=>s[1]===1).length+'개','--ok')+kv('기본값을 쓴 칸',S.slice(1).filter(s=>s[1]===0).length+'개')+kv('되물을 칸',ask.length?ask.join(', '):'없음',ask.length?'--th':'--ok')+kv('읽는 법','틀렸을 때 손님이 곤란한 것(온도 · 포장)은 묻고, 나머지(수량 1 · 보통 컵)는 기본값으로 두고 마지막에 읽어 줍니다.',null,true));}};
+TOURS.slots=[{say:'"아이스 아메리카노 두 잔 주세요." 메뉴 · 수량 · 온도를 말에서 찾았습니다. 크기는 기본값이고, 포장 여부만 되묻습니다.',do:()=>pick('data-sl','a'),hold:5600},
+ {say:'"카페라떼 하나요." 온도를 말하지 않았습니다. 음료의 온도는 기본값을 두지 않고 묻습니다. 틀리면 손님이 곤란하기 때문입니다.',do:()=>pick('data-sl','b'),hold:5600},
+ {say:'"초코쿠키 두 개." 디저트의 온도는 해당 없음입니다. 모름과 해당 없음을 구별해야 모르는 것만 물을 수 있습니다.',do:()=>pick('data-sl','d'),hold:5400}];
+
+/* ═══ 5. 대화의 흐름 ═══ */
+const TKS=['menu','temp','more','where','confirm'],TKN=['메뉴','온도','더 있나','포장','확인'];
+const TKC={norm:['평소',[['',0,'주문하실 메뉴를 말씀해 주세요.'],['카페라떼 하나요',1,'카페라떼는 따뜻하게 드릴까요, 아이스로 드릴까요?'],['아이스요',2,'더 주문하실 것이 있으신가요?'],['없어요',3,'드시고 가시나요, 포장하시나요?'],['포장이요',4,'주문 확인하겠습니다. … 맞으신가요?'],['네',5,'주문이 접수되었습니다.']],'빠진 것을 앞에서부터 하나씩 묻습니다.'],
+ once:['한 번에 다 말함',[['',0,'주문하실 메뉴를 말씀해 주세요.'],['따뜻한 유자차 한 잔 포장이요',2,'더 주문하실 것이 있으신가요?'],['없어요',4,'주문 확인하겠습니다. … 맞으신가요?'],['네',5,'주문이 접수되었습니다.']],'온도와 포장을 이미 말했으므로 그 질문은 건너뜁니다.'],
+ fail:['못 알아들음',[['',0,'주문하실 메뉴를 말씀해 주세요.'],['(웅얼웅얼)',0,'죄송합니다. 다시 한번 말씀해 주세요.'],['(웅얼웅얼)',0,'아메리카노 한 잔처럼 메뉴와 수량을 말씀해 주세요.'],['(웅얼웅얼)',6,'직원을 불러 드리겠습니다.']],'되묻는 말이 매번 다르고, 세 번째에 직원을 부릅니다.'],
+ edit:['확인에서 고침',[['…',4,'주문 확인하겠습니다. 아메리카노 두 잔, 카페라떼 한 잔 … 맞으신가요?'],['아니요, 카페라떼 빼 주세요',4,'주문 확인하겠습니다. 아메리카노 두 잔 … 맞으신가요?'],['네',5,'주문이 접수되었습니다.']],'고친 뒤에 다시 읽어 줍니다. 고친 것까지 확인해야 수정이 끝납니다.']};
+const TK={k:'norm',t:0};chipRow($('tkPick'),'data-tk',Object.entries(TKC).map(([k,v])=>[k,v[0]]),'norm','--a1',v=>{TK.k=v;TK.t=0;});
+STG.talk={draw(dt,now){const {c,w,h}=fit($('tkCv'));grid(c,w,h);const S=TKC[TK.k],wide=w>=640;if(!RM)TK.t+=dt;const n=RM?S[1].length:Math.min(S[1].length,1+Math.floor((TK.t%(S[1].length*2.2+2.5))/2.2)),cur=S[1][n-1],bw=(w-28-4*(wide?12:5))/5;
+  TKS.forEach((s,i)=>{const x=14+i*(bw+(wide?12:5)),on=cur[1]===i,done=cur[1]>i&&cur[1]<=5;rr(c,x,16,bw,wide?54:46,on?K.th:done?K.ok:K.line,on?'rgba(255,209,102,.13)':DARK);txt(c,TKN[i],x+bw/2,wide?40:36,on?K.th:done?K.ok:K.mu,wide?14:11,true,'center');txt(c,s,x+bw/2,wide?58:52,K.mu,wide?10.5:8.5,false,'center');});
+  let y=wide?92:80;S[1].slice(Math.max(0,n-3),n).forEach(d=>{if(d[0])y+=bubble(c,14,y,w-28,'👤 '+d[0],true,K.sp[1],wide?13:11);y+=bubble(c,14,y,w-28,'🤖 '+d[2],false,d[1]===6?K.bad:K.ok,wide?13:11);});
+  txt(c,cur[1]===5?'✅ 완료':cur[1]===6?'🙋 직원 호출':'다음에 물을 것: '+TKS[cur[1]],14,h-14,cur[1]===6?K.bad:cur[1]===5?K.ok:K.th,wide?14:12,true);
+  setKv('tkKv',kv('지금까지의 턴',(n-1)+'번')+kv('next_slot',cur[1]<5?TKS[cur[1]]:cur[1]===5?'완료':'직원 호출',cur[1]===6?'--bad':cur[1]===5?'--ok':'--th')+kv('이 상황의 요점',S[2],null,true));}};
+TOURS.talk=[{say:'평소의 대화입니다. 불이 메뉴, 온도, 더 있나, 포장, 확인으로 차례로 옮겨 갑니다. 주문서에서 빠진 것 가운데 가장 앞의 것을 묻습니다.',do:()=>pick('data-tk','norm'),hold:14000},
+ {say:'손님이 한 번에 다 말했습니다. 온도와 포장은 이미 채워져 있어 그 질문을 건너뜁니다. 순서를 if로 엮지 않고 주문서에서 계산하기 때문입니다.',do:()=>pick('data-tk','once'),hold:9500},
+ {say:'못 알아들었습니다. 되묻는 말이 매번 다르고, 세 번째에는 직원을 부릅니다. 손님을 가두지 않습니다.',do:()=>pick('data-tk','fail'),hold:9500}];
+
+/* ═══ 6. 매장 소음 (막대: 제작할 때 잰 값) ═══ */
+const NZD={q:['조용함',null,[1,1,1],-62],s20:['SNR 20 dB',20,[1.00,1.00,0.83],-40],s10:['SNR 10 dB',10,[0.72,0.83,0.72],-30],s5:['SNR 5 dB',5,[0.22,0.28,0.44],-25]};
+const NZ={k:'s10',ad:true,a:[0,0,0]};chipRow($('nzPick'),'data-nz',Object.entries(NZD).map(([k,v])=>[k,v[0]]),'s10','--a4',v=>{NZ.k=v;});tog($('nzAd'),'nzA','소음에 맞춘 문턱','--a3',true,v=>{NZ.ad=v;});
+STG.noise={draw(dt,now){const {c,w,h}=fit($('nzCv'));grid(c,w,h);const D=NZD[NZ.k],wide=w>=640,x0=50,x1=w-16,y0=24,y1=h*0.48,Y=db=>y0+(y1-y0)*(-db-10)/60,fl=D[3],th=NZ.ad?Math.max(fl,-50)+8:-38,T=7;
+  [-20,-40,-60].forEach(d=>{txt(c,d+' dB',x0-6,Y(d)+4,K.mu,10,false,'right');c.strokeStyle='rgba(150,170,255,.08)';c.beginPath();c.moveTo(x0,Y(d));c.lineTo(x1,Y(d));c.stroke();});
+  const sp=[[0.8,2.3],[3.2,4.6],[5.4,6.6]];c.strokeStyle=K.sp[1];c.lineWidth=1.6;c.beginPath();for(let i=0;i<=240;i++){const t=T*i/240,ins=sp.some(([a,b])=>t>a&&t<b),db=ins?Math.max(fl,-18+5*Math.sin(t*9)+3*Math.sin(t*23)):fl+1.5*Math.sin(t*31+(RM?0:now*3));const x=x0+(x1-x0)*i/240;i?c.lineTo(x,Y(db)):c.moveTo(x,Y(db));}c.stroke();
+  c.strokeStyle=K.th;c.setLineDash([6,5]);c.lineWidth=1.8;c.beginPath();c.moveTo(x0,Y(th));c.lineTo(x1,Y(th));c.stroke();c.setLineDash([]);txt(c,`문턱 ${th.toFixed(0)} dB`,x1-4,Y(th)-6,K.th,11,true,'right');
+  const found=fl<th-3;sp.forEach(([a,b])=>{const xe=x0+(x1-x0)*(b+0.5)/T;if(found){c.strokeStyle=K.ok;c.lineWidth=2;c.beginPath();c.moveTo(xe,y0);c.lineTo(xe,y1);c.stroke();}});
+  txt(c,found?'말의 끝 3번을 모두 찾음':'소음이 문턱 위에 있어 말이 끝나지 않음 → 받아쓰기까지 가지도 못함',x0,y1+20,found?K.ok:K.bad,wide?13.5:10.5,true);
+  const by=y1+44,bh=(h-by-34)/3,labs=['별명 그대로','메뉴판에 맞춰','소음을 지운 뒤'];NZ.a=NZ.a.map((a,i)=>RM?D[2][i]:mix(a,D[2][i],dt*4));labs.forEach((l,i)=>{const y=by+i*bh;txt(c,l,14,y+bh/2+3,K.tx,wide?12.5:10.5);const bx=wide?150:100;c.fillStyle='rgba(150,170,255,.07)';c.fillRect(bx,y+3,x1-bx-50,bh-8);c.fillStyle=[K.sp[1],K.ok,K.th][i];c.globalAlpha=0.75;c.fillRect(bx,y+3,(x1-bx-50)*NZ.a[i],bh-8);c.globalAlpha=1;txt(c,pct(D[2][i],0),x1-44,y+bh/2+3,K.tx,wide?12.5:11,true);});
+  txt(c,'주문이 맞게 들어간 비율 (말의 끝을 찾았다고 치고)',14,h-10,K.mu,wide?11.5:9.5);
+  setKv('nzKv',kv('소음 바닥',fl+' dB')+kv('문턱',th.toFixed(0)+' dB '+(NZ.ad?'(바닥 + 8)':'(고정)'),'--th')+kv('말의 끝',found?'찾음':'못 찾음',found?'--ok':'--bad')+kv('메뉴판에 맞춰 들을 때',pct(D[2][1],0),'--ok')+kv('읽는 법',!found?'고정 문턱은 조용한 방을 가정합니다. 매장에서는 소음에 맞춰 올려야 합니다.':D[2][2]<D[2][1]?'소음을 지우면 귀에는 깨끗하지만 주문은 덜 맞습니다. 지우다 생긴 왜곡 때문입니다.':D[1]===5?'아주 시끄러울 때는 지우는 쪽이 조금 낫기도 했습니다. 엇갈립니다. 그래서 잽니다.':'조용하면 무엇을 쓰든 잘 맞습니다.',null,true));}};
+TOURS.noise=[{say:'SNR 10 dB의 매장입니다. 소음에 맞춘 문턱은 소음 바닥보다 8 dB 위에 있어 말의 끝 세 번을 모두 찾습니다.',do:()=>{pick('data-nz','s10');setTog('nzA',true);},hold:5600},
+ {say:'고정 문턱으로 바꿨습니다. 소음이 영하 38 dB보다 커서 계속 말하는 중으로 보입니다. 말이 끝나지 않고, 받아쓰기까지 가지도 못합니다.',do:()=>setTog('nzA',false),hold:6000},
+ {say:'아래 막대를 보세요. SNR 10 dB에서 소음을 지우면 주문이 덜 맞습니다. 귀에 깨끗한 것과 주문이 맞는 것은 다릅니다.',do:()=>setTog('nzA',true),hold:5800},
+ {say:'SNR 5 dB에서는 셋 다 크게 떨어집니다. 여기서는 소프트웨어보다 마이크를 입 가까이 두는 것이 답입니다.',do:()=>pick('data-nz','s5'),hold:5600}];
+
+/* ═══ 7. 확인과 수정 (화면에서 실제로 계산) ═══ */
+const ED0=()=>[['아메리카노',2,'아이스',0],['카페라떼',1,'따뜻한',0],['초코쿠키',2,'-',0]];
+const EDO={a:'카페라떼 빼 주세요',b:'아메리카노 세 잔으로 바꿔 주세요',c:'유자차 빼 주세요',d:'쿠키 취소해 주세요',e:'네, 맞아요'};
+const ED={items:ED0(),msg:'주문을 읽어 주었습니다. 손님의 말을 골라 보세요.',ok:null,flash:0};
+function edApply(k){const t=EDO[k].replace(/ /g,''),m=exactMenu(t)||(t.includes('쿠키')?'초코쿠키':null),hit=ED.items.find(i=>i[0]===m);ED.flash=1;
+  if(!hit){ED.ok=false;ED.msg=m?`"${m}"는 주문에 없습니다. apply_edit은 False를 돌려주고, 대화는 다른 뜻으로 풀어 봅니다.`:k==='e'?'수정이 아닙니다(False). 확인 단계라면 "네"로 받아 주문을 끝냅니다.':'메뉴를 찾지 못했습니다(False).';return;}
+  if(/빼|취소|삭제/.test(t)){ED.items=ED.items.filter(i=>i[0]!==m);ED.ok=true;ED.msg=`"${m}"를 지웠습니다(True). 고친 주문을 다시 읽어 줍니다.`;}
+  else if(/바꿔|변경|으로/.test(t)){hit[1]=3;ED.ok=true;ED.msg=`"${m}"의 수량을 3으로 바꿨습니다(True). 고친 주문을 다시 읽어 줍니다.`;}}
+$('edPick').innerHTML=Object.entries(EDO).map(([k,v])=>`<button class="chip" data-ed="${k}" style="--c:var(--a3)" aria-pressed="false">${v}</button>`).join('');
+$('edPick').querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{edApply(b.dataset.ed);kick();});$('edReset').onclick=()=>{ED.items=ED0();ED.ok=null;ED.msg='주문을 읽어 주었습니다. 손님의 말을 골라 보세요.';kick();};
+STG.edit={draw(dt,now){const {c,w,h}=fit($('edCv'));grid(c,w,h);const wide=w>=640;ED.flash=Math.max(0,ED.flash-dt*1.5);
+  const tot=cartDraw(c,14,30,wide?w*0.5:w-28,ED.items,'포장',wide);
+  if(wide){rr(c,w*0.58,26,w*0.39,150,ED.ok===false?K.th:K.ok,`rgba(87,224,138,${(0.05+0.15*ED.flash).toFixed(2)})`);txt(c,'🤖 다시 읽어 줌',w*0.6,52,K.ok,13,true);wrap(c,ED.items.length?`${ED.items.map(i=>`${i[2]!=='-'?i[2]+' ':''}${i[0]} ${i[1]}${i[2]==='-'?'개':'잔'}`).join(', ')}. 포장, 모두 ${won(tot)}입니다. 맞으신가요?`:'주문하실 메뉴를 말씀해 주세요.',w*0.6,76,w*0.35,K.tx,12.5,false,19);}
+  wrap(c,ED.msg,14,h-44,w-28,ED.ok===false?K.th:ED.ok?K.ok:K.mu,wide?13.5:11,true,19);
+  setKv('edKv',kv('남은 줄',ED.items.length+'줄')+kv('합계',won(tot),'--ok')+kv('apply_edit',ED.ok===null?'-':ED.ok?'True':'False',ED.ok===false?'--th':'--ok')+kv('읽는 법','수정은 주문에 이미 있는 메뉴에만 합니다. 합계는 손님의 말이 아니라 메뉴판의 가격으로 다시 계산합니다.',null,true));}};
+TOURS.edit=[{say:'확인 단계입니다. 손님이 "카페라떼 빼 주세요"라고 합니다. 줄이 사라지고 합계가 다시 계산되고, 고친 주문을 다시 읽어 줍니다.',do:()=>{$('edReset').click();pick('data-ed','a');},hold:5600},
+ {say:'"아메리카노 세 잔으로 바꿔 주세요." 수량이 3이 됩니다. 합계는 메뉴판의 가격으로 다시 계산합니다.',do:()=>pick('data-ed','b'),hold:5200},
+ {say:'"유자차 빼 주세요." 유자차는 주문에 없습니다. 고치지 않고 False를 돌려줍니다. 없는 것을 지웠다고 말하면 안 됩니다.',do:()=>pick('data-ed','c'),hold:5600}];
+
+/* ═══ 8. 주문서와 점수판 ═══ */
+const RCN=[['1','메뉴 찾기'],['2','수량 찾기'],['3','한 메뉴의 주문'],['4','다음에 물을 것'],['5','소음에 맞춘 문턱'],['6','되묻기'],['7','주문 고치기'],['8','주문서'],['A','🏅 여러 메뉴'],['B','🏅 느린 말']];
+const RCS={p:{1:true,2:true,3:true,4:false,5:false,6:false,7:false,8:false,A:false,B:false}};
+$('rcPick').innerHTML=RCN.map(([k])=>`<button class="chip" data-rc="${k}" style="--c:var(--a3)" aria-pressed="${RCS.p[k]}">${isNaN(k)?'도전 '+k:k+'번'}</button>`).join('');
+$('rcPick').querySelectorAll('[data-rc]').forEach(b=>b.onclick=()=>{const k=b.dataset.rc;RCS.p[k]=!RCS.p[k];b.setAttribute('aria-pressed',RCS.p[k]);kick();});
+STG.receipt={draw(dt,now){const {c,w,h}=fit($('rcCv'));grid(c,w,h);const wide=w>=640,cols=5,bw=(w-28-(cols-1)*10)/cols,bh=wide?70:60,n=RCN.filter(([k])=>RCS.p[k]).length;
+  RCN.forEach(([k,name],i)=>{const x=14+(i%cols)*(bw+10),y=18+Math.floor(i/cols)*(bh+12),on=RCS.p[k];rr(c,x,y,bw,bh,on?K.ok:K.sp[0],on?'rgba(87,224,138,.12)':DARK);txt(c,wide?name:(isNaN(k)?'도전 '+k:k+'번'),x+bw/2,y+(wide?26:22),on?K.ok:K.tx,wide?12.5:11,true,'center');txt(c,on?'내 함수':'참고 구현',x+bw/2,y+(wide?48:42),on?K.ok:K.sp[0],wide?12:9.5,false,'center');if(wide)txt(c,on?'+10':'0',x+bw-8,y+bh-8,K.mu,10.5,false,'right');});
+  const y0=18+2*(bh+12)+8;rr(c,14,y0,w-28,h-y0-44,K.line,DARK);txt(c,'order.json',26,y0+22,K.th,wide?13:11.5,true);
+  ['{"items": [{"menu": "아메리카노", "qty": 2, "temp": "아이스", "price": 3000, "sum": 6000},','           {"menu": "초코쿠키", "qty": 2, "temp": "-", "price": 2000, "sum": 4000}],',' "where": "포장", "total": 10000}'].forEach((l,i)=>txt(c,l,26,y0+44+i*(wide?19:16),K.tx,wide?12:8.6));
+  txt(c,`통과 ${n} / 10 · ${n*10}점 — 주문서는 어느 쪽이든 끝까지 나옵니다`,14,h-14,n===10?K.ok:K.th,wide?14:11,true);
+  setKv('rcKv',kv('통과',n+' / 10',n===10?'--ok':null)+kv('점수',n*10+'점 (기본 80 + 도전 20)','--ok')+kv('참고 구현이 맡은 자리',(10-n)+'곳',10-n?'--a5':null)+kv('읽는 법','체크포인트는 "무엇을 만들지 알려 주는 시험"입니다. 통과하지 못한 자리는 참고 구현이 맡아 뒤가 막히지 않습니다. 막히면 넘어갔다가 돌아오세요.',null,true));}};
+TOURS.receipt=[{say:'체크포인트 세 개를 통과한 상태입니다. 나머지 일곱 자리는 참고 구현이 맡고 있습니다. 그래도 주문서는 끝까지 나옵니다.',do:()=>{RCN.forEach(([k])=>{if(RCS.p[k]!==['1','2','3'].includes(k))pick('data-rc',k);});},hold:5600},
+ {say:'4번부터 8번까지 통과하면 80점입니다. 이제 키오스크 전체가 내가 쓴 함수로 돌아갑니다.',do:()=>{['4','5','6','7','8'].forEach(k=>{if(!RCS.p[k])pick('data-rc',k);});},hold:5200},
+ {say:'도전 두 개까지 하면 100점입니다. 금액은 주문서 안에서, 메뉴판의 가격으로 계산됩니다.',do:()=>{['A','B'].forEach(k=>{if(!RCS.p[k])pick('data-rc',k);});},hold:5200}];
+
+/* ═══ 9. 정리 퀴즈 ═══ */
+const RC=[
+ ['손님이 "바닐라라떼"를 시켰는데 주문서에는 카페라떼가 들어갔다.',['긴 이름부터 찾고, 닮은 메뉴를 찾는다','받아쓰기 모델을 더 큰 것으로 바꾼다','라떼라는 별명을 메뉴판에서 지운다'],0,'겹치는 낱말은 긴 것부터 찾습니다. 받아쓰기가 틀려도 메뉴판의 긴 이름과 견줘 닮은 것을 고릅니다.'],
+ ['주문 하나에 질문이 다섯 번이라 손님이 지쳐 한다.',['틀려도 덜 곤란한 칸은 기본값으로 둔다','질문을 더 빠르게 읽어 준다','확인 단계를 없애 버린다'],0,'수량 1 · 보통 컵처럼 기본값을 둘 수 있는 칸은 묻지 않고, 마지막에 읽어 주며 확인합니다.'],
+ ['매장에 놓았더니 키오스크가 손님의 말이 끝나도 반응하지 않는다.',['문턱을 소음 바닥에 맞춰 올린다','받아쓰기의 스레드를 늘린다','합성의 빠르기를 올린다'],0,'고정 문턱은 조용한 방을 가정합니다. 소음만으로 문턱을 넘으면 말이 끝나지 않습니다.'],
+ ['잡음 억제를 넣었더니 소리는 깨끗해졌는데 주문 오류는 그대로다.',['주문이 맞는 비율로 넣기 전후를 잰다','깨끗하게 들리니 그대로 둔다','잡음 억제를 두 번 거듭 건다'],0,'귀에 깨끗한 것과 주문이 맞는 것은 다릅니다. 목표로 삼은 숫자로 다시 잽니다.'],
+ ['손님이 같은 말을 네 번째 되풀이하고 있고, 키오스크는 계속 "다시 말씀해 주세요"라고 한다.',['되묻는 말을 바꾸고 세 번째에 직원을 부른다','되묻는 횟수의 한도를 없앤다','더 큰 소리로 되묻게 한다'],0,'같은 말로 되물으면 손님도 같은 말을 되풀이합니다. 예를 들어 주고, 안 되면 사람을 부릅니다.'],
+ ['손님이 "아메리카노 천 원이죠?"라고 하자 주문서의 금액이 천 원이 되었다.',['금액은 메뉴판에서 코드가 계산한다','손님에게 금액을 다시 묻는다','금액을 주문서에서 뺀다'],0,'돈 · 날짜 · 재고처럼 틀리면 안 되는 것은 말이나 모델에 맡기지 않고 코드가 계산합니다.']];
+RC.forEach((it,i)=>{const r=(i+2)%3;it[1]=it[1].slice(r).concat(it[1].slice(0,r));it[2]=(3-r)%3;});
+let rcRight=0,rcDone=0;
+$('rcList2').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}"><div class="q">${i+1}. ${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList2').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(s.classList.contains('done'))return;const a=RC[+s.dataset.i][2],ok=+b.dataset.j===a;
+  b.className=ok?'right':'wrong';if(!ok)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');rcDone++;if(ok)rcRight++;
+  $('rcScore').textContent=`${rcRight} / 6`+(rcDone===6?(rcRight===6?' · 모두 맞혔습니다':' · 틀린 문제의 해설을 다시 읽어 보세요'):'');$('rcBar').style.width=(rcDone/6*100)+'%';}));
+STG.recap={};
+
+const h0=location.hash.slice(1);openTab(STG[h0]?h0:'flow',true);
+if(!RM)requestAnimationFrame(frame);else kick();
+})();
+</script>
+</body>
+</html>
