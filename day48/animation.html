@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D48 프로젝트 ④ 경진대회 · 현장 안전 음성 보고: 과제 브리핑</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#E9EDF4;--panel:#FFFFFF;--ink:#0F1B3D;--muted:#55607E;--line:#CCD4E3;--soft:#DFE5F0;
+  --a1:#0E9C8A;--a2:#C97A00;--a3:#D23B7C;--a4:#6A4FCF;--a5:#2B78D6;--ok:#1E9A55;--bad:#D0453B;
+  --scope:#0A1024;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}}
+:root[data-theme="dark"]{
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;line-height:1.6;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+button,input,select{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid var(--a4);outline-offset:2px}
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+/* 왼쪽 정거장 목록 */
+.rail{position:sticky;top:0;align-self:start;height:100vh;padding:26px 14px 18px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
+.rail h1{font-size:1.5rem;font-weight:900;line-height:1.15;letter-spacing:-.03em;margin:0}
+.rail h1 small{display:block;font-size:.84rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:6px}
+nav.tabs{display:flex;flex-direction:column;gap:2px;position:relative}
+nav.tabs::before{content:"";position:absolute;left:14px;top:14px;bottom:14px;width:2px;background:var(--line)}
+nav.tabs button{position:relative;display:grid;grid-template-columns:30px 1fr;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:7px 8px 7px 0;border-radius:10px;cursor:pointer;color:var(--muted);font-size:.95rem}
+nav.tabs button .tc{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--page);border:2px solid var(--line);font-weight:700;font-size:.82rem;font-variant-numeric:tabular-nums;transition:background .2s,border-color .2s,color .2s}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-selected="true"] .tc{background:var(--ink);border-color:var(--ink);color:var(--page)}
+nav.tabs button.seen .tc{border-color:var(--a1)}
+.railfoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--muted)}
+.railfoot button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem;text-align:left}
+main{padding:30px clamp(16px,3vw,40px) 60px;max-width:1120px;width:100%;min-width:0}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:clamp(1.45rem,2.6vw,2.05rem);font-weight:900;letter-spacing:-.03em;line-height:1.2;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 18px;max-width:68ch}
+/* 측정 화면: 테마와 상관없이 늘 어두운 계측기 화면 */
+.scope{position:relative;background:var(--scope);border-radius:16px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 18px 40px -24px rgba(10,16,36,.7)}
+.scope canvas{display:block;width:100%;touch-action:none}
+.scope .tag{position:absolute;left:14px;top:10px;color:#8794B8;font-size:.78rem;pointer-events:none}
+.cap{min-height:1.7em;margin:10px 2px 0;font-weight:700;color:var(--a4);font-size:1rem}
+.cap:empty::before{content:"\00a0"}
+.deck{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:6px;align-items:start}
+@media (max-width:900px){.deck{grid-template-columns:1fr}}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.ctl h3,.read h3{margin:0 0 8px;font-size:.9rem;color:var(--muted);font-weight:700}
+label.sl{display:grid;grid-template-columns:minmax(96px,150px) 1fr 76px;gap:10px;align-items:center;margin:9px 0;font-size:.93rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--a4);height:22px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 15px;border-radius:999px;cursor:pointer;font-size:.92rem;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.go{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:700}
+.btn.tour{border-color:var(--a4);color:var(--a4);font-weight:700}
+.btn.tour[aria-pressed="true"]{background:var(--a4);color:#fff}
+.chip{border:2px solid var(--c,var(--a4));background:transparent;padding:6px 13px;border-radius:999px;cursor:pointer;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--c,var(--a4));color:#fff;font-weight:700}
+:root[data-theme="dark"] .chip[aria-pressed="true"],:root[data-theme="dark"] .btn.tour[aria-pressed="true"]{color:#0A1024}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"],:root:not([data-theme="light"]) .btn.tour[aria-pressed="true"]{color:#0A1024}}
+.read{display:grid;gap:8px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.kv div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 13px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.22rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.3}
+.kv b.s{font-size:.98rem;font-weight:700}
+.note{font-size:.86rem;color:var(--muted);margin:10px 2px 0}
+/* 흐름 */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px}
+.road button{text-align:left;border:0;border-top:4px solid var(--c);background:var(--panel);border-radius:0 0 12px 12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:78px}
+.road button b{color:var(--c);font-size:.82rem}
+.road button span{font-weight:700;line-height:1.3}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:760px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.roaddetail h3{margin:0 0 6px;font-size:1.1rem}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+/* 퀴즈 */
+.qbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-weight:700}
+.qbar .track{flex:1;height:10px;background:var(--soft);border-radius:99px;overflow:hidden}
+.qbar .track i{display:block;height:100%;width:0;background:var(--a1);border-radius:99px;transition:width .35s}
+.scen{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.scen .q{font-weight:700;margin-bottom:8px}
+.scen .opts{display:grid;gap:6px}
+.scen .opts button{text-align:left;border:1px solid var(--line);background:transparent;border-radius:10px;padding:9px 12px;cursor:pointer;transition:transform .12s}
+.scen .opts button:hover{border-color:var(--ink)}
+.scen .opts button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent);font-weight:700}
+.scen .opts button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.scen .fb{display:none;margin-top:8px;color:var(--muted);font-size:.92rem;border-left:3px solid var(--a1);padding-left:10px}
+.scen.done .fb{display:block}
+footer{margin-top:36px;color:var(--muted);font-size:.84rem}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{min-width:0;position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px 16px 10px;gap:10px}
+  nav.tabs{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:6px}
+  nav.tabs::before{display:none}
+  nav.tabs button{flex:0 0 auto;grid-template-columns:26px auto;gap:6px;padding:4px 10px 4px 0;font-size:.88rem;white-space:nowrap}
+  nav.tabs button .tc{width:26px;height:26px}
+  .railfoot{flex-direction:row;margin-top:0;align-items:center}
+  .railfoot span{display:none}
+  main{padding-top:18px}
+  label.sl{grid-template-columns:96px 1fr 66px;font-size:.88rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<style>.kv,.kv *{overflow-wrap:anywhere}</style>
+<div class="shell">
+<aside class="rail">
+  <h1><small>음성 AI 전문가 과정 Day 48</small>프로젝트 ④ 경진대회 · 안전 음성 보고</h1>
+  <nav class="tabs" role="tablist" aria-label="애니메이션 목록">
+    <button role="tab" aria-selected="true" data-t="flow"><span class="tc">1</span>오늘의 흐름</button>
+    <button role="tab" aria-selected="false" data-t="metric"><span class="tc">2</span>점수는 어떻게 매겨지나</button>
+    <button role="tab" aria-selected="false" data-t="errors"><span class="tc">3</span>틀린 것을 읽는다</button>
+    <button role="tab" aria-selected="false" data-t="pre"><span class="tc">4</span>소음을 걷어 내면</button>
+    <button role="tab" aria-selected="false" data-t="decode"><span class="tc">5</span>빔 탐색과 핫워드</button>
+    <button role="tab" aria-selected="false" data-t="fuzzy"><span class="tc">6</span>용어집에 맞춰 고치기</button>
+    <button role="tab" aria-selected="false" data-t="shake"><span class="tc">7</span>공개 점수와 비공개 점수</button>
+    <button role="tab" aria-selected="false" data-t="build"><span class="tc">8</span>내 시스템 조립하기</button>
+    <button role="tab" aria-selected="false" data-t="recap"><span class="tc">9</span>정리 퀴즈</button>
+  </nav>
+  <div class="railfoot">
+    <button id="themeBtn" type="button">화면 밝기 바꾸기</button>
+    <span>번호는 노트북의 🎬 D48-1 ~ 9와 같습니다. 키보드 ← → 로 넘길 수 있습니다.</span>
+  </div>
+</aside>
+<main>
+
+<section class="panel active" id="flow">
+  <h2>지표를 읽고, 기준선을 재고, 실험하고, 제출한다</h2>
+  <p class="lead">오늘은 대회입니다. 소음이 섞인 현장 안전 보고를 받아쓰고, 숨겨 둔 평가 세트의 점수로 순위를 매깁니다. 제출은 다섯 번뿐입니다.</p>
+  <div class="scope"><canvas id="flCv" data-h="330"></canvas></div>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="metric">
+  <h2>한 글자의 값이 다르다</h2>
+  <p class="lead">받아쓴 글을 골라 보세요. 글자 오류율과 키워드 재현율, 대회 점수를 화면에서 실제로 계산합니다. 같은 한 글자라도 어디를 틀리느냐에 따라 점수가 다르게 깎입니다.</p>
+  <div class="scope"><canvas id="metricCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-metric"></p>
+  <div class="deck">
+    <div class="ctl"><h3>받아쓴 글</h3><div class="row" id="mtPick" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="metric" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="metricKv"></div></div>
+  </div><p class="note">정답: 2번 창고에서 화재가 발생했습니다 · 키워드: 2번창고, 화재 (가상의 보고)</p>
+</section>
+<section class="panel" id="errors">
+  <h2>놓친 키워드는 무엇으로 들렸나</h2>
+  <p class="lead">기준선이 놓친 키워드와 그것이 들린 모양입니다. 한글을 초성 · 중성 · 종성으로 풀어 다른 곳을 셉니다. 거리를 화면에서 실제로 계산합니다.</p>
+  <div class="scope"><canvas id="errorsCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-errors"></p>
+  <div class="deck">
+    <div class="ctl"><h3>놓친 키워드</h3><div class="row" id="erPick" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="errors" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="errorsKv"></div></div>
+  </div><p class="note">짝은 제작할 때 기준선이 공개 세트에서 실제로 받아쓴 것입니다.</p>
+</section>
+<section class="panel" id="pre">
+  <h2>낮은 소음을 걷어 내면 점수가 오를까</h2>
+  <p class="lead">고역 통과 필터의 차단 주파수를 움직여 보세요. 위는 소리의 대역, 아래는 공개 세트 점수입니다. 공장의 웅웅거림은 사라지는데 점수는 어떻게 될까요.</p>
+  <div class="scope"><canvas id="preCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-pre"></p>
+  <div class="deck">
+    <div class="ctl"><label class="sl">차단 주파수<input type="range" id="prC" min="0" max="400" step="10" value="0"><output id="prCo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="pre" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="preKv"></div></div>
+  </div><p class="note">점수 곡선은 제작할 때 잰 네 점(없음 · 80 · 150 · 300 Hz)을 이은 것이고, 대역 그림은 설명을 위한 모양입니다.</p>
+</section>
+<section class="panel" id="decode">
+  <h2>모델은 그대로, 고르는 방법만 바꾼다</h2>
+  <p class="lead">‘화’ 다음에 올 글자를 고르는 순간입니다. 핫워드 가산 점수를 올리면 ‘화재’ 쪽이 이깁니다. 너무 올리면 무슨 일이 생기는지도 보세요.</p>
+  <div class="scope"><canvas id="decodeCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-decode"></p>
+  <div class="deck">
+    <div class="ctl"><div class="row" id="dcTog" style="margin-top:0"></div><label class="sl">핫워드 가산 점수<input type="range" id="dcS" min="0" max="5" step="0.1" value="0"><output id="dcSo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="decode" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="decodeKv"></div></div>
+  </div><p class="note">후보의 확률은 설명을 위한 값이고, 점수 곡선은 제작할 때 잰 값(가산 0 · 1 · 2 · 4)을 이은 것입니다.</p>
+</section>
+<section class="panel" id="fuzzy">
+  <h2>비슷하면 고친다. 얼마나 비슷해야 할까</h2>
+  <p class="lead">받아쓴 글을 고르고 문턱을 움직여 보세요. 용어집의 낱말과 자모 거리가 가까운 조각을 찾아 바꾸는 과정을 화면에서 실제로 계산합니다.</p>
+  <div class="scope"><canvas id="fuzzyCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-fuzzy"></p>
+  <div class="deck">
+    <div class="ctl"><h3>받아쓴 글</h3><div class="row" id="fzPick" style="margin-top:0"></div><label class="sl">문턱 (ratio)<input type="range" id="fzR" min="0.1" max="0.7" step="0.01" value="0.34"><output id="fzRo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="fuzzy" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="fuzzyKv"></div></div>
+  </div><p class="note">글은 제작할 때 기준선이 실제로 받아쓴 것이고, 아래 점수 곡선은 문턱 다섯 가지에서 잰 공개 세트 점수를 이은 것입니다.</p>
+</section>
+<section class="panel" id="shake">
+  <h2>가장 높은 공개 점수를 고르면 생기는 일</h2>
+  <p class="lead">실력이 똑같은 시스템을 여러 번 제출한다고 해 봅시다. 점 하나가 제출 하나입니다. 공개 점수가 가장 높은 것을 고르면 그 제출의 비공개 점수는 어디에 있을까요. 화면에서 실제로 뽑아 계산합니다.</p>
+  <div class="scope"><canvas id="shakeCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-shake"></p>
+  <div class="deck">
+    <div class="ctl"><label class="sl">제출 횟수<input type="range" id="shN" min="1" max="30" step="1" value="5"><output id="shNo"></output></label><label class="sl">평가 세트의 발화 수<input type="range" id="shM" min="15" max="300" step="5" value="15"><output id="shMo"></output></label><div class="row"><button class="btn" id="shRe">다시 뽑기</button></div>
+      <div class="row"><button class="btn tour" data-tour="shake" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="shakeKv"></div></div>
+  </div><p class="note">모의 실험입니다. 모든 제출의 진짜 실력은 같고(80점), 발화마다의 점수가 흩어진다고 두었습니다.</p>
+</section>
+<section class="panel" id="build">
+  <h2>세 칸을 골라 시스템을 조립한다</h2>
+  <p class="lead">전처리 · 디코딩 · 후처리를 하나씩 골라 보세요. 제작할 때 84가지 조합을 모두 돌려 잰 점수가 나옵니다. 비공개 점수는 마감을 눌러야 보입니다.</p>
+  <div class="scope"><canvas id="buildCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-build"></p>
+  <div class="deck">
+    <div class="ctl"><h3>전처리</h3><div class="row" id="bdA" style="margin-top:0"></div><h3>디코딩</h3><div class="row" id="bdB"></div><h3>후처리</h3><div class="row" id="bdC"></div><div class="row" id="bdTog"></div>
+      <div class="row"><button class="btn tour" data-tour="build" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="buildKv"></div></div>
+  </div><p class="note">제작할 때 잰 값입니다(공개 세트 20개 · 공개 순위표 15개 · 비공개 15개). 여러분의 노트북에서도 같은 설정이면 같은 값이 나와야 합니다.</p>
+</section>
+<section class="panel" id="recap">
+  <h2>이 상황에서 무엇을 할까</h2>
+  <p class="lead">대회를 시작해 마감하기까지 만나는 문제 여섯 가지입니다.</p>
+  <div class="qbar"><span id="rcScore">0 / 6</span><div class="track"><i id="rcBar"></i></div></div>
+  <div id="rcList2"></div>
+</section>
+<footer>점수 계산 · 자모 거리 · 용어집 맞추기 · 모의 실험 탭은 화면에서 실제로 계산합니다. 현장 · 사람 · 사고는 모두 가상입니다.</footer>
+</main>
+</div>
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const FONT='"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+/* 계측기 화면 색 (테마와 무관) */
+const K={tx:'#DCE3F5',mu:'#8794B8',grid:'rgba(150,170,255,.08)',line:'rgba(150,170,255,.22)',
+  sp:['#35D0BA','#FFB23E','#FF6FA9','#A58BFF','#6FB6FF'],ok:'#57E08A',bad:'#FF6B5E',th:'#FFE066',tgt:'#57E08A',non:'#FF6FA9'};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const pct=(v,d=1)=>(v*100).toFixed(d)+'%';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=(cur,tg,dt,k=9)=>cur+(tg-cur)*(1-Math.exp(-k*dt));
+function rnd(s){let x=(s>>>0)||1;const f=()=>{x=(x*16807)%2147483647;return x/2147483647;};f();f();f();return f;}
+function gauss(r){let u=0;while(u===0)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r());}
+function Phi(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+function invPhi(p){let lo=-9,hi=9;for(let i=0;i<60;i++){const m=(lo+hi)/2;if(Phi(m)<p)lo=m;else hi=m;}return (lo+hi)/2;}
+function fit(cv){const r=Math.min(2,devicePixelRatio||1),w=cv.clientWidth||cv.parentElement.clientWidth||640,h=+cv.dataset.h||300;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+function grid(c,w,h,step=40){c.strokeStyle=K.grid;c.lineWidth=1;c.beginPath();for(let x=step;x<w;x+=step){c.moveTo(x+.5,0);c.lineTo(x+.5,h);}for(let y=step;y<h;y+=step){c.moveTo(0,y+.5);c.lineTo(w,y+.5);}c.stroke();}
+function dot(c,x,y,r,col,glow=0){c.save();if(glow){c.shadowColor=col;c.shadowBlur=glow;}c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.restore();}
+function txt(c,s,x,y,col=K.tx,size=13,bold=false,align='left'){c.fillStyle=col;c.font=`${bold?'700 ':''}${size}px ${FONT}`;c.textAlign=align;c.fillText(s,x,y);c.textAlign='left';}
+const kvCache={};
+function setKv(id,html){if(kvCache[id]!==html){kvCache[id]=html;$(id).innerHTML=html;}}
+const kv=(k,v,col,small)=>`<div><span>${k}</span><b${small?' class="s"':''}${col?` style="color:var(${col})"`:''}>${v}</b></div>`;
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(fmt){Object.keys(fmt).forEach(id=>{const el=$(id),o=$(id+'o');const up=()=>{o.textContent=fmt[id](+el.value);kick();};el.addEventListener('input',up);o.textContent=fmt[id](+el.value);});}
+const val=id=>+$(id).value;
+function setSl(id,v){const el=$(id);el.value=v;el.dispatchEvent(new Event('input'));}
+
+/* ── 탭 · 프레임 루프 ── */
+const STG={};let active='flow',lastTs=0;
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function openTab(id,noHash){if(!$(id)||!STG[id])return;stopTour();active=id;
+  tabs.forEach(x=>{const on=x.dataset.t===id;x.setAttribute('aria-selected',on);if(on)x.classList.add('seen');});
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  if(STG[id].enter)STG[id].enter();kick();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>kick());
+addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  const i=tabs.findIndex(b=>b.dataset.t===active);if(e.key==='ArrowRight'&&i<tabs.length-1)openTab(tabs[i+1].dataset.t);if(e.key==='ArrowLeft'&&i>0)openTab(tabs[i-1].dataset.t);});
+function kick(){if(RM){const s=STG[active];if(s&&s.draw)s.draw(1,performance.now()/1000);}}
+function frame(ts){const dt=clamp((ts-lastTs)/1000||0.016,0.001,0.05);lastTs=ts;const s=STG[active];if(s&&s.draw)s.draw(dt,ts/1000);requestAnimationFrame(frame);}
+$('themeBtn').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';};
+
+/* ── 시연(자동 조작 + 자막) ── */
+let tourTok=null;const TOURS={};
+const wait=ms=>new Promise(r=>setTimeout(r,RM?Math.min(ms,30):ms));
+function stopTour(){if(tourTok){tourTok.stop=true;tourTok=null;}document.querySelectorAll('.btn.tour').forEach(b=>{b.setAttribute('aria-pressed','false');b.textContent='▶ 시연 보기';});
+  document.querySelectorAll('.cap').forEach(c=>c.textContent='');}
+async function runTour(id){const tok={stop:false};tourTok=tok;const btn=document.querySelector(`[data-tour="${id}"]`);btn.setAttribute('aria-pressed','true');btn.textContent='■ 시연 멈추기';const cap=$('cap-'+id);
+  for(const st of TOURS[id]){if(tok.stop)return;cap.textContent=st.say;if(st.do)st.do();
+    const moves=Object.entries(st.set||{}).map(([sid,to])=>[sid,val(sid),to]);const T=st.t||1300,t0=performance.now();
+    if(moves.length){while(!tok.stop){const p=RM?1:clamp((performance.now()-t0)/T,0,1),e=p<.5?2*p*p:1-2*(1-p)*(1-p);moves.forEach(([sid,a,b])=>setSl(sid,a+(b-a)*e));if(p>=1)break;await wait(16);}}
+    await wait(st.hold||1700);}
+  if(!tok.stop)stopTour();}
+document.querySelectorAll('.btn.tour').forEach(b=>b.onclick=()=>{const on=b.getAttribute('aria-pressed')==='true';stopTour();if(!on)runTour(b.dataset.tour);});
+
+/* ═══ 1. 흐름 ═══ */
+function rr(c,x,y,w,h,col,fill){c.strokeStyle=col;c.lineWidth=1.8;c.beginPath();c.roundRect(x,y,w,h,8);if(fill){c.fillStyle=fill;c.fill();}c.stroke();}
+function wrap(c,s,x,y,maxW,col,size,bold,lh){c.font=`${bold?'700 ':''}${size}px ${FONT}`;let line='',yy=y;s.split(' ').forEach(wd=>{if(line&&c.measureText(line+wd).width>maxW){txt(c,line,x,yy,col,size,bold);line='';yy+=lh||size+5;}line+=wd+' ';});txt(c,line,x,yy,col,size,bold);return yy;}
+const DARK='rgba(10,16,36,.9)';
+function wave(c,x0,x1,y,amp,now,col){c.strokeStyle=col;c.lineWidth=1.5;c.beginPath();for(let x=x0;x<x1;x+=3){const u=(x-x0)/Math.max(1,x1-x0),a=amp*(0.35+0.65*Math.abs(Math.sin(x*0.21+now*2.2)));c.moveTo(x,y-a);c.lineTo(x,y+a);}c.stroke();}
+
+const pick=(a,v)=>document.querySelector(`[${a}="${v}"]`).click();
+const tog=(el,id,label,col,on,cb)=>{el.insertAdjacentHTML('beforeend',`<button class="chip" id="${id}" style="--c:var(${col})" aria-pressed="${on}">${label}</button>`);$(id).onclick=()=>{const v=$(id).getAttribute('aria-pressed')!=='true';$(id).setAttribute('aria-pressed',v);cb(v);kick();};};
+const setTog=(id,v)=>{if(($(id).getAttribute('aria-pressed')==='true')!==v)$(id).click();};
+const mix=(a,b,k)=>a+(b-a)*Math.min(1,k);
+const f1=v=>v.toFixed(1);
+function hbar(c,x,y,w,h,frac,col,label,value,fs){rr(c,x,y,w,h,K.line,DARK);if(frac>0){c.fillStyle=col;c.globalAlpha=.85;c.beginPath();c.roundRect(x+2,y+2,Math.max(2,(w-4)*Math.min(1,frac)),h-4,6);c.fill();c.globalAlpha=1;}
+  txt(c,label,x+8,y+h/2+fs*0.36,K.tx,fs,true);txt(c,value,x+w-8,y+h/2+fs*0.36,K.tx,fs,true,'right');}
+/* 지표와 자모 거리 (노트북의 safety_cup.py와 같은 계산) */
+const cleanS=s=>s.replace(/[^0-9A-Za-z가-힣]/g,'');
+function lev(a,b){const d=[];for(let j=0;j<=b.length;j++)d[j]=j;for(let i=1;i<=a.length;i++){let prev=d[0];d[0]=i;for(let j=1;j<=b.length;j++){const t=d[j];d[j]=Math.min(d[j]+1,d[j-1]+1,prev+(a[i-1]!==b[j-1]?1:0));prev=t;}}return d[b.length];}
+const CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ',JUNG='ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ',JONG=' ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ';
+function jamo(s){const o=[];for(const ch of s){const k=ch.charCodeAt(0)-0xAC00;if(k>=0&&k<11172){o.push('초'+CHO[Math.floor(k/588)],'중'+JUNG[Math.floor((k%588)/28)],'종'+JONG[k%28]);}else o.push(ch);}return o;}
+const jdist=(a,b)=>lev(jamo(a),jamo(b));
+const cerOf=(r,h)=>lev([...cleanS(r)],[...cleanS(h)])/Math.max(1,cleanS(r).length);
+const scoreOf=(c,r)=>Math.round(1000*(0.5*(1-Math.min(c,1))+0.5*r))/10;
+const GLOSS=['3층비계','2번창고','지하1층기계실','5번라인','옥상냉각탑','1층하역장','4층계단','7번탱크','정문주차장','2층용접장','추락','화재','누출','감전','끼였','붕괴','연기'];
+function fuzzyFix(text,lex,ratio){text=text.replace(/ /g,'');const log=[];for(const w of lex){const n=[...w].length,T=[...text];if(text.includes(w)||T.length<n)continue;let best=0,bd=1e9;for(let s=0;s<=T.length-n;s++){const d=jdist(w,T.slice(s,s+n).join(''));if(d<bd){bd=d;best=s;}}
+  if(bd<=ratio*jamo(w).length){log.push([T.slice(best,best+n).join(''),w,bd]);text=T.slice(0,best).join('')+w+T.slice(best+n).join('');}}return {text,log};}
+function curve(c,x,y,w,h,pts,xmin,xmax,ymin,ymax,col){const X=v=>x+(v-xmin)/(xmax-xmin)*w,Y=v=>y+h-(v-ymin)/(ymax-ymin)*h;c.strokeStyle=K.line;c.lineWidth=1;c.strokeRect(x,y,w,h);c.strokeStyle=col;c.lineWidth=2;c.beginPath();pts.forEach(([a,b],i)=>i?c.lineTo(X(a),Y(b)):c.moveTo(X(a),Y(b)));c.stroke();pts.forEach(([a,b])=>dot(c,X(a),Y(b),3.5,col));return {X,Y};}
+function interp(pts,v){if(v<=pts[0][0])return pts[0][1];for(let i=1;i<pts.length;i++)if(v<=pts[i][0]){const [a,b]=pts[i-1],[c2,d]=pts[i];return b+(d-b)*(v-a)/(c2-a);}return pts[pts.length-1][1];}
+
+/* ═══ 1. 흐름 ═══ */
+const FLS=[['📜 규칙과 지표','무엇으로 순위를 매기나'],['🎧 듣는다','소음 세 가지, 보고 20건'],['📏 기준선','아무것도 안 했을 때의 점수'],['🔍 오류 분석','놓친 키워드를 직접 읽는다'],['🧪 실험','하나씩 바꾸고 잰다'],['📤 제출 · 마감','다섯 번, 그리고 비공개 점수']];
+const FL={t:0};
+STG.flow={draw(dt,now){const {c,w,h}=fit($('flCv'));grid(c,w,h);if(!RM)FL.t+=dt;const u=RM?5.4:(FL.t%13)/2,cur=Math.min(5,Math.floor(u)),wide=w>=640,cols=wide?6:3,bw=(w-28-(cols-1)*12)/cols,bh=wide?96:78;
+  FLS.forEach(([a,b],i)=>{const x=14+(i%cols)*(bw+12),y=30+Math.floor(i/cols)*(bh+34),on=i===cur,done=i<cur;rr(c,x,y,bw,bh,on?K.th:done?K.ok:K.line,on?'rgba(255,209,102,.12)':DARK);txt(c,a,x+bw/2,y+bh/2-4,on?K.th:done?K.ok:K.tx,wide?14.5:12,true,'center');wrap(c,b,x+8,y+bh/2+18,bw-16,K.mu,wide?11.5:9.5,false,14);
+    if(i<5&&(i%cols)<cols-1){c.strokeStyle=K.mu;c.beginPath();c.moveTo(x+bw+2,y+bh/2);c.lineTo(x+bw+10,y+bh/2);c.stroke();}});
+  const y0=30+Math.ceil(6/cols)*(bh+34);const msg=['점수 = 글자 정확도 절반 + 안전 키워드 재현율 절반. 키워드는 위치와 위험이다.','공장의 웅웅거림, 건설 현장의 타격음, 경보음. 사람 귀에는 알아들을 만하다.','공개 세트 51점. 소음을 완벽하게 없애도 68점이다.','“화재”가 “화제”로, “5번 라인”이 “법원라인”으로 들렸다.','공개 세트 점수가 판사다. 오르면 남기고, 내리면 버리고, 둘 다 적는다.','공개 순위표에는 절반만 보인다. 최종 순위는 마감 뒤에 열리는 비공개 점수다.'][cur];
+  wrap(c,msg,14,y0+10,w-28,K.tx,wide?15:12,true,22);txt(c,'공개 세트는 몇 번이든 · 제출은 5번까지 · 숨은 평가 세트는 열지 않는다',14,h-14,K.mu,wide?12.5:10);}};
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--a5',go:'metric',items:['공개 세트 20개 (정답 있음)','숨은 평가 세트 30개 (공개 순위표 15 + 비공개 15)','현장 용어집: 위치 10곳 · 위험 7가지'],q:'키도 GPU도 필요 없습니다'},
+ {p:'1교시',t:'대회를 읽는다',c:'--a2',go:'metric',items:['소음 세 가지 듣기','지표: CER과 키워드 재현율','기준선과 오류 분석'],q:'✍️ keyword_recall · safety_score · top_confusions',more:[['errors','틀린 것을 읽는다']]},
+ {p:'2교시',t:'전처리 · 디코딩',c:'--a1',go:'pre',items:['고역 통과 필터 실험','빔 탐색과 핫워드 실험','내 시스템 v1 · 첫 제출'],q:'✍️ highpass · 🏁 내 시스템',more:[['decode','빔 탐색과 핫워드']]},
+ {p:'3교시',t:'후처리',c:'--a4',go:'fuzzy',items:['치환 사전','용어집 맞추기와 문턱','증강으로 점검 · 내 시스템 v2'],q:'✍️ apply_dict · fuzzy_fix · 🏁 내 시스템',more:[['build','시스템 조립하기']]},
+ {p:'4교시',t:'마감 · 순위표',c:'--a3',go:'shake',items:['최종 제출 하나 고르기','마감: 비공개 점수 공개','반 순위표 · 3분 공유'],q:'✍️ leaderboard · 공유 카드'},
+ {p:'마무리',t:'회고',c:'--bad',go:'recap',items:['효과가 있었던 것 · 없었던 것','공개 점수와 비공개 점수','D49: 레드팀 · 교차 평가'],q:'📝 워크시트 25문항 (하루 한 장)'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row"><button class="btn go" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ═══ 2. 지표 (화면에서 실제로 계산) ═══ */
+const MTR='2번 창고에서 화재가 발생했습니다',MTK=['2번창고','화재'];
+const MTH=[['ok','정답 그대로','2번 창고에서 화재가 발생했습니다'],['a','화재 → 화제','2번 창고에서 화제가 발생했습니다'],['b','발생 → 발샘','2번 창고에서 화재가 발샘했습니다'],['c','2번 → 두번','두번 창고에서 화재가 발생했습니다'],['d','둘 다 놓침','두번 창고에서 화제가 발생했습니다'],['e','용어집을 다 붙임','두번 창고에서 화제가 발생했습니다 '+GLOSS.join('')]];
+const MT={k:'ok',s:100};
+chipRow($('mtPick'),'data-mt',MTH.map(([k,l])=>[k,l]),'ok','--a2',v=>{MT.k=v;kick();});
+STG.metric={draw(dt,now){const {c,w,h}=fit($('metricCv'));grid(c,w,h);const wide=w>=640,fs=wide?13:10.5,hyp=MTH.find(x=>x[0]===MT.k)[2],ce=cerOf(MTR,hyp),hc=cleanS(hyp),found=MTK.filter(k=>hc.includes(k)).length,rec=found/2,sc=scoreOf(ce,rec);MT.s=RM?sc:mix(MT.s,sc,dt*8);
+  txt(c,'정답',14,26,K.mu,fs);wrap(c,MTR,wide?74:54,26,w-90,K.tx,wide?15:12,true,18);txt(c,'받아씀',14,56,K.mu,fs);
+  const R=[...cleanS(MTR)],H=[...hc];let x=wide?74:54,y=56;const cw=wide?17:12.5;H.slice(0,wide?46:40).forEach((ch,i)=>{const bad=i>=R.length||R[i]!==ch;if(x+cw>w-14){x=wide?74:54;y+=20;}txt(c,ch,x,y,bad?K.bad:K.tx,wide?15:12,true);x+=cw;});if(H.length>(wide?46:40))txt(c,'…',x,y,K.bad,wide?15:12,true);
+  const by=y+26,bh=wide?40:34,bw=w-28;hbar(c,14,by,bw,bh,1-Math.min(ce,1),K.sp[4],'글자 정확도 (1 − CER)',`${((1-Math.min(ce,1))*100).toFixed(1)}%`,fs);hbar(c,14,by+bh+10,bw,bh,rec,K.sp[1],`키워드 재현율 (${found} / 2)`,`${(rec*100).toFixed(0)}%`,fs);
+  MTK.forEach((k,i)=>{const ok=hc.includes(k);txt(c,(ok?'✅ ':'❌ ')+k,14+i*(wide?150:110),by+2*bh+34,ok?K.ok:K.bad,fs+1,true);});
+  txt(c,`점수 ${MT.s.toFixed(1)}`,w-14,by+2*bh+40,sc>=90?K.ok:sc>=70?K.th:K.bad,wide?30:22,true,'right');txt(c,'점수 = 100 × ( 0.5 × (1 − CER) + 0.5 × 재현율 )',14,h-14,K.mu,fs);
+  setKv('metricKv',kv('CER',(ce*100).toFixed(1)+'%',ce>0.3?'--bad':null)+kv('키워드 재현율',found+' / 2',found===2?'--ok':'--bad')+kv('대회 점수',sc.toFixed(1),sc>=90?'--ok':'--a2')+kv('잃은 점수',(100-sc).toFixed(1)+'점')+kv('읽는 법',{ok:'모두 맞으면 100점입니다. 띄어쓰기와 문장 부호는 세지 않습니다.',a:'한 글자를 틀렸는데 28점을 잃었습니다. 그 글자가 키워드 안에 있었기 때문입니다.',b:'같은 한 글자인데 3점만 잃었습니다. 키워드 밖의 글자입니다.',c:'“두번창고”는 사람이 읽으면 통하지만 키워드로는 놓친 것입니다. 숫자가 든 위치가 약합니다.',d:'글자는 두 개만 틀렸는데 점수는 절반도 남지 않습니다. 지표가 무엇을 중요하게 보는지가 여기 있습니다.',e:'용어집을 통째로 뒤에 붙였습니다. 키워드는 다 찾은 것이 되지만 CER이 1을 넘어 글자 점수가 0이 됩니다. 지표를 속이는 것과 문제를 푸는 것은 다릅니다.'}[MT.k],null,true));}};
+TOURS.metric=[{say:'정답 그대로 받아쓰면 100점입니다.',do:()=>pick('data-mt','ok'),hold:3500},
+ {say:'“화재”를 “화제”로 받아썼습니다. 한 글자입니다. CER은 조금 올랐는데 키워드 하나를 잃어 점수가 크게 떨어집니다.',do:()=>pick('data-mt','a'),hold:6500},
+ {say:'같은 한 글자를 키워드 밖에서 틀렸습니다. “발샘했습니다”. 이번에는 3점만 잃습니다.',do:()=>pick('data-mt','b'),hold:6000},
+ {say:'위치와 위험을 둘 다 놓치면 글자는 두 개만 틀렸는데 점수는 절반도 남지 않습니다.',do:()=>pick('data-mt','d'),hold:6000},
+ {say:'그러면 용어집을 통째로 붙이면 어떨까요. 키워드는 다 찾은 것이 되지만 글자 점수가 0이 됩니다. 기준선보다 낮습니다.',do:()=>pick('data-mt','e'),hold:7000}];
+
+/* ═══ 3. 오류 분석 (화면에서 실제로 계산) ═══ */
+const ERP=[['화재','화제'],['누출','노출'],['감전','반전'],['1층하역장','1층하육장'],['5번라인','법원라인'],['4층계단','사춘기단']];
+const ER={i:0,t:0};chipRow($('erPick'),'data-er',ERP.map(([a,b],i)=>[String(i),`${a} → ${b}`]),'0','--a4',v=>{ER.i=+v;ER.t=0;kick();});
+STG.errors={enter(){ER.t=0;},draw(dt,now){const {c,w,h}=fit($('errorsCv'));grid(c,w,h);const wide=w>=640,[a,b]=ERP[ER.i],ja=jamo(a),jb=jamo(b),d=lev(ja,jb),n=ja.length;if(!RM)ER.t+=dt;const shown=RM?99:Math.floor(ER.t/0.12);
+  const fs=wide?13:10.5,cw=Math.min(wide?34:22,(w-100)/Math.max(ja.length,jb.length)),x0=wide?92:66;
+  txt(c,'정답',14,52,K.mu,fs);txt(c,a,14,74,K.ok,wide?18:14,true);txt(c,'들림',14,128,K.mu,fs);txt(c,b,14,150,K.bad,wide?18:14,true);
+  const cell=(s,i,y,other)=>{if(i>=shown)return;const lab=s.length>1?s.slice(1):s,diff=other[i]!==s;rr(c,x0+i*cw,y,cw-4,34,diff?K.bad:K.line,diff?'rgba(255,107,94,.14)':DARK);txt(c,lab===' '?'·':lab,x0+i*cw+(cw-4)/2,y+23,diff?K.bad:K.tx,wide?16:12,true,'center');if(s.length>1)txt(c,s[0],x0+i*cw+(cw-4)/2,y-4,K.mu,wide?9.5:8,false,'center');};
+  ja.forEach((s,i)=>cell(s,i,44,jb));jb.forEach((s,i)=>cell(s,i,120,ja));
+  const same=[...a].length===[...b].length;txt(c,`자모 거리 ${d}  ·  자모 ${n}개 가운데 ${(d/n*100).toFixed(0)}%`,14,196,K.th,wide?20:15,true);
+  txt(c,`글자로 세면 ${[...a].length}글자 가운데 ${lev([...a],[...b])}글자가 다르다 (${(lev([...a],[...b])/[...a].length*100).toFixed(0)}%)`,14,222,K.mu,fs);
+  const bx=14,bw=w-28,by=246;rr(c,bx,by,bw,22,K.line,DARK);[0.15,0.25,0.34,0.45,0.6].forEach(r=>{const px=bx+r/0.7*bw;c.strokeStyle=K.mu;c.beginPath();c.moveTo(px,by);c.lineTo(px,by+22);c.stroke();txt(c,String(r),px,by+36,K.mu,fs-2,false,'center');});
+  dot(c,bx+Math.min(0.7,d/n)/0.7*bw,by+11,6,K.th,10);txt(c,'용어집 맞추기의 문턱이 이 점보다 오른쪽에 있어야 고쳐진다',14,h-14,K.mu,fs);
+  setKv('errorsKv',kv('정답 키워드',a,'--ok')+kv('이렇게 들림',b,'--bad')+kv('자모 거리',d+' / '+n)+kv('고쳐지는 문턱',(d/n).toFixed(2)+' 이상','--a2')+kv('종류',GLOSS.indexOf(a)<10?'위치':'위험')+kv('읽는 법',d<=2&&GLOSS.indexOf(a)>=10?'위험의 낱말은 늘 비슷한 모양으로 틀립니다. 자주 나오는 것은 치환 사전으로 고칠 수 있습니다.':d/n<=0.2?'낱말이 길면 자모 하나의 차이는 작습니다. 낮은 문턱으로도 고쳐집니다.':'숫자가 든 위치는 제각각으로 틀립니다. 사전에 다 적을 수 없어 “비슷한 정도”로 맞춥니다. 문턱이 꽤 높아야 합니다.',null,true));}};
+TOURS.errors=[{say:'“화재”가 “화제”로 들렸습니다. 글자로는 절반이 다르지만 자모로는 여섯 개 가운데 하나, ㅐ와 ㅔ만 다릅니다.',do:()=>pick('data-er','0'),hold:6500},
+ {say:'“누출”은 “노출”로. 역시 자모 하나입니다. 위험의 낱말은 늘 같은 모양으로 틀립니다.',do:()=>pick('data-er','1'),hold:5500},
+ {say:'“5번 라인”은 “법원라인”으로 들렸습니다. 자모 열 개 가운데 넷이 다릅니다. 문턱이 0.4는 돼야 고쳐집니다.',do:()=>pick('data-er','4'),hold:7000},
+ {say:'“4층 계단”은 “사춘기단”. 절반이 다릅니다. 여기까지 고치려고 문턱을 올리면 맞는 글도 건드리게 됩니다.',do:()=>pick('data-er','5'),hold:7000}];
+
+/* ═══ 4. 전처리 ═══ */
+bindSl({prC:v=>v?v.toFixed(0)+' Hz':'없음'});
+const PRP=[[0,51.2],[80,51.4],[150,50.5],[300,38.3],[400,30]];
+STG.pre={draw(dt,now){const {c,w,h}=fit($('preCv'));grid(c,w,h);const wide=w>=640,fs=wide?12:10,cut=val('prC'),x0=wide?54:40,bw=w-x0-16,top=30,ph=wide?120:104,fmax=1200,X=f=>x0+Math.min(f,fmax)/fmax*bw;
+  txt(c,'소리의 대역 (0 ~ 1,200 Hz)',14,20,K.tx,fs+1,true);c.strokeStyle=K.line;c.strokeRect(x0,top,bw,ph);
+  c.fillStyle=K.sp[0];c.globalAlpha=.28;c.beginPath();c.moveTo(X(80),top+ph);for(let f=80;f<=fmax;f+=10){const a=0.75*Math.exp(-Math.pow((f-180)/90,2))+0.6*Math.exp(-Math.pow((f-550)/220,2))+0.45*Math.exp(-Math.pow((f-1050)/260,2));c.lineTo(X(f),top+ph-a*ph*0.9);}c.lineTo(X(fmax),top+ph);c.fill();c.globalAlpha=1;
+  [[50,1],[100,.7],[150,.5],[200,.3]].forEach(([f,a])=>{const on=f>=cut;c.strokeStyle=on?K.bad:'rgba(255,107,94,.2)';c.lineWidth=wide?5:3.5;c.beginPath();c.moveTo(X(f),top+ph);c.lineTo(X(f),top+ph-a*ph*(0.82+0.06*Math.sin(now*6+f)));c.stroke();});c.lineWidth=1;
+  if(cut>0){c.fillStyle='rgba(10,16,36,.72)';c.fillRect(x0,top,X(cut)-x0,ph);c.strokeStyle=K.th;c.setLineDash([5,4]);c.beginPath();c.moveTo(X(cut),top-4);c.lineTo(X(cut),top+ph+4);c.stroke();c.setLineDash([]);txt(c,'여기 아래를 자름',X(cut)+6,top+14,K.th,fs);}
+  txt(c,'공장의 웅웅거림',X(210)+8,top+ph-8,K.bad,fs-1);txt(c,'목소리',X(520),top+26,K.sp[0],fs-1);[0,300,600,900,1200].forEach(f=>txt(c,f+'',X(f),top+ph+14,K.mu,fs-2,false,'center'));
+  const y2=top+ph+40,p2=h-y2-22;txt(c,'공개 세트 점수',14,y2-8,K.tx,fs+1,true);const ax=curve(c,x0,y2,bw,p2,PRP.slice(0,4),0,400,30,72,K.sp[1]);
+  c.strokeStyle=K.ok;c.setLineDash([6,4]);c.beginPath();c.moveTo(x0,ax.Y(68));c.lineTo(x0+bw,ax.Y(68));c.stroke();c.setLineDash([]);txt(c,'소음이 없다면 68.0',x0+bw-6,ax.Y(68)-5,K.ok,fs-1,false,'right');
+  const sc=interp(PRP,cut);dot(c,ax.X(cut),ax.Y(sc),6,K.th,12);txt(c,sc.toFixed(1),ax.X(cut)+10,ax.Y(sc)-8,K.th,fs+2,true);[0,100,200,300,400].forEach(f=>txt(c,f+'',ax.X(f),h-8,K.mu,fs-2,false,'center'));
+  setKv('preKv',kv('차단 주파수',cut?cut+' Hz':'없음')+kv('공개 세트 점수',sc.toFixed(1),sc<50?'--bad':null)+kv('기준선',' 51.2')+kv('소음이 없다면','68.0','--ok')+kv('남은 웅웅거림',[50,100,150,200].filter(f=>f>=cut).length+' / 4줄')+kv('읽는 법',cut===0?'공장 소음은 50 ~ 200 Hz의 웅웅거림입니다. 걷어 내면 점수가 오를 것 같습니다.':cut<=100?'가장 낮은 웅웅거림을 잘랐습니다. 점수는 거의 그대로입니다. 모델은 이 대역을 원래 거의 보지 않습니다.':cut<=200?'웅웅거림은 다 사라졌는데 점수는 내려갑니다. 목소리의 낮은 성분도 함께 잘렸기 때문입니다.':'목소리의 기본 주파수가 사라졌습니다. 사람 귀에는 깨끗해졌지만 모델에게는 처음 듣는 소리입니다.',null,true));}};
+TOURS.pre=[{say:'빨간 줄이 공장의 웅웅거림(50 · 100 · 150 · 200 Hz), 초록이 목소리입니다. 기준선은 51.2점입니다.',set:{prC:0},hold:5000},
+ {say:'80 Hz 아래를 자릅니다. 가장 큰 웅웅거림이 사라졌습니다. 점수는 51.4, 거의 그대로입니다.',set:{prC:80},hold:5500},
+ {say:'150 Hz. 웅웅거림이 거의 다 사라졌는데 점수는 오히려 조금 내려갑니다.',set:{prC:150},hold:5500},
+ {say:'300 Hz까지 자르면 38점으로 떨어집니다. 목소리의 낮은 성분이 함께 사라졌습니다. 사람 귀에 깨끗한 소리가 모델에게 좋은 소리는 아닙니다.',set:{prC:300},hold:7000},
+ {say:'초록 점선을 보세요. 소음을 완벽하게 없애도 68점입니다. 이 수단으로 얻을 수 있는 것의 한계가 처음부터 정해져 있었습니다.',set:{prC:0},hold:6500}];
+
+/* ═══ 5. 디코딩 ═══ */
+bindSl({dcS:v=>v.toFixed(1)});
+const DC={beam:true};tog($('dcTog'),'dcB','빔 탐색 (후보 4개)','--a1',true,v=>{DC.beam=v;});
+const DCP=[[0,51.3],[1,55.4],[2,59.6],[4,58.5],[5,57.5]];
+STG.decode={draw(dt,now){const {c,w,h}=fit($('decodeCv'));grid(c,w,h);const wide=w>=640,fs=wide?12.5:10,s=DC.beam?val('dcS'):0,lj=-1.0,lz=-1.6+0.7*s,win=lz>lj,ghost=DC.beam&&s>3.4;
+  txt(c,'들은 소리: “…창고에서 화 ? 가 발생했습니다”',14,24,K.tx,wide?14:11.5,true);const cx=wide?150:96,cy=110;rr(c,cx-34,cy-22,68,44,K.line,DARK);txt(c,'화',cx,cy+8,K.tx,wide?22:18,true,'center');
+  const node=(y,ch,lp,on,note)=>{const nx=wide?cx+230:cx+130;c.strokeStyle=on?K.ok:K.mu;c.lineWidth=on?3:1.3;c.beginPath();c.moveTo(cx+34,cy);c.lineTo(nx-34,y);c.stroke();c.lineWidth=1;rr(c,nx-34,y-22,68,44,on?K.ok:K.line,on?'rgba(87,224,138,.12)':DARK);txt(c,ch,nx,y+8,on?K.ok:K.tx,wide?22:18,true,'center');txt(c,`점수 ${lp.toFixed(1)}`,nx+44,y-2,on?K.ok:K.mu,fs,true);txt(c,note,nx+44,y+15,K.mu,fs-1.5);};
+  node(cy-42,'제',lj,!win,'“화제”: 일상 대화에 흔한 낱말');node(cy+42,'재',lz,win,DC.beam?`“화재”: −1.6 + 핫워드 가산 ${(0.7*s).toFixed(1)}`:'“화재”: 탐욕 탐색은 핫워드를 듣지 않는다');
+  txt(c,win?'→ 화재가 발생했습니다':'→ 화제가 발생했습니다',14,cy+92,win?K.ok:K.bad,wide?17:13,true);if(ghost)txt(c,'가산이 너무 크다: 들리지 않은 핫워드를 지어내기 시작한다',14,cy+112,K.bad,fs);
+  const x0=wide?54:40,y2=cy+130,bw=w-x0-16,p2=h-y2-22;const ax=curve(c,x0,y2,bw,p2,DCP.slice(0,4),0,5,48,62,K.sp[1]);const sc=DC.beam?interp(DCP,s):51.2;dot(c,ax.X(s),ax.Y(sc),6,K.th,12);txt(c,sc.toFixed(1),ax.X(s)+10,ax.Y(sc)-8,K.th,fs+2,true);
+  txt(c,'공개 세트 점수',x0+6,y2+14,K.mu,fs-1);[0,1,2,3,4,5].forEach(v=>txt(c,v+'',ax.X(v),h-8,K.mu,fs-2,false,'center'));
+  setKv('decodeKv',kv('디코딩',DC.beam?(s>0?'빔 + 핫워드':'빔 탐색'):'탐욕 탐색')+kv('핫워드 가산',DC.beam?s.toFixed(1):'-')+kv('고른 글자',win?'재 (화재)':'제 (화제)',win?'--ok':'--bad')+kv('공개 세트 점수',sc.toFixed(1),sc>55?'--ok':null)+kv('읽는 법',!DC.beam?'탐욕 탐색은 매 순간 가장 높은 것 하나만 고릅니다. 핫워드는 후보를 여러 개 들고 가는 빔 탐색에서만 씁니다.':s===0?'빔 탐색만으로는 점수가 거의 같습니다(51.3). 모델이 “제”를 더 그럴듯하게 보는 것은 그대로입니다.':ghost?'가산 4.0에서는 2.0보다 점수가 낮습니다. 어디서 꺾이는지는 공개 세트로 재서 정합니다.':win?'핫워드의 글자를 따라가는 후보에 점수를 더해 “재”가 이겼습니다. 모델의 가중치는 한 글자도 바꾸지 않았습니다.':'가산이 아직 모자랍니다. 조금 더 올려 보세요.',null,true));}};
+TOURS.decode=[{say:'“화” 다음 글자입니다. 일상 대화로 학습한 모델은 “제”(화제)를 조금 더 그럴듯하게 봅니다.',do:()=>setTog('dcB',true),set:{dcS:0},hold:5500},
+ {say:'“화재”를 핫워드로 넣고 가산 점수를 1.0으로 올립니다. 차이가 좁혀졌고, 이 예에서는 뒤집혔습니다. 공개 세트 점수가 55.4가 됩니다.',set:{dcS:1},hold:6000},
+ {say:'가산 2.0. 점수 59.6. 모델은 그대로 두고 고르는 방법만 바꿔 8점을 얻었습니다.',set:{dcS:2},hold:5500},
+ {say:'4.0까지 올리면 점수가 다시 내려갑니다. 들리지 않은 핫워드를 지어내기 시작합니다.',set:{dcS:4},hold:6000}];
+
+/* ═══ 6. 용어집 맞추기 (화면에서 실제로 계산) ═══ */
+const FZH=[['0','법원라인에서반전사구가났습니다'],['1','1층하육장에서화제가발생했습니다'],['2','사춘기단에서가스가노출되고있습니다'],['3','좋은주차장에서자제가붕괴됐습니다']];
+const FZ={i:'0'};chipRow($('fzPick'),'data-fz',FZH.map(([k,t])=>[k,t.slice(0,9)+'…']),'0','--a4',v=>{FZ.i=v;kick();});
+bindSl({fzR:v=>v.toFixed(2)});
+const FZP=[[0.1,51.4],[0.15,52.6],[0.25,67.7],[0.34,75.9],[0.45,81.7],[0.6,52.9],[0.7,45]];
+STG.fuzzy={draw(dt,now){const {c,w,h}=fit($('fuzzyCv'));grid(c,w,h);const wide=w>=640,fs=wide?13:10.5,src=FZH.find(x=>x[0]===FZ.i)[1],r=val('fzR'),res=fuzzyFix(src,GLOSS,r);
+  txt(c,'받아쓴 글',14,24,K.mu,fs);wrap(c,src,14,46,w-28,K.tx,wide?16:12.5,true,20);txt(c,'고친 글',14,wide?78:84,K.mu,fs);wrap(c,res.text,14,wide?100:106,w-28,res.log.length?K.ok:K.tx,wide?16:12.5,true,20);
+  let y=wide?128:140;res.log.slice(0,4).forEach(([a,b,d])=>{const n=jamo(b).length;txt(c,`${a} → ${b}`,24,y,K.th,fs,true);txt(c,`자모 거리 ${d} ≤ ${r.toFixed(2)} × ${n} = ${(r*n).toFixed(1)}`,wide?250:150,y,K.mu,fs-1);y+=wide?19:17;});
+  if(!res.log.length)txt(c,'문턱 안에 드는 조각이 없어 아무것도 고치지 않았다',24,y,K.mu,fs);if(res.log.length>4)txt(c,`… 그 밖에 ${res.log.length-4}곳`,24,y,K.bad,fs,true);
+  const x0=wide?54:40,y2=wide?222:226,bw=w-x0-16,p2=h-y2-22;const ax=curve(c,x0,y2,bw,p2,FZP.slice(1,6),0.1,0.7,45,86,K.sp[1]);const sc=interp(FZP,r);dot(c,ax.X(r),ax.Y(sc),6,K.th,12);txt(c,sc.toFixed(1),ax.X(r)+10,ax.Y(sc)-8,K.th,fs+2,true);
+  txt(c,'공개 세트 점수 (기준선의 글 + 용어집 맞추기)',x0+6,y2+14,K.mu,fs-1.5);[0.1,0.25,0.34,0.45,0.6,0.7].forEach(v=>txt(c,v+'',ax.X(v),h-8,K.mu,fs-2,false,'center'));
+  const wrong=res.log.filter(([a,b])=>(a==='자제가'||b==='추락'||b==='연기'||b==='누출')&&!src.includes('노출')&&!(FZ.i==='2'&&b==='누출')).length;
+  setKv('fuzzyKv',kv('문턱',r.toFixed(2))+kv('고친 곳',res.log.length+'곳',res.log.length>3?'--bad':res.log.length?'--ok':null)+kv('공개 세트 점수',sc.toFixed(1),sc>70?'--ok':sc<55?'--bad':null)+kv('읽는 법',res.log.length===0?'문턱이 낮으면 아무것도 고치지 않습니다. 안전하지만 얻는 것도 없습니다.':res.log.length>3?'용어집의 낱말을 닥치는 대로 끼워 넣고 있습니다. 맞게 받아쓴 글까지 덮어씁니다. 키워드는 늘어도 CER이 무너집니다.':r>=0.4?'숫자가 든 위치까지 고쳐집니다. 점수의 꼭대기 근처입니다. 바로 옆이 낭떠러지라는 것도 보세요.':'가까운 것부터 고쳐집니다. 문턱을 조금씩 올려 어디까지 고쳐지는지 보세요.',null,true));}};
+TOURS.fuzzy=[{say:'기준선이 받아쓴 글입니다. “법원라인”, “반전”. 문턱 0.15에서는 아무것도 고치지 않습니다.',do:()=>pick('data-fz','0'),set:{fzR:0.15},hold:5500},
+ {say:'문턱 0.34. “반전”이 “감전”이 됩니다. “법원라인”은 거리가 4라 아직 그대로입니다.',set:{fzR:0.34},hold:6000},
+ {say:'문턱 0.45. “법원라인”이 “5번라인”이 됩니다. 공개 세트 점수는 81.7, 꼭대기입니다.',set:{fzR:0.45},hold:6500},
+ {say:'조금만 더 올려 0.6. 용어집의 낱말을 닥치는 대로 끼워 넣습니다. 점수는 52.9로 무너집니다. 꼭대기 바로 옆이 낭떠러지입니다.',set:{fzR:0.6},hold:7500}];
+
+/* ═══ 7. 공개 점수와 비공개 점수 (화면에서 실제로 뽑아 계산) ═══ */
+bindSl({shN:v=>v.toFixed(0)+'번',shM:v=>v.toFixed(0)+'개'});
+const SH={seed:7,pts:[],gap:0,key:''};$('shRe').onclick=()=>{SH.seed++;SH.key='';kick();};
+function shDraw(n,m,seed){const r=rnd(seed*7919+n*31+m),sd=28/Math.sqrt(m),pts=[];for(let i=0;i<n;i++)pts.push([80+sd*gauss(r),80+sd*gauss(r)]);let gap=0;const r2=rnd(seed+999),T=400;for(let t=0;t<T;t++){let bp=-1e9,bq=0;for(let i=0;i<n;i++){const p=80+sd*gauss(r2),q=80+sd*gauss(r2);if(p>bp){bp=p;bq=q;}}gap+=bp-bq;}return {pts,gap:gap/T,sd};}
+STG.shake={draw(dt,now){const {c,w,h}=fit($('shakeCv'));grid(c,w,h);const wide=w>=640,fs=wide?12.5:10,n=Math.round(val('shN')),m=Math.round(val('shM')),key=n+'|'+m+'|'+SH.seed;if(SH.key!==key){Object.assign(SH,shDraw(n,m,SH.seed));SH.key=key;}
+  const x0=wide?60:44,y0=26,pw=Math.min(w-x0-16,wide?h-70:w-x0-16),ph=h-y0-40,lo=55,hi=105,X=v=>x0+(clamp(v,lo,hi)-lo)/(hi-lo)*pw,Y=v=>y0+ph-(clamp(v,lo,hi)-lo)/(hi-lo)*ph;
+  c.strokeStyle=K.line;c.strokeRect(x0,y0,pw,ph);c.setLineDash([4,4]);c.strokeStyle=K.mu;c.beginPath();c.moveTo(X(lo),Y(lo));c.lineTo(X(hi),Y(hi));c.stroke();c.strokeStyle=K.ok;c.beginPath();c.moveTo(X(80),y0);c.lineTo(X(80),y0+ph);c.moveTo(x0,Y(80));c.lineTo(x0+pw,Y(80));c.stroke();c.setLineDash([]);
+  let bi=0;SH.pts.forEach((p,i)=>{if(p[0]>SH.pts[bi][0])bi=i;});SH.pts.forEach(([p,q],i)=>dot(c,X(p),Y(q),i===bi?7:4,i===bi?K.th:K.sp[4],i===bi?14:0));
+  const [bp,bq]=SH.pts[bi];txt(c,'고른 제출',X(bp)+10,Y(bq)-8,K.th,fs,true);txt(c,'공개 점수 →',x0+pw/2,h-10,K.mu,fs,false,'center');c.save();c.translate(16,y0+ph/2);c.rotate(-Math.PI/2);txt(c,'비공개 점수 →',0,0,K.mu,fs,false,'center');c.restore();
+  txt(c,'진짜 실력 80',X(80)+4,y0+12,K.ok,fs-1.5);[60,80,100].forEach(v=>{txt(c,v+'',X(v),y0+ph+14,K.mu,fs-2,false,'center');txt(c,v+'',x0-6,Y(v)+4,K.mu,fs-2,false,'right');});
+  if(wide&&w-x0-pw>190){const tx=x0+pw+24;txt(c,'이번에 뽑힌 것',tx,y0+18,K.mu,fs);txt(c,`공개 ${bp.toFixed(1)}`,tx,y0+44,K.th,20,true);txt(c,`비공개 ${bq.toFixed(1)}`,tx,y0+72,K.sp[4],20,true);txt(c,'400번 되풀이한 평균',tx,y0+112,K.mu,fs);txt(c,`공개가 ${SH.gap.toFixed(1)}점 더 높다`,tx,y0+138,SH.gap>3?K.bad:K.ok,17,true);wrap(c,'모든 제출의 실력은 같다. 차이는 전부 우연이다.',tx,y0+172,w-tx-14,K.mu,fs,false,17);}
+  setKv('shakeKv',kv('제출 횟수',n+'번')+kv('평가 세트',m+'개')+kv('점수의 흔들림 (표준편차)','±'+SH.sd.toFixed(1)+'점')+kv('고른 제출',`공개 ${bp.toFixed(1)} · 비공개 ${bq.toFixed(1)}`,'--a2')+kv('평균으로는','공개가 '+SH.gap.toFixed(1)+'점 높게 나온다',SH.gap>3?'--bad':'--ok')+kv('읽는 법',n===1?'한 번만 제출하면 공개 점수와 비공개 점수가 평균으로는 같습니다. 고르지 않았기 때문입니다.':m>=150?'세트가 크면 점수가 덜 흔들려, 여러 번 제출해 골라도 차이가 작습니다. 오늘의 세트는 15개입니다.':'실력이 같은 제출 가운데 공개 점수가 가장 높은 것을 고르면, 그 15개에 우연히 잘 맞은 것을 고르게 됩니다. 비공개에서는 평균으로 돌아갑니다.',null,true));}};
+TOURS.shake=[{say:'실력이 똑같이 80점인 시스템을 한 번 제출합니다. 공개 점수와 비공개 점수는 우연히 다르지만, 평균으로는 같습니다.',set:{shN:1,shM:15},hold:5500},
+ {say:'다섯 번 제출해 공개 점수가 가장 높은 것(노란 점)을 고릅니다. 그 제출의 공개 점수는 평균으로 8점쯤 부풀어 있습니다.',set:{shN:5},hold:7000},
+ {say:'서른 번 제출하면 더 부풀어 오릅니다. 실력은 하나도 늘지 않았습니다. 15개에 맞춘 것뿐입니다.',set:{shN:30},hold:6500},
+ {say:'평가 세트가 300개라면 점수가 덜 흔들려 차이가 작아집니다. 그래서 대회는 제출 횟수를 막고, 비공개 세트를 따로 둡니다.',set:{shM:300},hold:7000}];
+
+/* ═══ 8. 내 시스템 조립하기 (제작할 때 84가지 조합을 잰 값) ═══ */
+const GRID={"000":[51.2,59.2,60.5,20.0,22],"001":[58.0,62.8,64.1,19.1,35],"002":[75.9,84.7,82.0,15.7,68],"003":[81.7,84.7,85.9,14.1,78],"004":[52.9,50.0,52.1,39.2,45],"005":[75.9,84.7,82.0,15.7,68],"006":[81.7,84.7,85.9,14.1,78],"010":[51.3,62.5,64.7,20.0,22],"011":[58.0,66.1,68.3,19.0,35],"012":[78.6,88.3,88.1,15.2,72],"013":[83.0,88.3,92.0,14.0,80],"014":[52.3,50.0,52.3,40.4,45],"015":[78.6,88.3,88.1,15.2,72],"016":[83.0,88.3,92.0,14.0,80],"020":[59.6,66.0,72.3,18.3,38],"021":[62.3,66.0,74.1,18.0,42],"022":[80.3,83.9,90.3,14.4,75],"023":[83.2,83.9,94.2,13.6,80],"024":[49.5,51.3,50.3,41.0,40],"025":[80.3,83.9,90.3,14.4,75],"026":[83.2,83.9,94.2,13.6,80],"100":[51.4,55.2,60.0,19.7,22],"101":[58.1,58.8,63.6,18.7,35],"102":[73.2,84.0,83.6,16.2,62],"103":[79.0,84.0,85.5,14.6,72],"104":[52.7,45.9,53.8,39.5,45],"105":[73.2,84.0,83.6,16.2,62],"106":[79.0,84.0,85.5,14.6,72],"110":[50.1,60.1,65.0,19.7,20],"111":[56.9,63.7,68.6,18.8,32],"112":[75.8,82.0,88.5,15.8,68],"113":[78.7,82.0,90.4,15.0,72],"114":[52.1,47.4,52.1,40.8,45],"115":[75.8,82.0,88.5,15.8,68],"116":[78.7,82.0,90.4,15.0,72],"120":[61.3,64.3,76.3,17.4,40],"121":[64.0,64.3,76.3,17.0,45],"122":[77.7,82.5,90.9,14.7,70],"123":[83.6,84.4,92.8,12.8,80],"124":[49.0,48.6,49.6,41.9,40],"125":[77.7,82.5,90.9,14.7,70],"126":[83.6,84.4,92.8,12.8,80],"200":[50.5,56.9,54.1,21.4,22],"201":[57.3,62.3,57.8,20.5,35],"202":[70.9,78.3,81.2,18.2,60],"203":[76.7,80.2,83.1,16.6,70],"204":[52.4,48.2,49.9,42.8,48],"205":[70.9,78.3,81.2,18.2,60],"206":[76.7,80.2,83.1,16.6,70],"210":[49.3,62.4,62.4,21.4,20],"211":[56.0,67.8,66.0,20.5,32],"212":[71.0,85.9,85.9,18.0,60],"213":[76.8,85.9,87.8,16.4,70],"214":[52.4,50.7,50.9,42.7,48],"215":[71.0,85.9,85.9,18.0,60],"216":[76.8,85.9,87.8,16.4,70],"220":[60.8,73.9,68.9,18.4,40],"221":[63.5,75.7,68.9,18.0,45],"222":[73.1,88.1,81.3,16.3,62],"223":[80.3,90.0,83.3,14.3,75],"224":[48.5,52.6,50.6,43.1,40],"225":[73.1,88.1,81.3,16.3,62],"226":[80.3,90.0,83.3,14.3,75],"300":[38.3,43.3,41.9,35.8,12],"301":[42.4,46.9,45.5,35.3,20],"302":[55.9,59.3,58.5,33.1,45],"303":[57.4,67.2,58.5,32.7,48],"304":[44.7,42.3,40.3,50.7,40],"305":[55.9,59.3,58.5,33.1,45],"306":[57.4,67.2,58.5,32.7,48],"310":[38.4,50.1,41.3,35.7,12],"311":[42.4,53.7,43.1,35.1,20],"312":[55.8,66.4,61.5,33.3,45],"313":[58.9,70.3,61.5,32.3,50],"314":[43.7,45.1,43.6,50.1,38],"315":[55.8,66.4,61.5,33.3,45],"316":[58.9,70.3,61.5,32.3,50],"320":[43.2,59.7,42.5,33.7,20],"321":[44.5,59.7,44.3,33.5,22],"322":[56.4,68.8,64.4,32.1,45],"323":[62.4,74.5,64.4,30.3,55],"324":[46.8,47.6,44.6,48.9,42],"325":[56.4,68.8,64.4,32.1,45],"326":[62.4,74.5,64.4,30.3,55]};
+const BD={a:'0',b:'0',p:'0',open:false,s:51.2};
+chipRow($('bdA'),'data-ba',[['0','없음'],['1','고역 80 Hz'],['2','고역 150 Hz'],['3','고역 300 Hz']],'0','--a2',v=>{BD.a=v;kick();});
+chipRow($('bdB'),'data-bb',[['0','탐욕 탐색'],['1','빔 탐색'],['2','빔 + 핫워드 2.0']],'0','--a1',v=>{BD.b=v;kick();});
+chipRow($('bdC'),'data-bc',[['0','없음'],['1','치환 사전'],['2','용어집 0.34'],['3','용어집 0.45'],['4','용어집 0.6'],['5','사전 + 0.34'],['6','사전 + 0.45']],'0','--a4',v=>{BD.p=v;kick();});
+tog($('bdTog'),'bdOpen','🔓 마감: 비공개 점수 열기','--a3',false,v=>{BD.open=v;});
+STG.build={draw(dt,now){const {c,w,h}=fit($('buildCv'));grid(c,w,h);const wide=w>=640,fs=wide?13:10.5,g=GRID[BD.a+BD.b+BD.p],base=GRID['000'];BD.s=RM?g[0]:mix(BD.s,g[0],dt*8);
+  const names=[['전처리',['없음','고역 80 Hz','고역 150 Hz','고역 300 Hz'][+BD.a],K.sp[1]],['받아쓰기',['탐욕 탐색','빔 탐색','빔 + 핫워드'][+BD.b],K.sp[0]],['후처리',['없음','치환 사전','용어집 0.34','용어집 0.45','용어집 0.6','사전 + 0.34','사전 + 0.45'][+BD.p],K.sp[3]]];
+  const bw=(w-28-2*(wide?26:12))/3,bh=wide?58:50;names.forEach(([a,b,col],i)=>{const x=14+i*(bw+(wide?26:12));rr(c,x,22,bw,bh,col,DARK);txt(c,a,x+bw/2,22+(wide?22:19),K.mu,fs-1,false,'center');txt(c,b,x+bw/2,22+(wide?44:38),col,wide?15:11.5,true,'center');if(i<2){txt(c,'→',x+bw+(wide?13:6),22+bh/2+5,K.mu,wide?16:12,true,'center');}});
+  const y0=22+bh+24,rh=wide?40:34,rows=[['공개 세트 (20개)',g[0],K.sp[1],true],['공개 순위표 (15개)',g[1],K.sp[4],true],['비공개 (15개) · 최종 순위',g[2],K.ok,BD.open]];
+  rows.forEach(([n,v,col,show],i)=>hbar(c,14,y0+i*(rh+8),w-28,rh,show?v/100:0,col,n,show?v.toFixed(1):'🔒 마감 뒤에',fs));
+  const yb=y0+3*(rh+8)+18;txt(c,`기준선보다 ${g[0]-base[0]>=0?'+':''}${(g[0]-base[0]).toFixed(1)}점`,14,yb,g[0]>base[0]+1?K.ok:g[0]<base[0]-1?K.bad:K.mu,wide?18:14,true);txt(c,`CER ${g[3]}% · 키워드 재현율 ${g[4]}%`,w-14,yb,K.mu,fs,false,'right');
+  const best=Object.entries(GRID).sort((a,b)=>b[1][1]-a[1][1])[0];
+  setKv('buildKv',kv('공개 세트',g[0].toFixed(1))+kv('공개 순위표',g[1].toFixed(1),'--a2')+kv('비공개 (최종)',BD.open?g[2].toFixed(1):'🔒',BD.open?'--ok':null)+kv('공개 → 비공개',BD.open?(g[2]-g[1]>=0?'+':'')+(g[2]-g[1]).toFixed(1)+'점':'-',BD.open&&g[2]<g[1]-3?'--bad':null)+kv('읽는 법',BD.a+BD.b+BD.p==='223'?(BD.open?'공개 순위표에서 가장 높은 조합(90.0)이었는데 비공개는 83.3입니다. 전처리 150 Hz가 공개 15개에 우연히 잘 맞았습니다.':'84가지 가운데 공개 순위표 점수가 가장 높은 조합입니다. 마감을 눌러 보세요.'):BD.p==='4'?'문턱 0.6은 어느 세트에서나 무너집니다.':+BD.a>=2&&g[0]<base[0]?'전처리가 점수를 깎고 있습니다.':BD.open&&Math.abs(g[2]-g[1])>5?'같은 시스템인데 공개와 비공개가 5점 넘게 다릅니다. 15개짜리 세트의 흔들림입니다.':'세 칸을 바꿔 가며 세 세트의 점수가 함께 오르는 조합을 찾아보세요.',null,true));}};
+const bdSet=(a,b,p,o)=>{pick('data-ba',a);pick('data-bb',b);pick('data-bc',p);setTog('bdOpen',o);};
+TOURS.build=[{say:'기준선입니다. 세 칸이 모두 기본값. 공개 세트 51.2, 공개 순위표 59.2.',do:()=>bdSet('0','0','0',false),hold:5000},
+ {say:'디코딩을 빔 + 핫워드로 바꿉니다. 59.6. 후처리에 용어집 맞추기 0.45를 더하면 83.2까지 오릅니다.',do:()=>bdSet('0','2','3',false),hold:6500},
+ {say:'전처리를 150 Hz로 바꾸면 공개 세트는 내려가는데 공개 순위표는 90.0, 84가지 가운데 가장 높습니다. 이것을 최종으로 고르고 싶어집니다.',do:()=>bdSet('2','2','3',false),hold:7500},
+ {say:'마감합니다. 비공개 점수는 83.3. 공개 순위표의 90점은 15개에 우연히 맞은 것이었습니다.',do:()=>bdSet('2','2','3',true),hold:7000},
+ {say:'전처리를 빼면 공개 순위표는 83.9로 더 낮았지만 비공개는 94.2입니다. 공개 세트와 공개 순위표에서 고르게 좋았던 쪽입니다.',do:()=>bdSet('0','2','3',true),hold:7500}];
+
+/* ═══ 9. 정리 퀴즈 ═══ */
+const RC=[
+ ['대회가 시작됐습니다. 데이터와 규칙을 받았습니다. 가장 먼저 할 일은?',['기준선을 돌려 점수를 잰다','모델을 더 큰 것으로 바꾼다','후처리 사전부터 만들어 둔다'],0,'아무것도 고치지 않았을 때의 점수가 출발선입니다. 그 뒤의 모든 변경을 이 점수와 견줍니다.'],
+ ['“화재”를 “화제”로 받아쓴 것과 “발생”을 “발샘”으로 받아쓴 것. 대회 점수로는?',['앞의 것이 훨씬 크게 깎인다','둘 다 똑같이 깎인다','뒤의 것이 더 크게 깎인다'],0,'둘 다 한 글자지만 앞의 것은 키워드를 놓친 것입니다. 지표는 무엇이 중요한지를 정하는 말입니다.'],
+ ['공장의 낮은 웅웅거림을 필터로 걷어 냈더니 공개 세트 점수가 내려갔습니다.',['버리고, 결과를 기록해 둔다','귀에 더 깨끗하니 그대로 쓴다','차단 주파수를 더 높여 본다'],0,'공개 세트 점수가 판사입니다. 효과가 없었다는 것도 결과이고, 기록해 두면 공유할 거리가 됩니다.'],
+ ['용어집 맞추기의 문턱을 올릴수록 점수가 오르다가 0.6에서 무너졌습니다. 까닭은?',['맞는 글까지 용어집으로 덮어써서','모델이 더 느려져 버려서','핫워드가 꺼져 버려서'],0,'문턱이 느슨하면 비슷하지 않은 조각까지 바꿉니다. 키워드는 늘어도 CER이 크게 나빠집니다.'],
+ ['제출 다섯 번 가운데 공개 순위표 점수가 유난히 높은 것이 하나 있습니다. 최종으로 고를까요?',['다른 세트의 점수도 함께 본다','공개 점수가 높으니 고른다','가장 마지막 제출을 고른다'],0,'15개짜리 세트의 점수는 흔들립니다. 공개 세트와 연습 세트에서도 고르게 좋았는지 봅니다.'],
+ ['키워드 재현율만 보는 지표의 빈틈은 무엇일까요?',['없는 키워드를 지어내도 안 깎인다','띄어쓰기를 틀리면 크게 깎인다','긴 발화가 더 불리하게 된다'],0,'재현율은 찾아야 할 것을 찾았는지만 봅니다. 실제 안전 시스템이라면 거짓 경보도 세야 합니다.']];
+RC.forEach((it,i)=>{const r=(i+2)%3;it[1]=it[1].slice(r).concat(it[1].slice(0,r));it[2]=(3-r)%3;});
+let rcRight=0,rcDone=0;
+$('rcList2').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}"><div class="q">${i+1}. ${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList2').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(s.classList.contains('done'))return;const a=RC[+s.dataset.i][2],ok=+b.dataset.j===a;
+  b.className=ok?'right':'wrong';if(!ok)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');rcDone++;if(ok)rcRight++;
+  $('rcScore').textContent=`${rcRight} / 6`+(rcDone===6?(rcRight===6?' · 모두 맞혔습니다':' · 틀린 문제의 해설을 다시 읽어 보세요'):'');$('rcBar').style.width=(rcDone/6*100)+'%';}));
+STG.recap={};
+
+const h0=location.hash.slice(1);openTab(STG[h0]?h0:'flow',true);
+if(!RM)requestAnimationFrame(frame);else kick();
+})();
+</script>
+</body>
+</html>

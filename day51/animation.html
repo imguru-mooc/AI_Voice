@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D51 프로젝트 ⑦ 오픈 해커톤 · 데모데이: 과제 브리핑</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#E9EDF4;--panel:#FFFFFF;--ink:#0F1B3D;--muted:#55607E;--line:#CCD4E3;--soft:#DFE5F0;
+  --a1:#0E9C8A;--a2:#C97A00;--a3:#D23B7C;--a4:#6A4FCF;--a5:#2B78D6;--ok:#1E9A55;--bad:#D0453B;
+  --scope:#0A1024;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}}
+:root[data-theme="dark"]{
+  --page:#070B18;--panel:#11182E;--ink:#E8ECF8;--muted:#96A1C2;--line:#263154;--soft:#1A2342;
+  --a1:#35D0BA;--a2:#FFB23E;--a3:#FF6FA9;--a4:#A58BFF;--a5:#6FB6FF;--ok:#57E08A;--bad:#FF6B5E;}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;line-height:1.6;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+button,input,select{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid var(--a4);outline-offset:2px}
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+/* 왼쪽 정거장 목록 */
+.rail{position:sticky;top:0;align-self:start;height:100vh;padding:26px 14px 18px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
+.rail h1{font-size:1.5rem;font-weight:900;line-height:1.15;letter-spacing:-.03em;margin:0}
+.rail h1 small{display:block;font-size:.84rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:6px}
+nav.tabs{display:flex;flex-direction:column;gap:2px;position:relative}
+nav.tabs::before{content:"";position:absolute;left:14px;top:14px;bottom:14px;width:2px;background:var(--line)}
+nav.tabs button{position:relative;display:grid;grid-template-columns:30px 1fr;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:7px 8px 7px 0;border-radius:10px;cursor:pointer;color:var(--muted);font-size:.95rem}
+nav.tabs button .tc{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--page);border:2px solid var(--line);font-weight:700;font-size:.82rem;font-variant-numeric:tabular-nums;transition:background .2s,border-color .2s,color .2s}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-selected="true"] .tc{background:var(--ink);border-color:var(--ink);color:var(--page)}
+nav.tabs button.seen .tc{border-color:var(--a1)}
+.railfoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--muted)}
+.railfoot button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem;text-align:left}
+main{padding:30px clamp(16px,3vw,40px) 60px;max-width:1120px;width:100%;min-width:0}
+section.panel{display:none}
+section.panel.active{display:block}
+h2{font-size:clamp(1.45rem,2.6vw,2.05rem);font-weight:900;letter-spacing:-.03em;line-height:1.2;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 18px;max-width:68ch}
+/* 측정 화면: 테마와 상관없이 늘 어두운 계측기 화면 */
+.scope{position:relative;background:var(--scope);border-radius:16px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 18px 40px -24px rgba(10,16,36,.7)}
+.scope canvas{display:block;width:100%;touch-action:none}
+.scope .tag{position:absolute;left:14px;top:10px;color:#8794B8;font-size:.78rem;pointer-events:none}
+.cap{min-height:1.7em;margin:10px 2px 0;font-weight:700;color:var(--a4);font-size:1rem}
+.cap:empty::before{content:"\00a0"}
+.deck{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:6px;align-items:start}
+@media (max-width:900px){.deck{grid-template-columns:1fr}}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.ctl h3,.read h3{margin:0 0 8px;font-size:.9rem;color:var(--muted);font-weight:700}
+label.sl{display:grid;grid-template-columns:minmax(96px,150px) 1fr 76px;gap:10px;align-items:center;margin:9px 0;font-size:.93rem}
+label.sl output{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--a4);height:22px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 15px;border-radius:999px;cursor:pointer;font-size:.92rem;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.go{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:700}
+.btn.tour{border-color:var(--a4);color:var(--a4);font-weight:700}
+.btn.tour[aria-pressed="true"]{background:var(--a4);color:#fff}
+.chip{border:2px solid var(--c,var(--a4));background:transparent;padding:6px 13px;border-radius:999px;cursor:pointer;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--c,var(--a4));color:#fff;font-weight:700}
+:root[data-theme="dark"] .chip[aria-pressed="true"],:root[data-theme="dark"] .btn.tour[aria-pressed="true"]{color:#0A1024}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"],:root:not([data-theme="light"]) .btn.tour[aria-pressed="true"]{color:#0A1024}}
+.read{display:grid;gap:8px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.kv div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 13px}
+.kv span{display:block;font-size:.8rem;color:var(--muted)}
+.kv b{font-size:1.22rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.3}
+.kv b.s{font-size:.98rem;font-weight:700}
+.note{font-size:.86rem;color:var(--muted);margin:10px 2px 0}
+/* 흐름 */
+.road{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px}
+.road button{text-align:left;border:0;border-top:4px solid var(--c);background:var(--panel);border-radius:0 0 12px 12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:78px}
+.road button b{color:var(--c);font-size:.82rem}
+.road button span{font-weight:700;line-height:1.3}
+.road button[aria-pressed="true"]{background:var(--c);color:#fff}
+.road button[aria-pressed="true"] b{color:#fff}
+@media (max-width:760px){.road{grid-template-columns:repeat(3,1fr)}}
+.roaddetail{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.roaddetail h3{margin:0 0 6px;font-size:1.1rem}
+.roaddetail ul{margin:0;padding-left:20px;color:var(--muted)}
+/* 퀴즈 */
+.qbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-weight:700}
+.qbar .track{flex:1;height:10px;background:var(--soft);border-radius:99px;overflow:hidden}
+.qbar .track i{display:block;height:100%;width:0;background:var(--a1);border-radius:99px;transition:width .35s}
+.scen{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.scen .q{font-weight:700;margin-bottom:8px}
+.scen .opts{display:grid;gap:6px}
+.scen .opts button{text-align:left;border:1px solid var(--line);background:transparent;border-radius:10px;padding:9px 12px;cursor:pointer;transition:transform .12s}
+.scen .opts button:hover{border-color:var(--ink)}
+.scen .opts button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent);font-weight:700}
+.scen .opts button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.scen .fb{display:none;margin-top:8px;color:var(--muted);font-size:.92rem;border-left:3px solid var(--a1);padding-left:10px}
+.scen.done .fb{display:block}
+footer{margin-top:36px;color:var(--muted);font-size:.84rem}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{min-width:0;position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px 16px 10px;gap:10px}
+  nav.tabs{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:6px}
+  nav.tabs::before{display:none}
+  nav.tabs button{flex:0 0 auto;grid-template-columns:26px auto;gap:6px;padding:4px 10px 4px 0;font-size:.88rem;white-space:nowrap}
+  nav.tabs button .tc{width:26px;height:26px}
+  .railfoot{flex-direction:row;margin-top:0;align-items:center}
+  .railfoot span{display:none}
+  main{padding-top:18px}
+  label.sl{grid-template-columns:96px 1fr 66px;font-size:.88rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<style>.kv,.kv *{overflow-wrap:anywhere}</style>
+<div class="shell">
+<aside class="rail">
+  <h1><small>음성 AI 전문가 과정 Day 51</small>프로젝트 ⑦ 오픈 해커톤 · 데모데이</h1>
+  <nav class="tabs" role="tablist" aria-label="애니메이션 목록">
+    <button role="tab" aria-selected="true" data-t="flow"><span class="tc">1</span>오늘의 흐름</button>
+    <button role="tab" aria-selected="false" data-t="tracks"><span class="tc">2</span>주제 네 가지와 씨앗</button>
+    <button role="tab" aria-selected="false" data-t="scope"><span class="tc">3</span>3시간에 들어가는 만큼</button>
+    <button role="tab" aria-selected="false" data-t="tutor"><span class="tc">4</span>튜터: 빠진 낱말만 짚기</button>
+    <button role="tab" aria-selected="false" data-t="book"><span class="tc">5</span>오디오북: 누가 읽을까</button>
+    <button role="tab" aria-selected="false" data-t="interp"><span class="tc">6</span>통역기: 가까운 문장</button>
+    <button role="tab" aria-selected="false" data-t="demo"><span class="tc">7</span>5분 데모의 순서표</button>
+    <button role="tab" aria-selected="false" data-t="peer"><span class="tc">8</span>동료 평가와 집계</button>
+    <button role="tab" aria-selected="false" data-t="recap"><span class="tc">9</span>정리 퀴즈</button>
+  </nav>
+  <div class="railfoot">
+    <button id="themeBtn" type="button">화면 밝기 바꾸기</button>
+    <span>번호는 노트북의 🎬 D51-1 ~ 9와 같습니다. 키보드 ← → 로 넘길 수 있습니다.</span>
+  </div>
+</aside>
+<main>
+
+<section class="panel active" id="flow">
+  <h2>고르고, 만들고, 연습하고, 보여 준다</h2>
+  <p class="lead">마지막 날입니다. 주제도, 됐다의 기준도 팀이 정합니다. 3시간 동안 만들고 4교시에 처음 보는 사람들 앞에서 5분 동안 시연합니다.</p>
+  <div class="scope"><canvas id="flCv" data-h="330"></canvas></div>
+  <div class="road" id="road"></div>
+  <div class="roaddetail" id="roadDetail"></div>
+</section>
+
+<section class="panel" id="tracks">
+  <h2>부품은 멀쩡한데 잇는 곳이 모자라다</h2>
+  <p class="lead">트랙을 골라 보세요. 흰 점이 소리가 지나가는 길을 따라갑니다. 붉게 깜빡이는 칸이 씨앗의 가장 약한 고리이고, 오늘 팀이 함수 하나로 바꿀 곳입니다.</p>
+  <div class="scope"><canvas id="tracksCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-tracks"></p>
+  <div class="deck">
+    <div class="ctl"><h3>트랙</h3><div class="row" id="trPick" style="margin-top:0"></div>
+      <div class="row"><button class="btn tour" data-tour="tracks" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="tracksKv"></div></div>
+  </div><p class="note">씨앗과 참고 해답의 점수는 제작 환경에서 잰 값입니다. 사람 · 회사 · 이야기는 모두 가상입니다.</p>
+</section>
+<section class="panel" id="scope">
+  <h2>하고 싶은 것을 다 적으면 절반도 못 한다</h2>
+  <p class="lead">쓸 수 있는 시간을 움직이고, 기능을 눌러 꼭 필요한 것으로 바꿔 보세요. 꼭 필요한 것을 먼저 넣고, 나머지는 가치가 높은 것부터 들어가는 것만 넣는 계산을 화면에서 실제로 합니다.</p>
+  <div class="scope"><canvas id="scopeCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-scope"></p>
+  <div class="deck">
+    <div class="ctl"><label class="sl">쓸 수 있는 시간<input type="range" id="scT" min="30" max="240" step="10" value="80"><output id="scTo"></output></label><h3>꼭 필요한 기능 (눌러서 바꾸기)</h3><div class="row" id="scTog"></div>
+      <div class="row"><button class="btn tour" data-tour="scope" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="scopeKv"></div></div>
+  </div><p class="note">노트북의 ✍️ pick_scope와 같은 규칙입니다. 걸리는 시간은 어림한 값에 1.5를 곱해 적습니다.</p>
+</section>
+<section class="panel" id="tutor">
+  <h2>견주기 전에 같은 모양으로, 자리가 아니라 짝으로</h2>
+  <p class="lead">학습자의 말을 고르고 견주는 방법을 바꿔 보세요. 위는 목표 문장, 아래는 받아쓴 글입니다. 붉은 낱말이 튜터가 다시 연습하라고 짚은 것입니다. 화면에서 실제로 견줍니다.</p>
+  <div class="scope"><canvas id="tutorCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-tutor"></p>
+  <div class="deck">
+    <div class="ctl"><h3>견주는 방법</h3><div class="row" id="ttMode" style="margin-top:0"></div><h3>학습자의 말</h3><div class="row" id="ttPick"></div>
+      <div class="row"><button class="btn tour" data-tour="tutor" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="tutorKv"></div></div>
+  </div><p class="note">문장과 받아쓴 글은 노트북의 연습 음성에서 가져왔습니다. 이 튜터는 낱말이 들렸는지를 봅니다. 발음의 좋고 나쁨은 재지 않습니다.</p>
+</section>
+<section class="panel" id="book">
+  <h2>따옴표 밖은 해설, 안은 그 앞에 이름이 나온 사람</h2>
+  <p class="lead">이야기와 나누는 방법을 골라 보세요. 밝은 조각이 지금 읽는 줄이고, 색이 읽는 사람입니다. 따옴표로 나누고 앞의 해설에서 이름을 찾는 일을 화면에서 실제로 합니다.</p>
+  <div class="scope"><canvas id="bookCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-book"></p>
+  <div class="deck">
+    <div class="ctl"><h3>나누는 방법</h3><div class="row" id="bkMode" style="margin-top:0"></div><h3>이야기</h3><div class="row" id="bkPick"></div>
+      <div class="row"><button class="btn tour" data-tour="book" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="bookKv"></div></div>
+  </div><p class="note">이야기는 노트북의 연습 이야기 두 편입니다. 붉은 테두리는 읽는 사람을 틀린 조각입니다.</p>
+</section>
+<section class="panel" id="interp">
+  <h2>입을 다무는 것과 틀리게 말하는 것</h2>
+  <p class="lead">점 하나가 회의 발화 하나입니다. 초록은 문장집에 있는 말, 분홍은 문장집에 없는 말입니다. 허용하는 차이를 움직여 보세요. 통과한 수와 잘못 통역한 수를 화면에서 실제로 셉니다.</p>
+  <div class="scope"><canvas id="interpCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-interp"></p>
+  <div class="deck">
+    <div class="ctl"><label class="sl">허용하는 차이 max_ratio<input type="range" id="ipR" min="0" max="0.4" step="0.01" value="0.3"><output id="ipRo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="interp" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="interpKv"></div></div>
+  </div><p class="note">점의 자리는 노트북의 연습 음성 8개에서 잰 값입니다(가장 가까운 문장과의 차이). 가로축은 0.2까지를 넓게 그렸습니다. 문장집은 번역이 아닙니다.</p>
+</section>
+<section class="panel" id="demo">
+  <h2>넘치면 말을 줄이지 말고 단계를 뺀다</h2>
+  <p class="lead">단계마다 쓰는 시간을 움직여 보세요. 흰 점이 5분 동안의 시연을 따라갑니다. 300초를 넘으면 종이 울린 뒤의 부분이 붉게 보입니다.</p>
+  <div class="scope"><canvas id="demoCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-demo"></p>
+  <div class="deck">
+    <div class="ctl"><label class="sl">문제 설명<input type="range" id="dmA" min="10" max="150" step="10" value="40"><output id="dmAo"></output></label><label class="sl">시연 (두 번)<input type="range" id="dmB" min="40" max="240" step="10" value="130"><output id="dmBo"></output></label><label class="sl">숫자<input type="range" id="dmC" min="0" max="90" step="10" value="50"><output id="dmCo"></output></label><label class="sl">안 되는 것<input type="range" id="dmD" min="0" max="90" step="10" value="50"><output id="dmDo"></output></label>
+      <div class="row"><button class="btn tour" data-tour="demo" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="demoKv"></div></div>
+  </div><p class="note">노트북의 ✍️ run_time과 같은 계산입니다. 단계를 0초로 두면 그 단계를 뺀 것입니다. 빠진 단계가 동료 평가의 어느 기준인지 오른쪽에 나옵니다.</p>
+</section>
+<section class="panel" id="peer">
+  <h2>자기 팀의 표를 빼는 한 줄</h2>
+  <p class="lead">팀을 고르고 자기 팀의 표를 넣었다 빼 보세요. 다섯 기준의 평균과 데모데이 점수를 화면에서 실제로 계산합니다.</p>
+  <div class="scope"><canvas id="peerCv" data-h="330"></canvas></div>
+  <p class="cap" id="cap-peer"></p>
+  <div class="deck">
+    <div class="ctl"><h3>점수를 받는 팀</h3><div class="row" id="prPick" style="margin-top:0"></div><div class="row" id="prTog"></div>
+      <div class="row"><button class="btn tour" data-tour="peer" aria-pressed="false">▶ 시연 보기</button></div></div>
+    <div class="read"><div class="kv" id="peerKv"></div></div>
+  </div><p class="note">가상 팀 셋의 평가표는 노트북에 들어 있는 것과 같습니다(점수는 지어낸 것). 점수 = 70 × (평균 ÷ 5) + 15 × 측정 단계.</p>
+</section>
+<section class="panel" id="recap">
+  <h2>이 상황에서 무엇을 할까</h2>
+  <p class="lead">3시간 해커톤과 5분 데모에서 만나는 문제 여섯 가지입니다.</p>
+  <div class="qbar"><span id="rcScore">0 / 6</span><div class="track"><i id="rcBar"></i></div></div>
+  <div id="rcList2"></div>
+</section>
+<footer>3시간 · 튜터 · 오디오북 · 통역기 · 집계 탭은 노트북과 같은 규칙으로 화면에서 실제로 계산합니다. 사람 · 회사 · 이야기는 모두 가상이고 목소리는 합성한 것입니다.</footer>
+</main>
+</div>
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const FONT='"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+/* 계측기 화면 색 (테마와 무관) */
+const K={tx:'#DCE3F5',mu:'#8794B8',grid:'rgba(150,170,255,.08)',line:'rgba(150,170,255,.22)',
+  sp:['#35D0BA','#FFB23E','#FF6FA9','#A58BFF','#6FB6FF'],ok:'#57E08A',bad:'#FF6B5E',th:'#FFE066',tgt:'#57E08A',non:'#FF6FA9'};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const pct=(v,d=1)=>(v*100).toFixed(d)+'%';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=(cur,tg,dt,k=9)=>cur+(tg-cur)*(1-Math.exp(-k*dt));
+function rnd(s){let x=(s>>>0)||1;const f=()=>{x=(x*16807)%2147483647;return x/2147483647;};f();f();f();return f;}
+function gauss(r){let u=0;while(u===0)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r());}
+function Phi(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+function invPhi(p){let lo=-9,hi=9;for(let i=0;i<60;i++){const m=(lo+hi)/2;if(Phi(m)<p)lo=m;else hi=m;}return (lo+hi)/2;}
+function fit(cv){const r=Math.min(2,devicePixelRatio||1),w=cv.clientWidth||cv.parentElement.clientWidth||640,h=+cv.dataset.h||300;
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv.style.height=h+'px';}
+  const c=cv.getContext('2d');c.setTransform(r,0,0,r,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+function grid(c,w,h,step=40){c.strokeStyle=K.grid;c.lineWidth=1;c.beginPath();for(let x=step;x<w;x+=step){c.moveTo(x+.5,0);c.lineTo(x+.5,h);}for(let y=step;y<h;y+=step){c.moveTo(0,y+.5);c.lineTo(w,y+.5);}c.stroke();}
+function dot(c,x,y,r,col,glow=0){c.save();if(glow){c.shadowColor=col;c.shadowBlur=glow;}c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.restore();}
+function txt(c,s,x,y,col=K.tx,size=13,bold=false,align='left'){c.fillStyle=col;c.font=`${bold?'700 ':''}${size}px ${FONT}`;c.textAlign=align;c.fillText(s,x,y);c.textAlign='left';}
+const kvCache={};
+function setKv(id,html){if(kvCache[id]!==html){kvCache[id]=html;$(id).innerHTML=html;}}
+const kv=(k,v,col,small)=>`<div><span>${k}</span><b${small?' class="s"':''}${col?` style="color:var(${col})"`:''}>${v}</b></div>`;
+function chipRow(el,attr,items,cur,col,cb){el.innerHTML=items.map(([v,l])=>`<button class="chip" style="--c:var(${col})" ${attr}="${v}" aria-pressed="${v===cur}">${esc(l)}</button>`).join('');
+  el.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{el.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.getAttribute(attr));});}
+function bindSl(fmt){Object.keys(fmt).forEach(id=>{const el=$(id),o=$(id+'o');const up=()=>{o.textContent=fmt[id](+el.value);kick();};el.addEventListener('input',up);o.textContent=fmt[id](+el.value);});}
+const val=id=>+$(id).value;
+function setSl(id,v){const el=$(id);el.value=v;el.dispatchEvent(new Event('input'));}
+
+/* ── 탭 · 프레임 루프 ── */
+const STG={};let active='flow',lastTs=0;
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function openTab(id,noHash){if(!$(id)||!STG[id])return;stopTour();active=id;
+  tabs.forEach(x=>{const on=x.dataset.t===id;x.setAttribute('aria-selected',on);if(on)x.classList.add('seen');});
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  if(!noHash){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  if(STG[id].enter)STG[id].enter();kick();}
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+addEventListener('hashchange',()=>openTab(location.hash.slice(1),true));
+addEventListener('resize',()=>kick());
+addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  const i=tabs.findIndex(b=>b.dataset.t===active);if(e.key==='ArrowRight'&&i<tabs.length-1)openTab(tabs[i+1].dataset.t);if(e.key==='ArrowLeft'&&i>0)openTab(tabs[i-1].dataset.t);});
+function kick(){if(RM){const s=STG[active];if(s&&s.draw)s.draw(1,performance.now()/1000);}}
+function frame(ts){const dt=clamp((ts-lastTs)/1000||0.016,0.001,0.05);lastTs=ts;const s=STG[active];if(s&&s.draw)s.draw(dt,ts/1000);requestAnimationFrame(frame);}
+$('themeBtn').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';};
+
+/* ── 시연(자동 조작 + 자막) ── */
+let tourTok=null;const TOURS={};
+const wait=ms=>new Promise(r=>setTimeout(r,RM?Math.min(ms,30):ms));
+function stopTour(){if(tourTok){tourTok.stop=true;tourTok=null;}document.querySelectorAll('.btn.tour').forEach(b=>{b.setAttribute('aria-pressed','false');b.textContent='▶ 시연 보기';});
+  document.querySelectorAll('.cap').forEach(c=>c.textContent='');}
+async function runTour(id){const tok={stop:false};tourTok=tok;const btn=document.querySelector(`[data-tour="${id}"]`);btn.setAttribute('aria-pressed','true');btn.textContent='■ 시연 멈추기';const cap=$('cap-'+id);
+  for(const st of TOURS[id]){if(tok.stop)return;cap.textContent=st.say;if(st.do)st.do();
+    const moves=Object.entries(st.set||{}).map(([sid,to])=>[sid,val(sid),to]);const T=st.t||1300,t0=performance.now();
+    if(moves.length){while(!tok.stop){const p=RM?1:clamp((performance.now()-t0)/T,0,1),e=p<.5?2*p*p:1-2*(1-p)*(1-p);moves.forEach(([sid,a,b])=>setSl(sid,a+(b-a)*e));if(p>=1)break;await wait(16);}}
+    await wait(st.hold||1700);}
+  if(!tok.stop)stopTour();}
+document.querySelectorAll('.btn.tour').forEach(b=>b.onclick=()=>{const on=b.getAttribute('aria-pressed')==='true';stopTour();if(!on)runTour(b.dataset.tour);});
+
+/* ═══ 1. 흐름 ═══ */
+function rr(c,x,y,w,h,col,fill){c.strokeStyle=col;c.lineWidth=1.8;c.beginPath();c.roundRect(x,y,w,h,8);if(fill){c.fillStyle=fill;c.fill();}c.stroke();}
+function wrap(c,s,x,y,maxW,col,size,bold,lh){c.font=`${bold?'700 ':''}${size}px ${FONT}`;let line='',yy=y;s.split(' ').forEach(wd=>{if(line&&c.measureText(line+wd).width>maxW){txt(c,line,x,yy,col,size,bold);line='';yy+=lh||size+5;}line+=wd+' ';});txt(c,line,x,yy,col,size,bold);return yy;}
+const DARK='rgba(10,16,36,.9)';
+function wave(c,x0,x1,y,amp,now,col){c.strokeStyle=col;c.lineWidth=1.5;c.beginPath();for(let x=x0;x<x1;x+=3){const u=(x-x0)/Math.max(1,x1-x0),a=amp*(0.35+0.65*Math.abs(Math.sin(x*0.21+now*2.2)));c.moveTo(x,y-a);c.lineTo(x,y+a);}c.stroke();}
+
+const pick=(a,v)=>document.querySelector(`[${a}="${v}"]`).click();
+const tog=(el,id,label,col,on,cb)=>{el.insertAdjacentHTML('beforeend',`<button class="chip" id="${id}" style="--c:var(${col})" aria-pressed="${on}">${label}</button>`);$(id).onclick=()=>{const v=$(id).getAttribute('aria-pressed')!=='true';$(id).setAttribute('aria-pressed',v);cb(v);kick();};};
+const setTog=(id,v)=>{if(($(id).getAttribute('aria-pressed')==='true')!==v)$(id).click();};
+const mix=(a,b,k)=>a+(b-a)*Math.min(1,k);
+function hbar(c,x,y,w,h,frac,col,label,value,fs){rr(c,x,y,w,h,K.line,DARK);if(frac>0){c.fillStyle=col;c.globalAlpha=.85;c.beginPath();c.roundRect(x+2,y+2,Math.max(2,(w-4)*Math.min(1,frac)),h-4,6);c.fill();c.globalAlpha=1;}
+  txt(c,label,x+8,y+h/2+fs*0.36,K.tx,fs,true);txt(c,value,x+w-8,y+h/2+fs*0.36,K.tx,fs,true,'right');}
+
+/* ═══ 1. 흐름 ═══ */
+const FLS=[['🧊 냉장고','부품과 출발선을 본다'],['📝 기획서','한 사람의 불편 · 한 장'],['🔧 만든다','가장 약한 고리 하나'],['🔔 멈춘다','리허설 · 순서표'],['🎤 데모데이','5분 시연 + 3분 질의'],['🎓 수료','51일의 지도']];
+const FL={t:0};
+STG.flow={draw(dt,now){const {c,w,h}=fit($('flCv'));grid(c,w,h);if(!RM)FL.t+=dt;const u=RM?5.4:(FL.t%13)/2,cur=Math.min(5,Math.floor(u)),wide=w>=640,cols=wide?6:3,bw=(w-28-(cols-1)*12)/cols,bh=wide?96:78;
+  FLS.forEach(([a,b],i)=>{const x=14+(i%cols)*(bw+12),y=30+Math.floor(i/cols)*(bh+34),on=i===cur,done=i<cur;rr(c,x,y,bw,bh,on?K.th:done?K.ok:K.line,on?'rgba(255,209,102,.12)':DARK);txt(c,a,x+bw/2,y+bh/2-4,on?K.th:done?K.ok:K.tx,wide?14.5:12,true,'center');wrap(c,b,x+8,y+bh/2+18,bw-16,K.mu,wide?11.5:9.5,false,14);
+    if(i<5&&(i%cols)<cols-1){c.strokeStyle=K.mu;c.beginPath();c.moveTo(x+bw+2,y+bh/2);c.lineTo(x+bw+10,y+bh/2);c.stroke();}});
+  const y0=30+Math.ceil(6/cols)*(bh+34);const msg=['불을 켜기 전에 냉장고를 연다. 무엇이 있고, 지금 몇 점인지부터.','누가 무엇이 불편한가. 80분에 들어가는 만큼만 고른다.','씨앗의 가장 약한 고리를 함수 하나로 바꾸고, 다시 잰다.','3교시의 뒤 25분에는 만들지 않는다. 준비된 입력 한 번, 새 입력 한 번.','눈앞에서 돌아가게, 숫자와 출발선을, 안 되는 것까지.','소리를 숫자로 바꾸는 데서 시작해 여기까지 왔다.'][cur];
+  wrap(c,msg,14,y0+10,w-28,K.tx,wide?15:12,true,22);txt(c,'주제도 됐다의 기준도 팀이 정한다 · 사람 · 회사 · 이야기는 모두 가상',14,h-14,K.mu,wide?12.5:10);}};
+const ROAD=[
+ {p:'Part 0',t:'준비',c:'--a5',go:'tracks',items:['해커톤 도구 상자 hackkit.py','듣기 둘(한국어 · 여러 언어) · 말하기 하나','연습 음성 16개 · 이야기 2편 · 문장집 12문장'],q:'키도 GPU도 필요 없습니다'},
+ {p:'1교시',t:'고른다',c:'--a2',go:'tracks',items:['부품을 한 바퀴 돌려 본다','씨앗 세 가지의 출발선을 잰다','한 장 기획서: 누가 · 무엇이 불편한가 · 됐다의 숫자'],q:'✍️ pick_scope · 🏁 기획서',more:[['scope','3시간에 들어가는 만큼']]},
+ {p:'2교시',t:'만들기 ①',c:'--a1',go:'tutor',items:['우리 트랙의 핵심 함수 하나','씨앗의 시험으로 다시 잰다','자유 주제 팀은 시험부터 쓴다'],q:'✍️ word_feedback · split_script · closest_phrase 가운데 우리 것',more:[['book','오디오북'],['interp','통역기']]},
+ {p:'3교시',t:'만들기 ② · 리허설',c:'--a4',go:'demo',items:['앞 25분: 마저 만든다','뒤 25분: 만들기를 멈추고 리허설','데모 순서표 · 플랜 B · 팀 코드'],q:'✍️ run_time · 🏁 데모 순서표'},
+ {p:'4교시',t:'데모데이',c:'--a3',go:'peer',items:['팀당 5분 시연 + 3분 질의','동료 평가 다섯 가지: 문제 · 동작 · 숫자 · 전달 · 정직','집계: 동료 평가 70 + 측정 30'],q:'✍️ peer_mean · demo_score · 🏁 평가표'},
+ {p:'마무리',t:'과정 회고 · 수료',c:'--bad',go:'recap',items:['51일의 지도','지금의 나는 할 수 있는 것','가장 먼저 잴 숫자'],q:'📝 워크시트 25문항 (하루 한 장)'}];
+$('road').innerHTML=ROAD.map((r,i)=>`<button style="--c:var(${r.c})" data-i="${i}" aria-pressed="${i===0}"><b>${r.p}</b><span>${r.t}</span></button>`).join('');
+function showRoad(i){const r=ROAD[i];[...$('road').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  const extra=(r.more||[]).map(([g,l])=>`<button class="btn" data-go="${g}">${l}</button>`).join('');
+  $('roadDetail').innerHTML=`<h3 style="color:var(${r.c})">${r.p}. ${r.t}</h3><ul>${r.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:8px 0 0">${esc(r.q)}</p><div class="row"><button class="btn go" data-go="${r.go}">관련 애니메이션 보기</button>${extra}</div>`;
+  $('roadDetail').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go));}
+[...$('road').children].forEach(b=>b.onclick=()=>showRoad(+b.dataset.i));showRoad(0);
+
+/* ═══ 2. 트랙 ═══ */
+const TRK={A:{n:'외국어 회화 튜터',s:['학습자의 말','듣기 (영어)','목표 문장과 견주기','다시 연습할 낱말','말하기 (본보기)'],weak:2,seed:'50점 (4 / 8)',ref:'100점 (8 / 8)',why:'쉼표와 대소문자를 다른 낱말로 본다. 자리로 견줘서 낱말 하나가 빠지면 뒤가 모두 틀린다.',fn:'word_feedback'},
+ B:{n:'오디오북 생성기 확장',s:['이야기 글','조각으로 나누기','읽는 사람 정하기','말하기 (목소리 여럿)','이어 붙이기'],weak:1,seed:'0점 (0 / 14)',ref:'92.9점 (13 / 14)',why:'따옴표가 무엇인지 모른다. 모든 줄을 해설자 한 사람이 읽는다.',fn:'split_script'},
+ C:{n:'회의 통역기',s:['회의 발화','듣기 (한국어)','문장집에서 찾기','영어 문장','말하기 (영어)'],weak:2,seed:'25점 (2 / 8)',ref:'100점 (8 / 8)',why:'받아쓴 글이 문장집과 글자까지 같아야만 통역한다. 한 글자만 틀려도 입을 다문다.',fn:'closest_phrase'},
+ F:{n:'자유 주제',s:['넣는 것','(팀이 정함)','내 함수','기대한 것과 견주기','통과한 비율'],weak:3,seed:'(없음)',ref:'팀이 잰다',why:'시험이 없다. 시험을 먼저 쓰지 않으면 4교시에 "잘 되는 것 같다"밖에 말할 것이 없다.',fn:'my_fn · MY_CASES'}};
+const TR={k:'A',t:0};
+chipRow($('trPick'),'data-tk',Object.entries(TRK).map(([k,v])=>[k,`${k} · ${v.n}`]),'A','--a2',v=>{TR.k=v;TR.t=0;kick();});
+STG.tracks={draw(dt,now){const {c,w,h}=fit($('tracksCv'));grid(c,w,h);const d=TRK[TR.k],wide=w>=640,n=5,bw=wide?(w-28-(n-1)*16)/n:w-28,bh=wide?84:40,fs=wide?12.5:11;if(!RM)TR.t+=dt;const u=RM?4.4:(TR.t%7)/1.2,cur=Math.min(4,Math.floor(u));
+  txt(c,`트랙 ${TR.k} · ${d.n}`,14,26,K.tx,wide?15:12.5,true);
+  d.s.forEach((s,i)=>{const x=wide?14+i*(bw+16):14,y=wide?64:44+i*(bh+10),weak=i===d.weak,pul=weak?0.5+0.5*Math.sin(now*5):0,on=i===cur;
+    rr(c,x,y,bw,bh,weak?K.bad:on?K.th:K.line,weak?`rgba(255,107,94,${0.1+0.18*pul})`:on?'rgba(255,209,102,.12)':DARK);if(wide)wrap(c,s,x+10,y+bh/2-2,bw-20,weak?K.bad:K.tx,fs,true,17);else txt(c,s,x+12,y+bh/2+4,weak?K.bad:K.tx,fs,true);
+    if(wide&&i<n-1){c.strokeStyle=K.mu;c.beginPath();c.moveTo(x+bw+3,y+bh/2);c.lineTo(x+bw+13,y+bh/2);c.stroke();}});
+  if(wide){const px=14+(Math.min(u,4.99)/5)*(w-28)+bw*0.1;dot(c,Math.min(px,w-20),64+bh+16,6,'#fff',12);
+    txt(c,'약한 고리:',14,64+bh+62,K.bad,13,true);wrap(c,d.why,14,64+bh+86,w-28,K.tx,13.5,false,21);txt(c,`바꿀 함수: ${d.fn}`,14,h-18,K.th,13.5,true);}
+  setKv('tracksKv',kv('트랙',`${TR.k} · ${d.n}`)+kv('씨앗의 점수',d.seed,'--bad')+kv('참고 해답',d.ref,'--ok')+kv('약한 고리',d.s[d.weak],'--bad')+kv('바꿀 함수',d.fn)+kv('까닭',d.why,0,1));}};
+TOURS.tracks=[{say:'튜터입니다. 듣기도 말하기도 멀쩡합니다. 약한 곳은 가운데, 목표 문장과 견주는 자리입니다. 쉼표 하나 때문에 맞게 말한 학습자에게 틀렸다고 합니다.',do:()=>pick('data-tk','A'),hold:7000},
+ {say:'오디오북입니다. 목소리는 열 가지가 있습니다. 그런데 씨앗은 따옴표가 무엇인지 몰라 모든 줄을 해설자가 읽습니다. 나누는 자리가 약합니다.',do:()=>pick('data-tk','B'),hold:7000},
+ {say:'통역기입니다. 받아쓴 글이 문장집과 글자까지 같아야만 통역합니다. 받아쓰기는 늘 조금 틀리므로 거의 입을 다뭅니다.',do:()=>pick('data-tk','C'),hold:7000},
+ {say:'자유 주제에는 씨앗도 시험도 없습니다. 그래서 가장 먼저 할 일이 시험을 쓰는 것입니다. 시험이 없으면 됐는지 알 수 없습니다.',do:()=>pick('data-tk','F'),hold:7000}];
+
+/* ═══ 3. 범위 (화면에서 실제로 계산) ═══ */
+const FEAT=[{n:'받아쓰기 잇기',m:30,must:true,v:5},{n:'점수 재기',m:25,must:true,v:5},{n:'피드백 음성',m:20,must:false,v:4},{n:'다국어',m:90,must:false,v:4},{n:'예쁜 화면',m:60,must:false,v:3},{n:'말속도 조절',m:10,must:false,v:2}];
+function pickScope(fs,min){const out=[];let left=min;fs.forEach(f=>{if(f.must){out.push(f.n);left-=f.m;}});fs.filter(f=>!f.must).sort((a,b)=>b.v-a.v||a.m-b.m).forEach(f=>{if(f.m<=left){out.push(f.n);left-=f.m;}});return {out,left};}
+FEAT.forEach((f,i)=>tog($('scTog'),'scF'+i,f.n,'--a4',f.must,v=>FEAT[i].must=v));
+bindSl({scT:v=>v+'분'});
+STG.scope={draw(dt,now){const {c,w,h}=fit($('scopeCv'));grid(c,w,h);const T=val('scT'),{out,left}=pickScope(FEAT,T),wide=w>=640,fs=wide?12.5:10.5,x0=14,bw=w-28,sc=bw/240;
+  txt(c,`쓸 수 있는 시간 ${T}분`,x0,24,K.tx,wide?14:12,true);rr(c,x0,36,bw,wide?54:44,K.line,DARK);c.strokeStyle=K.th;c.lineWidth=2.5;c.beginPath();c.moveTo(x0+T*sc,28);c.lineTo(x0+T*sc,(wide?54:44)+44);c.stroke();
+  let x=x0+2;out.forEach((n,i)=>{const f=FEAT.find(q=>q.n===n),ww=f.m*sc-2,over=x+ww>x0+T*sc+2;c.fillStyle=over?K.bad:f.must?K.sp[1]:K.sp[0];c.globalAlpha=.88;c.beginPath();c.roundRect(x,38,Math.max(3,ww),(wide?54:44)-4,6);c.fill();c.globalAlpha=1;if(ww>52)txt(c,f.n,x+ww/2,38+(wide?30:25),'#0B1020',fs-1,true,'center');x+=ww+2;});
+  const y1=(wide?54:44)+62,rh=wide?25:22;FEAT.forEach((f,i)=>{const y=y1+i*(rh+4),inn=out.includes(f.n),pul=inn?0:0;rr(c,x0,y,bw,rh,inn?(f.must?K.sp[1]:K.ok):K.line,DARK);txt(c,(f.must?'★ ':'')+f.n,x0+10,y+rh/2+4,inn?K.tx:K.mu,fs,true);
+    txt(c,`${f.m}분 · 가치 ${f.v}`,x0+bw*0.5,y+rh/2+4,K.mu,fs);txt(c,inn?'넣음':(f.must?'':'안 들어감'),x0+bw-10,y+rh/2+4,inn?K.ok:K.bad,fs,true,'right');});
+  const mustSum=FEAT.filter(f=>f.must).reduce((a,f)=>a+f.m,0);
+  setKv('scopeKv',kv('넣은 기능',out.length+'개 / 6')+kv('꼭 필요한 것의 시간',mustSum+'분',mustSum>T?'--bad':0)+kv('남는 시간',left+'분',left<0?'--bad':'--ok')+kv('빠진 기능',FEAT.filter(f=>!out.includes(f.n)).map(f=>f.n).join(' · ')||'없음',0,1)+kv('규칙','★ 먼저 → 가치 높은 순 → 들어가는 것만',0,1));}};
+TOURS.scope=[{say:'80분입니다. 꼭 필요한 두 가지에 55분을 쓰고 25분이 남습니다. 가치가 높은 다국어는 90분이라 들어가지 않습니다. 피드백 음성이 들어갑니다.',do:()=>{FEAT.forEach((f,i)=>setTog('scF'+i,i<2));},set:{scT:80},hold:7500},
+ {say:'예쁜 화면을 꼭 필요한 것으로 바꿔 봅니다. 꼭 필요한 것만으로 115분입니다. 80분을 넘습니다. 붉은 칸은 4교시에 없는 기능입니다.',do:()=>setTog('scF4',true),hold:7000},
+ {say:'되돌립니다. 꼭 필요하다는 말은 그것이 없으면 시연을 못 한다는 뜻입니다. 화면이 없어도 시연은 됩니다.',do:()=>setTog('scF4',false),hold:6000},
+ {say:'시간이 240분이라면 여섯 개가 다 들어갑니다. 오늘은 그런 날이 아닙니다. 범위를 줄이는 것이 해커톤의 기술입니다.',set:{scT:240},t:2200,hold:6000},
+ {say:'80분으로 돌아옵니다. 빠진 기능은 지우지 말고 "다음에 할 것"으로 옮겨 둡니다. 발표의 마지막 단계에서 쓰입니다.',set:{scT:80},t:1800,hold:6000}];
+
+/* ═══ 4. 튜터 (화면에서 실제로 계산) ═══ */
+const TTI=[['I would like a cup of coffee, please.','I would like a cup of coffee please.',[]],['I have lived in Seoul for three years.','I lived in Seoul for three years.',['have']],['I am looking for a bigger size.','I am looking a bigger size.',['for']],['The meeting starts at nine tomorrow.','The meeting starts at 9 tomorrow.',[]]];
+const NUMW={'0':'zero','1':'one','2':'two','3':'three','4':'four','5':'five','6':'six','7':'seven','8':'eight','9':'nine','10':'ten'};
+const wordsEn=s=>s.toLowerCase().replace(/[^a-z0-9' ]/g,' ').split(/\s+/).filter(Boolean).map(w=>NUMW[w]||w);
+function seedFb(t,h){const a=t.split(' '),b=h.split(' ');return {tw:a,hw:b,miss:a.map((w,i)=>i>=b.length||b[i]!==w),pair:a.map((w,i)=>i<b.length?i:-1)};}
+function alignFb(t,h){const a=wordsEn(t),b=wordsEn(h),n=a.length,m=b.length,L=Array.from({length:n+1},()=>Array(m+1).fill(0));for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=a[i]===b[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+  const pair=Array(n).fill(-1);let i=0,j=0;while(i<n&&j<m){if(a[i]===b[j]){pair[i]=j;i++;j++;}else if(L[i+1][j]>=L[i][j+1])i++;else j++;}return {tw:a,hw:b,miss:pair.map(p=>p<0),pair};}
+const TT={i:0,m:'seed'};
+chipRow($('ttMode'),'data-tm',[['seed','씨앗: 같은 자리끼리'],['align','고친 것: 같은 모양으로 · 짝으로']],'seed','--a1',v=>{TT.m=v;kick();});
+chipRow($('ttPick'),'data-ti',TTI.map((x,i)=>[String(i),'A'+[1,3,6,8][i]]),'0','--a4',v=>{TT.i=+v;kick();});
+STG.tutor={draw(dt,now){const {c,w,h}=fit($('tutorCv'));grid(c,w,h);const [tg,hd,truth]=TTI[TT.i],r=TT.m==='seed'?seedFb(tg,hd):alignFb(tg,hd),wide=w>=640,fs=wide?14:10,x0=14,n=Math.max(r.tw.length,r.hw.length),tw=(w-28-(n-1)*6)/n,th=wide?44:34,y1=64,y2=y1+th+(wide?86:70);
+  txt(c,'목표 문장',x0,y1-14,K.sp[0],wide?12.5:11,true);txt(c,'받아쓴 글',x0,y2-14,K.sp[1],wide?12.5:11,true);const X=i=>x0+i*(tw+6);
+  r.pair.forEach((p,i)=>{if(p>=0&&!r.miss[i]){c.strokeStyle=K.ok;c.globalAlpha=.55+.25*Math.sin(now*3+i);c.lineWidth=2;c.beginPath();c.moveTo(X(i)+tw/2,y1+th);c.lineTo(X(p)+tw/2,y2);c.stroke();c.globalAlpha=1;}});
+  r.tw.forEach((wd,i)=>{const bad=r.miss[i],pul=bad?0.5+0.5*Math.sin(now*5):0;rr(c,X(i),y1,tw,th,bad?K.bad:K.line,bad?`rgba(255,107,94,${.12+.2*pul})`:DARK);txt(c,wd,X(i)+tw/2,y1+th/2+fs*.36,bad?K.bad:K.tx,fs,true,'center');});
+  r.hw.forEach((wd,j)=>{rr(c,X(j),y2,tw,th,K.line,DARK);txt(c,wd,X(j)+tw/2,y2+th/2+fs*.36,K.tx,fs,true,'center');});
+  const miss=r.tw.filter((wd,i)=>r.miss[i]).map(wd=>wd.toLowerCase().replace(/[.,?!]/g,'')),ok=JSON.stringify(miss)===JSON.stringify(truth);
+  txt(c,`튜터가 짚은 낱말: ${miss.join(' · ')||'없음'}  /  정답: ${truth.join(' · ')||'없음'}`,x0,h-40,K.tx,wide?13.5:10.5,true);txt(c,ok?'✅ 정확히 짚었습니다':'❌ 학습자가 틀리지 않은 낱말까지 짚었습니다',x0,h-16,ok?K.ok:K.bad,wide?14.5:11.5,true);
+  setKv('tutorKv',kv('견주는 방법',TT.m==='seed'?'같은 자리끼리':'같은 모양으로 · 짝으로')+kv('짚은 낱말',miss.length+'개',ok?'--ok':'--bad')+kv('정답',truth.length+'개')+kv('판정',ok?'통과':'틀림',ok?'--ok':'--bad')+kv('8개 전체',TT.m==='seed'?'4 / 8 · 50점':'8 / 8 · 100점',TT.m==='seed'?'--bad':'--ok'));}};
+TOURS.tutor=[{say:'학습자는 맞게 말했습니다. 그런데 씨앗은 coffee를 틀렸다고 합니다. 목표 문장에는 쉼표가 붙어 있고 받아쓴 글에는 없기 때문입니다.',do:()=>{pick('data-tm','seed');pick('data-ti','0');},hold:7000},
+ {say:'이번에는 have가 빠졌습니다. 씨앗은 같은 자리끼리 견주므로 그 뒤의 낱말이 한 칸씩 밀려 전부 틀린 것이 됩니다.',do:()=>pick('data-ti','1'),hold:7000},
+ {say:'고친 방법입니다. 먼저 두 문장을 같은 모양으로 만들고, 순서를 지키며 짝이 맞는 낱말을 찾습니다. have만 남습니다.',do:()=>pick('data-tm','align'),hold:7000},
+ {say:'받아쓰기는 nine을 9로 적었습니다. 견주기 전에 숫자를 글자로 바꿔 두면 맞게 말한 것으로 봅니다.',do:()=>pick('data-ti','3'),hold:6500},
+ {say:'씨앗으로 돌아가면 nine을 다시 연습하라고 합니다. 튜터가 이러면 학습자는 떠납니다.',do:()=>pick('data-tm','seed'),hold:6000}];
+
+/* ═══ 5. 오디오북 (화면에서 실제로 계산) ═══ */
+const STO={'저녁 숲':['숲속 마을에 저녁이 찾아왔습니다. 토끼가 하늘을 보며 말했습니다. "벌써 해가 지네. 이제 집에 가야 해." 거북이가 천천히 고개를 들었습니다. "서두르지 마. 천천히 가도 늦지 않아." 토끼는 발을 동동 굴렀습니다. "너는 느려서 그렇지!" 그러자 거북이가 웃으며 대답했습니다. "느려도 길은 잃지 않아." 둘은 나란히 집으로 걸어갔습니다.',['해설','토끼','해설','거북이','해설','토끼','해설','거북이','해설']],
+ '한밤의 손님':['"누구 없어요?" 다람쥐가 문을 두드렸습니다. 한참 뒤에 부엉이가 창문을 열었습니다. "이 밤중에 무슨 일이니?" 다람쥐는 작은 자루를 내밀었습니다. "도토리를 나눠 드리려고요."',['다람쥐','해설','부엉이','해설','다람쥐']]};
+const CASTC={'해설':K.mu,'토끼':K.sp[2],'거북이':K.sp[0],'다람쥐':K.sp[1],'부엉이':K.sp[3]};
+function splitScript(text){const parts=text.split(/"([^"]*)"/),out=[];let sp='해설';parts.forEach((p,i)=>{p=p.trim();if(!p)return;if(i%2===0){out.push(['해설',p]);Object.keys(CASTC).forEach(nm=>{if(nm!=='해설'&&p.includes(nm))sp=nm;});}else out.push([sp,p]);});return out;}
+const BK={s:'저녁 숲',m:'seed',t:0};
+chipRow($('bkMode'),'data-bm',[['seed','씨앗: 해설자 혼자'],['split','고친 것: 따옴표로 나누기']],'seed','--a1',v=>{BK.m=v;BK.t=0;kick();});
+chipRow($('bkPick'),'data-bs',Object.keys(STO).map(k=>[k,k]),'저녁 숲','--a4',v=>{BK.s=v;BK.t=0;kick();});
+STG.book={draw(dt,now){const {c,w,h}=fit($('bookCv'));grid(c,w,h);const [text,truth]=STO[BK.s],segs=BK.m==='seed'?[['해설',text.replace(/"/g,'')]]:splitScript(text),wide=w>=640,fs=wide?12:9.5,x0=14,bw=w-28;if(!RM)BK.t+=dt;const cur=RM?0:Math.floor(BK.t/1.6)%segs.length;
+  const n=segs.length,rh=Math.min(wide?30:24,(h-74)/Math.max(n,1)-4);let okN=0;
+  segs.forEach(([sp,tx],i)=>{const y=34+i*(rh+4),col=CASTC[sp]||K.mu,good=BK.m==='split'&&truth[i]===sp,bad=BK.m==='split'&&truth[i]!==sp;if(good)okN++;const on=i===cur;
+    rr(c,x0,y,bw,rh,bad?K.bad:on?K.th:K.line,on?'rgba(255,209,102,.10)':DARK);c.fillStyle=col;c.beginPath();c.roundRect(x0+4,y+4,wide?74:54,rh-8,5);c.fill();txt(c,sp,x0+4+(wide?37:27),y+rh/2+4,'#0B1020',fs-0.5,true,'center');
+    const maxc=Math.floor((bw-(wide?150:96))/(fs*0.92)),s=tx.length>maxc?tx.slice(0,maxc-1)+'…':tx;txt(c,s,x0+(wide?88:66),y+rh/2+4,on?K.tx:K.mu,fs,on);if(bad)txt(c,`정답: ${truth[i]}`,x0+bw-8,y+rh/2+4,K.bad,fs-1,true,'right');
+    if(on&&!RM)wave(c,x0+bw-(bad?120:64),x0+bw-(bad?76:10),y+rh/2,rh/4,now,col);});
+  const total=truth.length,sc=BK.m==='seed'?0:okN;txt(c,BK.m==='seed'?'모든 줄을 해설자가 읽습니다. 대사가 어디인지 귀로 알 수 없습니다':`${sc} / ${total} 조각의 읽는 사람이 맞습니다`,x0,h-14,sc===total?K.ok:BK.m==='seed'?K.bad:K.th,wide?14:11,true);
+  setKv('bookKv',kv('이야기',BK.s)+kv('조각',n+'개')+kv('읽는 사람이 맞은 조각',`${sc} / ${total}`,sc===total?'--ok':sc?'--warn':'--bad')+kv('목소리',[...new Set(segs.map(s=>s[0]))].join(' · '),0,1)+kv('두 이야기 전체',BK.m==='seed'?'0 / 14 · 0점':'13 / 14 · 92.9점',BK.m==='seed'?'--bad':'--ok'));}};
+TOURS.book=[{say:'씨앗은 이야기를 통째로 해설자에게 줍니다. 토끼의 말도 거북이의 말도 같은 목소리입니다.',do:()=>{pick('data-bs','저녁 숲');pick('data-bm','seed');},hold:6000},
+ {say:'따옴표로 나눕니다. 밖은 해설, 안은 대사입니다. 대사를 누가 말했는지는 바로 앞의 해설에서 이름을 찾습니다. 아홉 조각이 모두 맞습니다.',do:()=>pick('data-bm','split'),hold:8000},
+ {say:'두 번째 이야기입니다. 첫 줄이 대사로 시작하고, 말한 사람은 따옴표 뒤에 나옵니다. 우리 규칙은 앞만 보므로 해설자가 읽습니다. 하나를 틀립니다.',do:()=>pick('data-bs','한밤의 손님'),hold:8500},
+ {say:'이 하나를 고칠 수도 있고, 고치지 않고 발표에서 말할 수도 있습니다. 모르고 지나가는 것만 나쁜 답입니다.',hold:6000}];
+
+/* ═══ 6. 통역기 (화면에서 실제로 계산) ═══ */
+const IPD=[['회의는 내일 오후 세 시에…',0.067,true],['예산안은 금요일까지…',0.071,true],['이번 분기 매출이 십 퍼센트…',0.062,true],['출시 일정을 일주일 미루겠습니다',0.024,true],['고객 불만이 지난달보다…',0.022,true],['오늘 회의는 여기서…',0.048,true],['점심은 구내식당에서 먹겠습니다',0.564,false],['출시 일정을 일주일 당기겠습니다',0.119,false]];
+bindSl({ipR:v=>v.toFixed(2)});
+STG.interp={draw(dt,now){const {c,w,h}=fit($('interpCv'));grid(c,w,h);const R=val('ipR'),wide=w>=640,fs=wide?12.5:10.5,x0=30,bw=w-60,X=v=>x0+bw*(v<=0.2?v/0.2*0.75:0.75+Math.min(v-0.2,0.4)/0.4*0.25),y=150;
+  let pass=0,wrong=0;IPD.forEach(([n,r,inb])=>{const tr=r<=R;if(inb===tr)pass++;if(!inb&&tr)wrong++;});
+  c.fillStyle='rgba(87,224,138,.07)';c.fillRect(X(0),50,X(R)-X(0),190);txt(c,'통역한다',X(R)-8,44,K.ok,fs,true,'right');txt(c,'통역하지 않는다',X(R)+8,44,K.mu,fs,true);
+  IPD.forEach(([n,r,inb],i)=>{const tr=r<=R,bad=inb!==tr,yy=y+(i%4-1.5)*30+Math.sin(now*1.6+i)*(RM?0:5);dot(c,X(r),yy,bad?8:6,bad?K.bad:inb?K.tgt:K.non,bad?16:6);
+    if(!inb||bad)txt(c,n,Math.min(X(r)+12,w-200),yy+4,bad?K.bad:K.mu,fs-1.5,bad);});
+  c.strokeStyle=K.th;c.lineWidth=2.5;c.beginPath();c.moveTo(X(R),50);c.lineTo(X(R),240);c.stroke();txt(c,`max_ratio ${R.toFixed(2)}`,X(R),258,K.th,fs,true,'center');
+  [0,0.05,0.1,0.15,0.2,0.4,0.6].forEach(v=>txt(c,v.toFixed(2),X(v),h-34,K.mu,fs-1.5,false,'center'));
+  txt(c,wrong?`⛔ 잘못 통역 ${wrong}건: “당기겠습니다”를 “delay”로`:pass===8?'✅ 조금 틀린 글은 살리고, 뜻이 다른 말은 걸렀습니다':`통과 ${pass} / 8 · 입을 다문 것 ${8-pass}건`,x0-16,h-10,wrong?K.bad:pass===8?K.ok:K.th,wide?14.5:11.5,true);
+  setKv('interpKv',kv('통과',`${pass} / 8`,pass===8?'--ok':'--warn')+kv('점수',(pass/8*100).toFixed(1)+'점')+kv('잘못 통역',wrong+'건',wrong?'--bad':'--ok')+kv('입을 다문 것',IPD.filter(([n,r,inb])=>inb&&r>R).length+'건')+kv('옳은 문장의 차이','0.022 ~ 0.071',0,1)+kv('뜻이 반대인 문장의 차이','0.119',0,1));}};
+TOURS.interp=[{say:'씨앗은 차이가 0일 때만 통역합니다. 받아쓰기가 조금씩 틀려 여섯 문장 모두 입을 다뭅니다. 맞힌 둘은 통역하지 않아서 맞힌 것입니다.',set:{ipR:0},hold:7000},
+ {say:'0.3으로 넉넉하게 잡습니다. 여섯 문장을 모두 통역합니다. 그런데 붉은 점이 하나 생겼습니다. “당기겠습니다”를 “미루겠습니다”의 영어로 옮겼습니다. 뜻이 반대입니다.',set:{ipR:0.3},t:2400,hold:8000},
+ {say:'0.1로 줄입니다. 받아쓰기가 틀린 옳은 문장(0.07까지)은 살리고, 뜻이 다른 문장(0.12)은 거릅니다. 여덟 개가 모두 맞습니다.',set:{ipR:0.1},t:2000,hold:7500},
+ {say:'더 줄여 0.05면 옳은 문장 셋이 다시 입을 다뭅니다. 입을 다무는 것은 불편이고, 틀리게 말하는 것은 사고입니다. 그 사이의 값을 고릅니다.',set:{ipR:0.05},t:1800,hold:7500}];
+
+/* ═══ 7. 데모 순서표 ═══ */
+bindSl({dmA:v=>v+'초',dmB:v=>v+'초',dmC:v=>v+'초',dmD:v=>v+'초'});
+const DM={t:0};const DMS=[['문제 설명','dmA','문제',4],['시연 (두 번)','dmB','동작',1],['숫자','dmC','숫자',0],['안 되는 것','dmD','정직',2]];
+STG.demo={draw(dt,now){const {c,w,h}=fit($('demoCv'));grid(c,w,h);const vs=DMS.map(d=>val(d[1])),tot=vs.reduce((a,b)=>a+b,0),over=Math.max(0,tot-300),wide=w>=640,fs=wide?12.5:10.5,x0=14,bw=w-28,full=Math.max(360,tot+20),sc=bw/full,y=92,bh=wide?60:48;
+  if(!RM)DM.t+=dt*40;const tt=RM?tot:DM.t%(tot+60);txt(c,'5분 = 300초',x0,24,K.tx,wide?14:12,true);
+  let x=x0;DMS.forEach(([n,id,cr,ci],i)=>{const ww=vs[i]*sc;if(ww<=0)return;const xe=x+ww,lim=x0+300*sc;c.fillStyle=K.sp[ci];c.globalAlpha=.88;c.beginPath();c.roundRect(x,y,Math.max(2,Math.min(ww,Math.max(0,lim-x))-2),bh,6);c.fill();
+    if(xe>lim){c.fillStyle=K.bad;c.globalAlpha=.55+.25*Math.sin(now*6);c.beginPath();c.roundRect(Math.max(x,lim),y,xe-Math.max(x,lim)-2,bh,6);c.fill();}c.globalAlpha=1;if(ww>64)txt(c,n,x+ww/2,y+bh/2+4,'#0B1020',fs,true,'center');x=xe;});
+  const lx=x0+300*sc;c.strokeStyle=K.th;c.lineWidth=2.5;c.setLineDash([6,5]);c.beginPath();c.moveTo(lx,y-26);c.lineTo(lx,y+bh+26);c.stroke();c.setLineDash([]);txt(c,'🔔 300초',lx,y-32,K.th,fs,true,'center');
+  dot(c,x0+Math.min(tt,tot)*sc,y+bh/2,7,'#fff',14);for(let s=0;s<=full;s+=60)txt(c,s+'',x0+s*sc,y+bh+46,K.mu,fs-1.5,false,'center');
+  const gone=DMS.filter((d,i)=>vs[i]===0).map(d=>d[2]);
+  txt(c,over?`⛔ ${over}초 넘칩니다. 말을 빨리 하지 말고 단계를 뺍니다`:`✅ ${tot}초 · 남는 시간 ${300-tot}초`,x0,h-44,over?K.bad:K.ok,wide?15:12,true);
+  txt(c,gone.length?`빠진 단계가 올려 주던 기준: ${gone.join(' · ')}`:'네 단계가 모두 있습니다',x0,h-18,gone.length?K.th:K.mu,wide?13.5:11,true);
+  setKv('demoKv',kv('합계',tot+'초',over?'--bad':'--ok')+kv('넘친 시간',over+'초',over?'--bad':'--ok')+kv('시연의 비율',tot?Math.round(vs[1]/tot*100)+'%':'0%')+kv('빠진 단계',DMS.filter((d,i)=>vs[i]===0).map(d=>d[0]).join(' · ')||'없음')+kv('잃는 기준',gone.join(' · ')||'없음',gone.length?'--warn':0));}};
+TOURS.demo=[{say:'순서표입니다. 문제 40초, 시연 두 번에 130초, 숫자 50초, 안 되는 것 50초. 270초로 5분 안에 들어갑니다.',set:{dmA:40,dmB:130,dmC:50,dmD:50},hold:6500},
+ {say:'문제 설명이 길어지는 일이 가장 흔합니다. 120초를 쓰면 350초가 되어 종이 울린 뒤에 숫자와 안 되는 것을 말하게 됩니다.',set:{dmA:120},t:2200,hold:7500},
+ {say:'넘쳤다고 안 되는 것을 빼면 시간은 맞습니다. 그런데 동료 평가의 정직을 올려 줄 단계가 사라졌습니다.',set:{dmD:0},t:1800,hold:7000},
+ {say:'빼야 할 것은 문제 설명의 군말입니다. 한 사람과 그 사람의 불편을 한 문장으로 말하면 40초면 됩니다.',set:{dmA:40,dmD:50},t:2200,hold:6500}];
+
+/* ═══ 8. 동료 평가 (화면에서 실제로 계산) ═══ */
+const PB=[{from:'메아리',scores:{'책갈피':[4,4,3,5,4],'다리':[3,4,1,4,2]}},{from:'책갈피',scores:{'메아리':[5,4,5,4,4],'다리':[4,3,2,5,2]}},{from:'다리',scores:{'메아리':[4,5,5,3,5],'책갈피':[4,5,4,4,5],'다리':[5,5,5,5,5]}}];
+const PLV={'메아리':2,'책갈피':1,'다리':0},CRI=['문제','동작','숫자','전달','정직'];
+const PR={team:'다리',self:false,cur:[0,0,0,0,0]};
+chipRow($('prPick'),'data-pt',Object.keys(PLV).map(k=>[k,'가상 팀 · '+k]),'다리','--a2',v=>{PR.team=v;kick();});
+tog($('prTog'),'prSelf','자기 팀의 표도 넣기','--bad',false,v=>PR.self=v);
+function peerMean(team,self){const rows=PB.filter(b=>(self||b.from!==team)&&b.scores[team]).map(b=>b.scores[team]);return rows.length?CRI.map((k,i)=>Math.round(rows.reduce((a,r)=>a+r[i],0)/rows.length*100)/100):null;}
+STG.peer={draw(dt,now){const {c,w,h}=fit($('peerCv'));grid(c,w,h);const p=peerMean(PR.team,PR.self),lv=PLV[PR.team],avg=p.reduce((a,b)=>a+b,0)/5,score=Math.round((0.7*avg/5*100+15*lv)*10)/10,wide=w>=640,fs=wide?13:11,x0=14,bw=w-28,bh=wide?34:30;
+  txt(c,`가상 팀 · ${PR.team}이(가) 받은 점수`+(PR.self?'  (자기 팀의 표 포함)':''),x0,24,PR.self?K.bad:K.tx,wide?14:11.5,true);
+  CRI.forEach((k,i)=>{PR.cur[i]=RM?p[i]:ease(PR.cur[i],p[i],dt,7);const y=40+i*(bh+10),lowest=p[i]===Math.min(...p);hbar(c,x0,y,bw,bh,PR.cur[i]/5,lowest?K.sp[1]:K.sp[0],k,PR.cur[i].toFixed(2)+' / 5',fs);});
+  const y2=40+5*(bh+10)+8;txt(c,`동료 평가 70 × (${avg.toFixed(2)} ÷ 5) = ${(0.7*avg/5*100).toFixed(1)}   +   측정 15 × ${lv} = ${15*lv}`,x0,y2+6,K.mu,wide?13:10.5,true);
+  txt(c,`데모데이 점수 ${score}`,x0,h-14,K.th,wide?18:14,true);
+  setKv('peerKv',kv('받은 표',PB.filter(b=>(PR.self||b.from!==PR.team)&&b.scores[PR.team]).length+'장')+kv('가장 낮은 기준',CRI[p.indexOf(Math.min(...p))]+' '+Math.min(...p).toFixed(2),'--warn')+kv('측정',['숫자 없음','쟀음','목표에 닿음'][lv],lv?'--ok':'--bad')+kv('데모데이 점수',score+'점')+kv('자기 팀의 표',PR.self?'넣음 (집계가 부풀어 있음)':'뺌',PR.self?'--bad':'--ok',1));}};
+TOURS.peer=[{say:'가상 팀 다리입니다. 동작과 전달은 좋은 점수를 받았는데 숫자가 1.5입니다. 됐다는 것을 재지 않았기 때문입니다. 측정 30점도 통째로 비었습니다.',do:()=>{pick('data-pt','다리');setTog('prSelf',false);},hold:8000},
+ {say:'이 팀은 자기 팀에 모두 5점을 줬습니다. 그 표를 넣으면 숫자가 2.67로 올라갑니다. 집계에서 자기 팀의 표를 빼는 한 줄이 이것을 막습니다.',do:()=>setTog('prSelf',true),hold:7500},
+ {say:'표를 빼고 메아리 팀을 봅니다. 숫자가 5.0입니다. 씨앗 50점에서 100점이 된 것을 보여 줬고, 목표에도 닿아 측정 30점을 모두 받았습니다.',do:()=>{setTog('prSelf',false);pick('data-pt','메아리');},hold:8000},
+ {say:'다섯 숫자 가운데 가장 낮은 것이 다음에 고칠 곳입니다. 메아리 팀은 전달 3.5입니다. 평가는 순위를 매기려고만 하는 것이 아니라 돌려주려고 하는 것입니다.',hold:7000}];
+
+/* ═══ 9. 정리 퀴즈 ═══ */
+const RC=[
+ ['해커톤이 시작됐습니다. 가장 먼저 할 일은?',['부품과 지금의 점수를 본다','화면의 색부터 고른다','가장 큰 모델을 받는다'],0,'불을 켜기 전에 냉장고를 엽니다. 무엇이 있고 지금 몇 점인지를 알아야 무엇을 만들지 정할 수 있습니다.'],
+ ['기획서의 “누가 쓰나요”에 가장 알맞은 답은?',['다음 달 출장 가는 영업 사원','영어를 배우는 모든 사람들','음성 AI에 관심 있는 분들'],0,'한 사람이 떠올라야 그 사람의 불편이 보이고, 무엇을 빼도 되는지가 정해집니다.'],
+ ['자유 주제 팀이 2교시에 가장 먼저 쓸 것은?',['넣는 것과 기대하는 것의 표','함수의 가장 어려운 부분','발표에 쓸 멋진 슬라이드'],0,'시험을 먼저 씁니다. 시험이 없으면 4교시에 “잘 되는 것 같다”밖에 말할 것이 없습니다.'],
+ ['3교시가 25분 남았습니다. 기능 하나가 아직 안 됩니다. 어떻게 할까요?',['멈추고 되는 것으로 리허설','끝까지 그 기능을 고친다','리허설을 빼고 더 만든다'],0,'지금 되는 것이 데모입니다. 안 되는 것은 “안 되는 것” 칸으로 갑니다.'],
+ ['순서표를 더해 보니 350초입니다. 무엇을 할까요?',['문제 설명의 군말을 뺀다','말을 더 빨리 하기로 한다','안 되는 것을 말하지 않는다'],0,'넘치면 단계나 군말을 뺍니다. 안 되는 것을 빼면 정직을 올려 줄 단계가 사라집니다.'],
+ ['새 입력을 넣었더니 틀린 결과가 나왔습니다. 발표에서는?',['되는 것과 안 되는 것을 함께','그 입력은 없던 일로 한다','준비된 입력만 보여 준다'],0,'“이 문장은 되고 이 문장은 안 됩니다, 까닭은 이것입니다”가 가장 믿음을 얻는 말입니다.']];
+RC.forEach((it,i)=>{const r=(i+2)%3;it[1]=it[1].slice(r).concat(it[1].slice(0,r));it[2]=(3-r)%3;});
+let rcRight=0,rcDone=0;
+$('rcList2').innerHTML=RC.map(([q,o,a,fb],i)=>`<div class="scen" data-i="${i}"><div class="q">${i+1}. ${esc(q)}</div><div class="opts">${o.map((x,j)=>`<button data-j="${j}">${esc(x)}</button>`).join('')}</div><div class="fb">${esc(fb)}</div></div>`).join('');
+$('rcList2').querySelectorAll('.scen').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(s.classList.contains('done'))return;const a=RC[+s.dataset.i][2],ok=+b.dataset.j===a;
+  b.className=ok?'right':'wrong';if(!ok)s.querySelector(`[data-j="${a}"]`).className='right';s.classList.add('done');rcDone++;if(ok)rcRight++;
+  $('rcScore').textContent=`${rcRight} / 6`+(rcDone===6?(rcRight===6?' · 모두 맞혔습니다':' · 틀린 문제의 해설을 다시 읽어 보세요'):'');$('rcBar').style.width=(rcDone/6*100)+'%';}));
+STG.recap={};
+
+const h0=location.hash.slice(1);openTab(STG[h0]?h0:'flow',true);
+if(!RM)requestAnimationFrame(frame);else kick();
+})();
+</script>
+</body>
+</html>
